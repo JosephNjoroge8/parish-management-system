@@ -15,23 +15,21 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->string('phone')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->string('phone')->nullable();
-            $table->string('avatar')->nullable();
             $table->boolean('is_active')->default(true);
-            $table->timestamp('last_login_at')->nullable(); // Move this inside the create block
+            $table->timestamp('last_login_at')->nullable();
+            $table->string('profile_photo_path', 2048)->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
             $table->date('date_of_birth')->nullable();
             $table->enum('gender', ['male', 'female'])->nullable();
             $table->text('address')->nullable();
             $table->string('occupation')->nullable();
             $table->string('emergency_contact')->nullable();
             $table->string('emergency_phone')->nullable();
-            $table->string('how_did_you_hear')->nullable();
-            
-            // Remove foreign key to member for now - add later if needed
-            $table->unsignedBigInteger('member_id')->nullable();
-            
+            $table->text('notes')->nullable();
+            $table->softDeletes();
             $table->rememberToken();
             $table->timestamps();
         });
@@ -50,11 +48,6 @@ return new class extends Migration
             $table->longText('payload');
             $table->integer('last_activity')->index();
         });
-
-        // Remove this block - it's now included in the users table creation above
-        // Schema::table('users', function (Blueprint $table) {
-        //     $table->timestamp('last_login_at')->nullable();
-        // });
     }
 
     /**

@@ -11,15 +11,19 @@ return new class extends Migration
         Schema::create('families', function (Blueprint $table) {
             $table->id();
             $table->string('family_name');
-            $table->string('address');
+            $table->string('head_of_family'); // String field instead of foreign key
+            $table->text('address')->nullable();
             $table->string('phone')->nullable();
             $table->string('email')->nullable();
-            $table->string('deanery');
-            $table->string('parish');
-            $table->unsignedBigInteger('head_of_family_id')->nullable();
+            $table->string('deanery')->nullable();
+            $table->string('parish')->nullable();
+            $table->string('family_code')->unique()->nullable();
+            $table->string('parish_section')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
             
             $table->index(['deanery', 'parish']);
+            $table->index('family_name');
         });
     }
 

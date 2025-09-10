@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\SacramentController;
+use App\Http\Controllers\SacramentalRecordsController;
 use App\Http\Controllers\TitheController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\CommunityGroupController;
@@ -263,6 +264,26 @@ Route::middleware('parish')->group(function () {
             ->name('destroy')
             ->where('sacrament', '[0-9]+');
     });
+    
+    // ========================================
+    // SACRAMENTAL RECORDS ROUTES
+    // ========================================
+    Route::middleware('custom.permission:access sacraments')->prefix('sacramental-records')->name('sacramental-records.')->group(function () {
+        // Baptism Records
+        Route::post('/baptism', [SacramentalRecordsController::class, 'storeBaptismRecord'])
+            ->middleware('custom.permission:manage sacraments')
+            ->name('store-baptism');
+        Route::get('/baptism/{member}', [SacramentalRecordsController::class, 'getBaptismRecord'])
+            ->name('get-baptism')
+            ->where('member', '[0-9]+');
+            
+        // Marriage Records
+        Route::post('/marriage', [SacramentalRecordsController::class, 'storeMarriageRecord'])
+            ->middleware('custom.permission:manage sacraments')
+            ->name('store-marriage');
+        Route::get('/marriage', [SacramentalRecordsController::class, 'getMarriageRecord'])
+            ->name('get-marriage');
+    });
 
     // ========================================
     // TITHES ROUTES - FIXED AND OPTIMIZED
@@ -502,6 +523,19 @@ Route::middleware('parish')->group(function () {
             Route::get('/members/{member}/sacraments', [SacramentController::class, 'memberSacraments'])
                 ->name('members.sacraments')
                 ->where('member', '[0-9]+');
+                
+            // Sacramental Records API endpoints
+            Route::post('/baptism-records', [SacramentalRecordsController::class, 'storeBaptismRecord'])
+                ->middleware('custom.permission:manage sacraments')
+                ->name('baptism-records.store');
+            Route::get('/baptism-records/{member}', [SacramentalRecordsController::class, 'getBaptismRecord'])
+                ->name('baptism-records.get')
+                ->where('member', '[0-9]+');
+            Route::post('/marriage-records', [SacramentalRecordsController::class, 'storeMarriageRecord'])
+                ->middleware('custom.permission:manage sacraments')
+                ->name('marriage-records.store');
+            Route::get('/marriage-records', [SacramentalRecordsController::class, 'getMarriageRecord'])
+                ->name('marriage-records.get');
         });
         
         // Tithe API endpoints
@@ -524,61 +558,7 @@ Route::middleware('parish')->group(function () {
         });
         
         // Dashboard stats (available to all authenticated users)
-        Route::get('/dashboard/stats', function() {
-            try {
-                $stats = [
-                    'members_count' => \App\Models\Member::count() ?? 0,
-                    'families_count' => \App\Models\Family::count() ?? 0,
-                    'active_members' => \App\Models\Member::where('membership_status', 'active')->count() ?? 0,
-                    'this_month_tithes' => \App\Models\Tithe::whereMonth('date_given', now()->month)->sum('amount') ?? 0,
-                    'this_year_tithes' => \App\Models\Tithe::whereYear('date_given', now()->year)->sum('amount') ?? 0,
-                    'sacraments_this_year' => \App\Models\Sacrament::whereYear('date_received', now()->year)->count() ?? 0,
-                    'activities_count' => \App\Models\Activity::count() ?? 0,
-                    'community_groups_count' => \App\Models\CommunityGroup::count() ?? 0,
-                ];
-                
-                // Church-specific stats
-                $churchStats = [];
-                $localChurches = ['Kangemi', 'Pembe Tatu', 'Cathedral', 'Kiawara', 'Kandara'];
-                foreach ($localChurches as $church) {
-                    $churchStats[$church] = \App\Models\Member::where('local_church', $church)->count() ?? 0;
-                }
-                $stats['church_breakdown'] = $churchStats;
-                
-                // Group-specific stats
-                $groupStats = [];
-                $churchGroups = ['PMC', 'Youth', 'Young Parents', 'C.W.A', 'CMA', 'Choir'];
-                foreach ($churchGroups as $group) {
-                    $groupStats[$group] = \App\Models\Member::where('church_group', $group)->count() ?? 0;
-                }
-                $stats['group_breakdown'] = $groupStats;
-                
-                // Status breakdown
-                $statusStats = [];
-                $statuses = ['active', 'inactive', 'transferred', 'deceased'];
-                foreach ($statuses as $status) {
-                    $statusStats[$status] = \App\Models\Member::where('membership_status', $status)->count() ?? 0;
-                }
-                $stats['status_breakdown'] = $statusStats;
-                
-                return response()->json($stats);
-            } catch (\Exception $e) {
-                return response()->json([
-                    'members_count' => 0,
-                    'families_count' => 0,
-                    'active_members' => 0,
-                    'this_month_tithes' => 0,
-                    'this_year_tithes' => 0,
-                    'sacraments_this_year' => 0,
-                    'activities_count' => 0,
-                    'community_groups_count' => 0,
-                    'church_breakdown' => [],
-                    'group_breakdown' => [],
-                    'status_breakdown' => [],
-                    'error' => 'Unable to fetch statistics'
-                ], 500);
-            }
-        })->name('dashboard.stats');
+        Route::get('/dashboard/stats', [DashboardController::class, 'getStatsApi'])->name('dashboard.stats');
         
         // Validation endpoints (available to all authenticated users)
         Route::get('/validate/email', function() {

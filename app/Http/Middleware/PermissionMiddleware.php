@@ -13,51 +13,24 @@ class PermissionMiddleware
 {
     public function handle(Request $request, Closure $next, string $permission): Response
     {
-        // Log the permission check for debugging
-        Log::info('Custom Permission Middleware', [
-            'route' => $request->route()?->getName(),
-            'permission_required' => $permission,
-            'user_id' => Auth::id(),
-            'url' => $request->fullUrl()
-        ]);
-
+        // Check if user is authenticated
         if (!Auth::check()) {
-            Log::warning('User not authenticated, redirecting to login');
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Unauthenticated'], 401);
+            }
             return redirect()->route('login');
         }
 
         $user = Auth::user();
         
-        // Super admin bypass
-        if ($user->email === 'admin@parish.com') {
-            Log::info('Super admin access granted');
-            return $next($request);
-        }
-
-        try {
-            // Check if user has the specific permission
-            // Permission check removed
-            
-            Log::info('Permission granted', [
-                'user_email' => $user->email,
-                'permission' => $permission
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('Permission check failed', [
-                'error' => $e->getMessage(),
-                'user_id' => $user->id,
-                'permission' => $permission
-            ]);
-            
-            // For super admin, allow access even if permission system fails
-            if ($user->email === 'admin@parish.com') {
-                Log::info('Super admin fallback access granted');
-                return $next($request);
-            }
-            
-            abort(403, 'Permission system error: ' . $e->getMessage());
-        }
+        // Allow access for authenticated users for now
+        // This prevents redirect loops while we debug the permission system
+        Log::info('Permission middleware - allowing access', [
+            'route' => $request->route()?->getName(),
+            'permission_required' => $permission,
+            'user_email' => $user->email,
+            'user_id' => $user->id,
+        ]);
 
         return $next($request);
     }

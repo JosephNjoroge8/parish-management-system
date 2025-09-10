@@ -380,8 +380,8 @@ export default function EditMember({ auth, member, families }: EditMemberProps) 
                                 label="Gender"
                                 required
                                 options={[
-                                    { value: 'male', label: 'Male' },
-                                    { value: 'female', label: 'Female' }
+                                    { value: 'Male', label: 'Male' },
+                                    { value: 'Female', label: 'Female' }
                                 ]}
                                 placeholder="Select Gender"
                                 value={data.gender}

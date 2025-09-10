@@ -13,13 +13,12 @@ class AdminUserSeeder extends Seeder
     {
         // Create super admin user
         $adminUser = User::firstOrCreate(
-            ['email' => 'l'],
+            ['email' => 'admin@parish.com'],
             [
                 'name' => 'System Administrator',
-                'password' => Hash::make('admin123'),
+                'password' => Hash::make('password'),
                 'email_verified_at' => now(),
                 'is_active' => true,
-                'role' => 'super-admin', // Fallback role
             ]
         );
 
@@ -41,6 +40,6 @@ class AdminUserSeeder extends Seeder
             echo "Spatie setup failed, using fallback role system: " . $e->getMessage() . "\n";
         }
 
-        echo "Admin user created: admin@parish.com / admin123\n";
+        echo "Admin user created/updated: admin@parish.com / password\n";
     }
 }

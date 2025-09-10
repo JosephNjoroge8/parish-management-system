@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Sacrament extends Model
 {
@@ -25,6 +26,8 @@ class Sacrament extends Model
         'page_number',
         'notes',
         'recorded_by',
+        'detailed_record_type',
+        'detailed_record_id',
     ];
 
     protected $casts = [
@@ -49,6 +52,21 @@ class Sacrament extends Model
     public function recordedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
+    }
+    
+    public function detailedRecord(): MorphTo
+    {
+        return $this->morphTo();
+    }
+    
+    public function baptismRecord()
+    {
+        return $this->hasOne(BaptismRecord::class, 'baptism_sacrament_id');
+    }
+    
+    public function marriageRecord()
+    {
+        return $this->hasOne(MarriageRecord::class, 'sacrament_id');
     }
 
     public function scopeOfType($query, $type)

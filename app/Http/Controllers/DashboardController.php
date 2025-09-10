@@ -20,23 +20,30 @@ use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
+    // Cache timeouts for different data types
+    private $cacheTimeout = 300; // 5 minutes for static data
+    private $quickCacheTimeout = 60; // 1 minute for dynamic data
+    private $permissionCacheTimeout = 3600; // 1 hour for permissions
+    
     public function index(): Response
     {
         $user = Auth::user();
         
-        // Get user permissions for frontend with error handling
-        $userPermissions = $this->getUserPermissions($user);
+        // Cache user permissions for better performance
+        $userPermissions = Cache::remember("user_permissions_{$user->id}", $this->permissionCacheTimeout, function() use ($user) {
+            return $this->getUserPermissions($user);
+        });
         
-        // Get dashboard data with caching for better performance
-        $dashboardData = Cache::remember('dashboard_data_' . $user->id, 300, function () use ($user) {
+        // Get cached dashboard data with smart caching strategy
+        $dashboardData = Cache::remember("dashboard_core_{$user->id}", $this->quickCacheTimeout, function() use ($user) {
             return [
-                'stats' => $this->getStats($user),
-                'recentActivities' => $this->getRecentActivities($user),
-                'upcomingEvents' => $this->getUpcomingEvents(),
-                'analytics' => $this->getAnalytics($user),
-                'quickActions' => $this->getQuickActions($user),
-                'alerts' => $this->getAlerts($user),
-                'parishOverview' => $this->getParishOverview($user),
+                'stats' => $this->getOptimizedStats($user),
+                'recentActivities' => $this->getOptimizedRecentActivities($user),
+                'upcomingEvents' => $this->getCachedUpcomingEvents(),
+                'analytics' => $this->getOptimizedAnalytics($user),
+                'quickActions' => $this->getCachedQuickActions($user),
+                'alerts' => $this->getOptimizedAlerts($user),
+                'parishOverview' => $this->getOptimizedParishOverview($user),
             ];
         });
 
@@ -52,70 +59,67 @@ class DashboardController extends Controller
         ]));
     }
 
-    private function getParishOverview($user): array
+    private function getOptimizedParishOverview($user): array
     {
-        try {
-            return [
-                'membership_overview' => [
-                    'total_members' => Member::count(),
-                    'active_members' => Member::where('membership_status', 'active')->count(),
-                    'new_this_month' => Member::whereMonth('created_at', now()->month)
-                                            ->whereYear('created_at', now()->year)
-                                            ->count(),
-                    'by_church' => Member::groupBy('local_church')
-                                        ->selectRaw('local_church, COUNT(*) as count')
-                                        ->pluck('count', 'local_church')
-                                        ->toArray(),
-                    'by_age_group' => [
-                        'children' => Member::where('member_type', 'child')->count(),
-                        'youth' => Member::where('member_type', 'youth')->count(),
-                        'adults' => Member::where('member_type', 'adult')->count(),
+        return Cache::remember("parish_overview", $this->cacheTimeout, function() {
+            try {
+                // Single optimized query for all member overview data
+                $memberOverview = DB::table('members')
+                    ->selectRaw('
+                        COUNT(*) as total_members,
+                        SUM(CASE WHEN membership_status = "active" THEN 1 ELSE 0 END) as active_members,
+                        SUM(CASE WHEN MONTH(created_at) = MONTH(NOW()) AND YEAR(created_at) = YEAR(NOW()) THEN 1 ELSE 0 END) as new_this_month,
+                        SUM(CASE WHEN gender IN ("male", "Male") THEN 1 ELSE 0 END) as male_count,
+                        SUM(CASE WHEN gender IN ("female", "Female") THEN 1 ELSE 0 END) as female_count
+                    ')
+                    ->first();
+
+                // Single query for family overview
+                $familyOverview = DB::table('families')
+                    ->selectRaw('
+                        COUNT(*) as total_families,
+                        COUNT(CASE WHEN EXISTS(SELECT 1 FROM members WHERE family_id = families.id) THEN 1 END) as with_members,
+                        AVG((SELECT COUNT(*) FROM members WHERE family_id = families.id)) as avg_family_size
+                    ')
+                    ->first();
+
+                // Get church and group distributions in single queries
+                $churchDistribution = DB::table('members')
+                    ->select('local_church', DB::raw('COUNT(*) as count'))
+                    ->whereNotNull('local_church')
+                    ->groupBy('local_church')
+                    ->pluck('count', 'local_church')
+                    ->toArray();
+
+                $groupDistribution = DB::table('members')
+                    ->select('church_group', DB::raw('COUNT(*) as count'))
+                    ->whereNotNull('church_group')
+                    ->groupBy('church_group')
+                    ->pluck('count', 'church_group')
+                    ->toArray();
+
+                return [
+                    'membership_overview' => [
+                        'total_members' => $memberOverview->total_members ?? 0,
+                        'active_members' => $memberOverview->active_members ?? 0,
+                        'new_this_month' => $memberOverview->new_this_month ?? 0,
+                        'by_church' => $churchDistribution,
+                        'by_gender' => [
+                            'male' => $memberOverview->male_count ?? 0,
+                            'female' => $memberOverview->female_count ?? 0,
+                        ],
                     ],
-                    'by_gender' => [
-                        'male' => Member::where('gender', 'male')->count(),
-                        'female' => Member::where('gender', 'female')->count(),
+                    'family_overview' => [
+                        'total_families' => $familyOverview->total_families ?? 0,
+                        'families_with_members' => $familyOverview->with_members ?? 0,
+                        'average_family_size' => round($familyOverview->avg_family_size ?? 0, 1),
                     ],
-                ],
-                'family_overview' => [
-                    'total_families' => Family::count(),
-                    'families_with_members' => Family::has('members')->count(),
-                    'average_family_size' => round(
-                        Member::whereNotNull('family_id')->count() / max(Family::count(), 1), 
-                        1
-                    ),
-                    'by_parish_section' => Family::groupBy('parish_section')
-                                                ->selectRaw('parish_section, COUNT(*) as count')
-                                                ->whereNotNull('parish_section')
-                                                ->pluck('count', 'parish_section')
-                                                ->toArray(),
-                ],
-                'community_engagement' => [
-                    'active_groups' => Schema::hasTable('community_groups') ? CommunityGroup::where('is_active', true)->count() : 0,
-                    'total_group_members' => Schema::hasTable('group_members') ? DB::table('group_members')->count() : 0,
-                    'participation_rate' => $this->calculateGroupParticipationRate(),
-                    'by_group_type' => Schema::hasTable('community_groups') ? CommunityGroup::groupBy('group_type')
-                                                   ->selectRaw('group_type, COUNT(*) as count')
-                                                   ->pluck('count', 'group_type')
-                                                   ->toArray() : [],
-                ],
-                'sacramental_life' => [
-                    'this_year_sacraments' => Sacrament::whereYear('sacrament_date', now()->year)->count(),
-                    'by_type' => Sacrament::groupBy('sacrament_type')
-                                         ->selectRaw('sacrament_type, COUNT(*) as count')
-                                         ->pluck('count', 'sacrament_type')
-                                         ->toArray(),
-                    'recent_baptisms' => Sacrament::where('sacrament_type', 'baptism')
-                                                 ->whereMonth('sacrament_date', now()->month)
-                                                 ->count(),
-                    'recent_confirmations' => Sacrament::where('sacrament_type', 'confirmation')
-                                                      ->whereMonth('sacrament_date', now()->month)
-                                                      ->count(),
-                ],
-            ];
-        } catch (\Exception $e) {
-            Log::error('Parish overview error: ' . $e->getMessage());
-            return [];
-        }
+                ];
+            } catch (\Exception $e) {
+                Log::error('Parish overview error: ' . $e->getMessage());
+                return [];
+            }
+        });
     }
 
     private function getUserPermissions($user): array
@@ -203,238 +207,288 @@ class DashboardController extends Controller
         }
     }
 
-    private function getStats($user): array
+    private function getOptimizedStats($user): array
     {
-        try {
-            $currentMonth = now()->month;
-            $currentYear = now()->year;
-            $lastMonth = now()->subMonth()->month;
+        return Cache::remember("optimized_stats", $this->quickCacheTimeout, function() {
+            try {
+                $currentMonth = now()->month;
+                $currentYear = now()->year;
+                $lastMonth = now()->subMonth()->month;
+                $lastMonthYear = now()->subMonth()->year;
 
-            $stats = [];
+                // Single query for all member stats - MASSIVE performance improvement
+                $memberStats = DB::table('members')
+                    ->selectRaw('
+                        COUNT(*) as total_members,
+                        SUM(CASE WHEN membership_status = "active" THEN 1 ELSE 0 END) as active_members,
+                        SUM(CASE WHEN MONTH(created_at) = ? AND YEAR(created_at) = ? THEN 1 ELSE 0 END) as new_this_month,
+                        SUM(CASE WHEN MONTH(created_at) = ? AND YEAR(created_at) = ? THEN 1 ELSE 0 END) as new_last_month,
+                        SUM(CASE WHEN gender IN ("male", "Male") THEN 1 ELSE 0 END) as male_count,
+                        SUM(CASE WHEN gender IN ("female", "Female") THEN 1 ELSE 0 END) as female_count,
+                        SUM(CASE WHEN family_id IS NULL THEN 1 ELSE 0 END) as without_families,
+                        SUM(CASE WHEN membership_status = "inactive" THEN 1 ELSE 0 END) as inactive_members
+                    ')
+                    ->addBinding([$currentMonth, $currentYear, $lastMonth, $lastMonthYear])
+                    ->first();
 
-            // Member stats - always get stats regardless of permissions for debugging
-            $totalMembers = Member::count();
-            $activeMembers = Member::where('membership_status', 'active')->count();
-            
-            Log::info("Dashboard Stats Debug - Total Members: {$totalMembers}, Active: {$activeMembers}");
-            
-            $stats['total_members'] = $totalMembers;
-            $stats['active_members'] = $activeMembers;
-            $stats['new_members_this_month'] = Member::whereMonth('created_at', $currentMonth)
-                                                    ->whereYear('created_at', $currentYear)
-                                                    ->count();
-            $stats['member_growth_rate'] = $this->calculateGrowthRate(
-                Member::whereMonth('created_at', $currentMonth)->whereYear('created_at', $currentYear)->count(),
-                Member::whereMonth('created_at', $lastMonth)->whereYear('created_at', $currentYear)->count()
-            );
+                // Single query for family stats
+                $familyStats = DB::table('families')
+                    ->selectRaw('
+                        COUNT(*) as total_families,
+                        SUM(CASE WHEN EXISTS(SELECT 1 FROM members WHERE family_id = families.id AND membership_status = "active") THEN 1 ELSE 0 END) as active_families,
+                        SUM(CASE WHEN MONTH(created_at) = ? AND YEAR(created_at) = ? THEN 1 ELSE 0 END) as new_families_this_month
+                    ')
+                    ->addBinding([$currentMonth, $currentYear])
+                    ->first();
 
-            // Family stats - always get stats
-            $stats['total_families'] = Family::count();
-            $stats['active_families'] = Family::has('members')->count(); // Families with members
-            $stats['new_families_this_month'] = Family::whereMonth('created_at', $currentMonth)
-                                                      ->whereYear('created_at', $currentYear)
-                                                      ->count();
+                // Single query for tithe stats
+                $titheStats = DB::table('tithes')
+                    ->selectRaw('
+                        SUM(CASE WHEN MONTH(date_given) = ? AND YEAR(date_given) = ? THEN amount ELSE 0 END) as total_this_month,
+                        SUM(CASE WHEN YEAR(date_given) = ? THEN amount ELSE 0 END) as total_this_year,
+                        COUNT(DISTINCT CASE WHEN MONTH(date_given) = ? AND YEAR(date_given) = ? THEN member_id END) as contributors_this_month,
+                        AVG(CASE WHEN MONTH(date_given) = ? AND YEAR(date_given) = ? THEN amount END) as avg_amount
+                    ')
+                    ->addBinding([$currentMonth, $currentYear, $currentYear, $currentMonth, $currentYear, $currentMonth, $currentYear])
+                    ->first();
 
-            // Financial stats - always get stats
-            $stats['total_tithes_this_month'] = Tithe::whereMonth('date_given', $currentMonth)
-                                                      ->whereYear('date_given', $currentYear)
-                                                      ->sum('amount') ?? 0;
-            $stats['total_tithes_this_year'] = Tithe::whereYear('date_given', $currentYear)
-                                                     ->sum('amount') ?? 0;
-            $stats['tithe_contributors_this_month'] = Tithe::whereMonth('date_given', $currentMonth)
-                                                           ->whereYear('date_given', $currentYear)
-                                                           ->distinct('member_id')
-                                                           ->count();
-            $stats['average_tithe_amount'] = round(Tithe::whereMonth('date_given', $currentMonth)
-                                                        ->whereYear('date_given', $currentYear)
-                                                        ->avg('amount') ?? 0, 2);
+                // Single query for sacrament stats
+                $sacramentStats = DB::table('sacraments')
+                    ->selectRaw('
+                        SUM(CASE WHEN MONTH(sacrament_date) = ? AND YEAR(sacrament_date) = ? THEN 1 ELSE 0 END) as this_month,
+                        SUM(CASE WHEN YEAR(sacrament_date) = ? THEN 1 ELSE 0 END) as this_year,
+                        SUM(CASE WHEN sacrament_type = "baptism" AND YEAR(sacrament_date) = ? THEN 1 ELSE 0 END) as baptisms,
+                        SUM(CASE WHEN sacrament_type = "confirmation" AND YEAR(sacrament_date) = ? THEN 1 ELSE 0 END) as confirmations,
+                        SUM(CASE WHEN sacrament_type IN ("marriage", "matrimony") AND YEAR(sacrament_date) = ? THEN 1 ELSE 0 END) as marriages
+                    ')
+                    ->addBinding([$currentMonth, $currentYear, $currentYear, $currentYear, $currentYear, $currentYear])
+                    ->first();
 
-            // Sacrament stats - always get stats
-            $stats['sacraments_this_month'] = Sacrament::whereMonth('sacrament_date', $currentMonth)
-                                                      ->whereYear('sacrament_date', $currentYear)
-                                                      ->count();
-            $stats['sacraments_this_year'] = Sacrament::whereYear('sacrament_date', $currentYear)->count();
-            
-            $stats['baptisms_this_year'] = Sacrament::where('sacrament_type', 'baptism')
-                                                   ->whereYear('sacrament_date', $currentYear)
-                                                   ->count();
-            $stats['confirmations_this_year'] = Sacrament::where('sacrament_type', 'confirmation')
-                                                        ->whereYear('sacrament_date', $currentYear)
-                                                        ->count();
-            $stats['marriages_this_year'] = Sacrament::where('sacrament_type', 'marriage')
-                                                    ->whereYear('sacrament_date', $currentYear)
-                                                    ->count();
+                // Community groups stats (cached table existence check)
+                $hasGroupTables = Cache::remember('has_group_tables', 3600, function() {
+                    return Schema::hasTable('community_groups') && Schema::hasTable('group_members');
+                });
 
-            // Community engagement stats - check if table exists
-            if (Schema::hasTable('community_groups')) {
-                $stats['active_community_groups'] = CommunityGroup::where('is_active', true)->count();
-                $stats['total_community_groups'] = CommunityGroup::count();
-            } else {
-                $stats['active_community_groups'] = 0;
-                $stats['total_community_groups'] = 0;
+                $groupStats = null;
+                $groupMemberCount = 0;
+                if ($hasGroupTables) {
+                    $groupStats = DB::table('community_groups')
+                        ->selectRaw('
+                            COUNT(*) as total_groups,
+                            SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_groups
+                        ')
+                        ->first();
+                    
+                    $groupMemberCount = DB::table('group_members')->count();
+                }
+
+                // Get distributions in optimized queries
+                $churchDistribution = DB::table('members')
+                    ->select('local_church', DB::raw('COUNT(*) as count'))
+                    ->whereNotNull('local_church')
+                    ->groupBy('local_church')
+                    ->pluck('count', 'local_church')
+                    ->toArray();
+
+                $groupDistribution = DB::table('members')
+                    ->select('church_group', DB::raw('COUNT(*) as count'))
+                    ->whereNotNull('church_group')
+                    ->groupBy('church_group')
+                    ->pluck('count', 'church_group')
+                    ->toArray();
+
+                $statusDistribution = DB::table('members')
+                    ->select('membership_status', DB::raw('COUNT(*) as count'))
+                    ->groupBy('membership_status')
+                    ->pluck('count', 'membership_status')
+                    ->toArray();
+
+                // Age groups calculated efficiently
+                $today = now();
+                $ageGroups = DB::table('members')
+                    ->whereNotNull('date_of_birth')
+                    ->selectRaw('
+                        SUM(CASE WHEN date_of_birth > ? THEN 1 ELSE 0 END) as children,
+                        SUM(CASE WHEN date_of_birth <= ? AND date_of_birth > ? THEN 1 ELSE 0 END) as youth,
+                        SUM(CASE WHEN date_of_birth <= ? AND date_of_birth > ? THEN 1 ELSE 0 END) as adults,
+                        SUM(CASE WHEN date_of_birth <= ? THEN 1 ELSE 0 END) as seniors
+                    ')
+                    ->addBinding([
+                        $today->copy()->subYears(18)->toDateString(),
+                        $today->copy()->subYears(18)->toDateString(),
+                        $today->copy()->subYears(30)->toDateString(),
+                        $today->copy()->subYears(30)->toDateString(),
+                        $today->copy()->subYears(60)->toDateString(),
+                        $today->copy()->subYears(60)->toDateString()
+                    ])
+                    ->first();
+
+                return [
+                    // Member stats
+                    'total_members' => $memberStats->total_members ?? 0,
+                    'active_members' => $memberStats->active_members ?? 0,
+                    'new_members_this_month' => $memberStats->new_this_month ?? 0,
+                    'member_growth_rate' => $this->calculateGrowthRate(
+                        $memberStats->new_this_month ?? 0, 
+                        $memberStats->new_last_month ?? 0
+                    ),
+                    
+                    // Family stats
+                    'total_families' => $familyStats->total_families ?? 0,
+                    'active_families' => $familyStats->active_families ?? 0,
+                    'new_families_this_month' => $familyStats->new_families_this_month ?? 0,
+                    
+                    // Financial stats
+                    'total_tithes_this_month' => round($titheStats->total_this_month ?? 0, 2),
+                    'total_tithes_this_year' => round($titheStats->total_this_year ?? 0, 2),
+                    'tithe_contributors_this_month' => $titheStats->contributors_this_month ?? 0,
+                    'average_tithe_amount' => round($titheStats->avg_amount ?? 0, 2),
+                    
+                    // Sacrament stats
+                    'sacraments_this_month' => $sacramentStats->this_month ?? 0,
+                    'sacraments_this_year' => $sacramentStats->this_year ?? 0,
+                    'baptisms_this_year' => $sacramentStats->baptisms ?? 0,
+                    'confirmations_this_year' => $sacramentStats->confirmations ?? 0,
+                    'marriages_this_year' => $sacramentStats->marriages ?? 0,
+                    
+                    // Community stats
+                    'active_community_groups' => $groupStats->active_groups ?? 0,
+                    'total_community_groups' => $groupStats->total_groups ?? 0,
+                    'total_group_members' => $groupMemberCount,
+                    'group_participation_rate' => $this->calculateParticipationRate(
+                        $groupMemberCount, 
+                        $memberStats->active_members ?? 0
+                    ),
+                    
+                    // Demographics
+                    'gender_distribution' => [
+                        'male' => $memberStats->male_count ?? 0,
+                        'female' => $memberStats->female_count ?? 0,
+                    ],
+                    
+                    // Distributions
+                    'church_distribution' => $churchDistribution,
+                    'group_distribution' => $groupDistribution,
+                    'status_distribution' => $statusDistribution,
+                    
+                    // Age groups
+                    'age_groups' => [
+                        'children' => $ageGroups->children ?? 0,
+                        'youth' => $ageGroups->youth ?? 0,
+                        'adults' => $ageGroups->adults ?? 0,
+                        'seniors' => $ageGroups->seniors ?? 0,
+                    ],
+                    
+                    // Additional stats
+                    'total_users' => User::count(),
+                    'active_users' => Schema::hasColumn('users', 'is_active') 
+                        ? User::where('is_active', true)->count() 
+                        : User::count(),
+                ];
+                
+            } catch (\Exception $e) {
+                Log::error('Dashboard optimized stats error: ' . $e->getMessage());
+                return $this->getDefaultStats();
             }
-            
-            if (Schema::hasTable('group_members')) {
-                $stats['total_group_members'] = DB::table('group_members')->count();
-                $stats['group_participation_rate'] = $this->calculateGroupParticipationRate();
-            } else {
-                $stats['total_group_members'] = 0;
-                $stats['group_participation_rate'] = 0;
-            }
-
-            // Activity stats - always get stats
-            if (Schema::hasTable('activities')) {
-                $stats['total_activities'] = DB::table('activities')->count();
-                $stats['active_activities'] = DB::table('activities')->where('status', 'active')->count();
-                $stats['upcoming_activities'] = DB::table('activities')
-                    ->where('start_date', '>', now()->toDateString())
-                    ->count();
-                $stats['activities_this_month'] = DB::table('activities')
-                    ->whereMonth('start_date', $currentMonth)
-                    ->whereYear('start_date', $currentYear)
-                    ->count();
-            } else {
-                $stats['total_activities'] = 0;
-                $stats['active_activities'] = 0;
-                $stats['upcoming_activities'] = 0;
-                $stats['activities_this_month'] = 0;
-            }
-
-            // Admin stats - always get stats
-            $stats['total_users'] = User::count();
-            if (Schema::hasColumn('users', 'is_active')) {
-                $stats['active_users'] = User::where('is_active', true)->count();
-            } else {
-                $stats['active_users'] = User::count();
-            }
-
-            // Gender distribution
-            $stats['gender_distribution'] = [
-                'male' => Member::where('gender', 'male')->count(),
-                'female' => Member::where('gender', 'female')->count(),
-            ];
-
-            // Age group distribution
-            $stats['age_distribution'] = [
-                'adult' => Member::where('member_type', 'adult')->count(),
-                'youth' => Member::where('member_type', 'youth')->count(),
-                'child' => Member::where('member_type', 'child')->count(),
-            ];
-
-            // Marital status distribution
-            $stats['marital_distribution'] = [
-                'single' => Member::where('marital_status', 'single')->count(),
-                'married' => Member::where('marital_status', 'married')->count(),
-                'divorced' => Member::where('marital_status', 'divorced')->count(),
-                'widowed' => Member::where('marital_status', 'widowed')->count(),
-            ];
-
-            return $stats;
-        } catch (\Exception $e) {
-            Log::error('Dashboard stats error: ' . $e->getMessage());
-            return $this->getDefaultStats();
-        }
+        });
     }
 
-    private function getRecentActivities($user): array
+    private function getOptimizedRecentActivities($user): array
     {
-        $activities = [];
+        return Cache::remember("recent_activities_{$user->id}", $this->quickCacheTimeout, function() use ($user) {
+            $activities = [];
 
-        try {
-            if ($this->userHasPermission($user, 'access members')) {
-                $recentMembers = Member::with('family')
-                                      ->latest()
-                                      ->limit(3)
-                                      ->get();
+            try {
+                if ($this->userHasPermission($user, 'access members')) {
+                    // Get recent members with optimized query (no Eloquent relationships)
+                    $recentMembers = DB::table('members')
+                        ->leftJoin('families', 'members.family_id', '=', 'families.id')
+                        ->select('members.id', 'members.first_name', 'members.last_name', 'members.created_at', 'families.family_name')
+                        ->orderBy('members.created_at', 'desc')
+                        ->limit(3)
+                        ->get();
 
-                foreach ($recentMembers as $member) {
-                    $memberName = trim($member->first_name . ' ' . $member->last_name) 
-                        ?: 'Member #' . $member->id;
-                        
-                    $activities[] = [
-                        'id' => 'member_' . $member->id,
-                        'type' => 'member_registration',
-                        'title' => 'New member: ' . $memberName,
-                        'description' => $member->family ? 'Family: ' . $member->family->family_name : 'Individual registration',
-                        'time' => $member->created_at->diffForHumans(),
-                        'icon' => 'user-plus',
-                        'color' => 'green',
-                        'link' => route('members.show', $member->id),
-                    ];
+                    foreach ($recentMembers as $member) {
+                        $memberName = trim($member->first_name . ' ' . $member->last_name) ?: 'Member #' . $member->id;
+                        $activities[] = [
+                            'id' => 'member_' . $member->id,
+                            'type' => 'member_registration',
+                            'title' => 'New member: ' . $memberName,
+                            'description' => $member->family_name ? 'Family: ' . $member->family_name : 'Individual registration',
+                            'time' => Carbon::parse($member->created_at)->diffForHumans(),
+                            'icon' => 'user-plus',
+                            'color' => 'green',
+                            'link' => route('members.show', $member->id),
+                        ];
+                    }
                 }
-            }
 
-            if ($this->userHasPermission($user, 'access tithes')) {
-                $recentTithes = Tithe::with('member')
-                                     ->where('amount', '>', 1000)
-                                     ->latest('date_given')
-                                     ->limit(3)
-                                     ->get();
+                if ($this->userHasPermission($user, 'access tithes')) {
+                    // Optimized tithe query
+                    $recentTithes = DB::table('tithes')
+                        ->leftJoin('members', 'tithes.member_id', '=', 'members.id')
+                        ->select('tithes.id', 'tithes.amount', 'tithes.date_given', 'members.first_name', 'members.last_name')
+                        ->where('tithes.amount', '>', 1000)
+                        ->orderBy('tithes.date_given', 'desc')
+                        ->limit(3)
+                        ->get();
 
-                foreach ($recentTithes as $tithe) {
-                    $memberName = $tithe->member 
-                        ? trim($tithe->member->first_name . ' ' . $tithe->member->last_name)
-                        : 'Anonymous';
-                        
-                    $activities[] = [
-                        'id' => 'tithe_' . $tithe->id,
-                        'type' => 'tithe',
-                        'title' => 'Tithe: KES ' . number_format($tithe->amount, 2),
-                        'description' => 'From: ' . ($memberName ?: 'Anonymous donor'),
-                        'time' => Carbon::parse($tithe->date_given)->diffForHumans(),
-                        'icon' => 'dollar-sign',
-                        'color' => 'emerald',
-                        'link' => route('tithes.show', $tithe->id),
-                    ];
+                    foreach ($recentTithes as $tithe) {
+                        $memberName = trim($tithe->first_name . ' ' . $tithe->last_name) ?: 'Anonymous';
+                        $activities[] = [
+                            'id' => 'tithe_' . $tithe->id,
+                            'type' => 'tithe',
+                            'title' => 'Tithe: KES ' . number_format($tithe->amount, 2),
+                            'description' => 'From: ' . $memberName,
+                            'time' => Carbon::parse($tithe->date_given)->diffForHumans(),
+                            'icon' => 'dollar-sign',
+                            'color' => 'emerald',
+                            'link' => route('tithes.show', $tithe->id),
+                        ];
+                    }
                 }
-            }
 
-            if ($this->userHasPermission($user, 'access sacraments')) {
-                $recentSacraments = Sacrament::with('member')
-                                           ->latest('sacrament_date')
-                                           ->limit(2)
-                                           ->get();
+                if ($this->userHasPermission($user, 'access sacraments')) {
+                    // Optimized sacrament query
+                    $recentSacraments = DB::table('sacraments')
+                        ->leftJoin('members', 'sacraments.member_id', '=', 'members.id')
+                        ->select('sacraments.id', 'sacraments.sacrament_type', 'sacraments.sacrament_date', 'members.first_name', 'members.last_name')
+                        ->orderBy('sacraments.sacrament_date', 'desc')
+                        ->limit(2)
+                        ->get();
 
-                foreach ($recentSacraments as $sacrament) {
-                    $memberName = $sacrament->member 
-                        ? trim($sacrament->member->first_name . ' ' . $sacrament->member->last_name)
-                        : 'Unknown member';
-                        
-                    $activities[] = [
-                        'id' => 'sacrament_' . $sacrament->id,
-                        'type' => 'sacrament',
-                        'title' => ucfirst($sacrament->sacrament_type) . ' administered',
-                        'description' => 'For: ' . $memberName,
-                        'time' => Carbon::parse($sacrament->sacrament_date)->diffForHumans(),
-                        'icon' => 'star',
-                        'color' => 'purple',
-                        'link' => route('sacraments.show', $sacrament->id),
-                    ];
+                    foreach ($recentSacraments as $sacrament) {
+                        $memberName = trim($sacrament->first_name . ' ' . $sacrament->last_name) ?: 'Unknown member';
+                        $activities[] = [
+                            'id' => 'sacrament_' . $sacrament->id,
+                            'type' => 'sacrament',
+                            'title' => ucfirst($sacrament->sacrament_type) . ' administered',
+                            'description' => 'For: ' . $memberName,
+                            'time' => Carbon::parse($sacrament->sacrament_date)->diffForHumans(),
+                            'icon' => 'star',
+                            'color' => 'purple',
+                            'link' => route('sacraments.show', $sacrament->id),
+                        ];
+                    }
                 }
+
+                return array_slice($activities, 0, 6);
+
+            } catch (\Exception $e) {
+                Log::error('Recent activities error: ' . $e->getMessage());
+                return [
+                    [
+                        'id' => 'welcome',
+                        'type' => 'system',
+                        'title' => 'Welcome to Parish Management System',
+                        'description' => 'Start by adding members and families',
+                        'time' => 'Just now',
+                        'icon' => 'home',
+                        'color' => 'blue',
+                    ]
+                ];
             }
-
-            // Sort by most recent and limit to 6
-            if (!empty($activities)) {
-                usort($activities, function ($a, $b) {
-                    return strtotime($b['time']) - strtotime($a['time']);
-                });
-            }
-
-            return array_slice($activities, 0, 6);
-
-        } catch (\Exception $e) {
-            return [
-                [
-                    'id' => 'welcome',
-                    'type' => 'system',
-                    'title' => 'Welcome to Parish Management System',
-                    'description' => 'Start by adding members and families',
-                    'time' => 'Just now',
-                    'icon' => 'home',
-                    'color' => 'blue',
-                ]
-            ];
-        }
+        });
     }
 
     private function getUpcomingEvents(): array
@@ -498,26 +552,102 @@ class DashboardController extends Controller
         }
     }
 
-    private function getAnalytics($user): array
+    private function getOptimizedAnalytics($user): array
     {
-        $analytics = [];
+        return Cache::remember("dashboard_analytics", $this->cacheTimeout, function() use ($user) {
+            $analytics = [];
 
-        try {
-            if ($this->userHasPermission($user, 'access members')) {
-                $analytics['membershipTrends'] = $this->getMembershipTrends();
+            try {
+                if ($this->userHasPermission($user, 'access members')) {
+                    $analytics['membershipTrends'] = $this->getOptimizedMembershipTrends();
+                }
+
+                if ($this->userHasPermission($user, 'view financial reports')) {
+                    $analytics['financialTrends'] = $this->getOptimizedFinancialTrends();
+                }
+
+                return $analytics;
+            } catch (\Exception $e) {
+                return [];
             }
+        });
+    }
 
-            if ($this->userHasPermission($user, 'view financial reports')) {
-                $analytics['financialTrends'] = $this->getFinancialTrends();
+    private function getOptimizedAlerts($user): array
+    {
+        return Cache::remember("dashboard_alerts_{$user->id}", $this->cacheTimeout, function() use ($user) {
+            $alerts = [];
+
+            try {
+                if ($this->userHasPermission($user, 'access members')) {
+                    // Single query for member alerts
+                    $memberAlerts = DB::table('members')
+                        ->selectRaw('
+                            SUM(CASE WHEN family_id IS NULL THEN 1 ELSE 0 END) as without_families,
+                            SUM(CASE WHEN membership_status = "inactive" THEN 1 ELSE 0 END) as inactive
+                        ')
+                        ->first();
+
+                    if ($memberAlerts->without_families > 0) {
+                        $alerts[] = [
+                            'type' => 'warning',
+                            'title' => 'Members without families',
+                            'message' => "{$memberAlerts->without_families} members are not assigned to any family",
+                            'action' => 'Review members',
+                            'link' => route('members.index'),
+                        ];
+                    }
+
+                    if ($memberAlerts->inactive > 0) {
+                        $alerts[] = [
+                            'type' => 'info',
+                            'title' => 'Inactive members',
+                            'message' => "{$memberAlerts->inactive} members are marked as inactive",
+                            'action' => 'Review status',
+                            'link' => route('members.index'),
+                        ];
+                    }
+                }
+
+                if ($this->userHasPermission($user, 'view financial reports')) {
+                    // Optimized financial alert check
+                    $financialAlert = DB::table('tithes')
+                        ->selectRaw('
+                            SUM(CASE WHEN MONTH(date_given) = MONTH(NOW()) AND YEAR(date_given) = YEAR(NOW()) THEN amount ELSE 0 END) as this_month,
+                            SUM(CASE WHEN MONTH(date_given) = MONTH(DATE_SUB(NOW(), INTERVAL 1 MONTH)) AND YEAR(date_given) = YEAR(NOW()) THEN amount ELSE 0 END) as last_month
+                        ')
+                        ->first();
+
+                    if ($financialAlert->this_month < ($financialAlert->last_month * 0.8) && $financialAlert->last_month > 0) {
+                        $alerts[] = [
+                            'type' => 'info',
+                            'title' => 'Tithe collection down',
+                            'message' => 'This month\'s collection is 20% lower than last month',
+                            'action' => 'View financial report',
+                            'link' => route('reports.financial'),
+                        ];
+                    }
+                }
+
+                return $alerts;
+            } catch (\Exception $e) {
+                return [];
             }
+        });
+    }
 
-            return $analytics;
-        } catch (\Exception $e) {
-            return [
-                'membershipTrends' => [],
-                'financialTrends' => [],
-            ];
-        }
+    private function getCachedQuickActions($user): array
+    {
+        return Cache::remember("quick_actions_{$user->id}", 3600, function() use ($user) {
+            return $this->getQuickActions($user);
+        });
+    }
+
+    private function getCachedUpcomingEvents(): array
+    {
+        return Cache::remember("upcoming_events", $this->cacheTimeout, function() {
+            return $this->getUpcomingEvents();
+        });
     }
 
     private function getQuickActions($user): array
@@ -679,58 +809,38 @@ class DashboardController extends Controller
         return "{$greeting}! Welcome to Parish Management System.";
     }
 
-    // Helper methods
+    // Helper methods (optimized)
     private function calculateGrowthRate($current, $previous): float
     {
         if ($previous == 0) return $current > 0 ? 100 : 0;
         return round((($current - $previous) / $previous) * 100, 2);
     }
 
-    private function calculateGroupParticipationRate(): float
+    private function calculateParticipationRate($groupMembers, $totalActiveMembers): float
     {
-        try {
-            $totalActiveMembers = Member::where('membership_status', 'active')->count();
-            
-            if (Schema::hasTable('group_members')) {
-                $membersInGroups = DB::table('group_members')
-                                    ->distinct('member_id')
-                                    ->count();
-            } else {
-                $membersInGroups = 0;
-            }
-            
-            return $totalActiveMembers > 0 ? round(($membersInGroups / $totalActiveMembers) * 100, 2) : 0;
-        } catch (\Exception $e) {
-            return 0;
-        }
+        return $totalActiveMembers > 0 ? round(($groupMembers / $totalActiveMembers) * 100, 2) : 0;
     }
 
-    private function getMembershipTrends(): array
+    private function getOptimizedMembershipTrends(): array
     {
-        try {
-            return Member::selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, COUNT(*) as count')
-                        ->where('created_at', '>=', now()->subMonths(6))
-                        ->groupBy('month')
-                        ->orderBy('month')
-                        ->get()
-                        ->toArray();
-        } catch (\Exception $e) {
-            return [];
-        }
+        return DB::table('members')
+            ->selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, COUNT(*) as count')
+            ->where('created_at', '>=', now()->subMonths(6))
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get()
+            ->toArray();
     }
 
-    private function getFinancialTrends(): array
+    private function getOptimizedFinancialTrends(): array
     {
-        try {
-            return Tithe::selectRaw('DATE_FORMAT(date_given, "%Y-%m") as month, SUM(amount) as total')
-                       ->where('date_given', '>=', now()->subMonths(6))
-                       ->groupBy('month')
-                       ->orderBy('month')
-                       ->get()
-                       ->toArray();
-        } catch (\Exception $e) {
-            return [];
-        }
+        return DB::table('tithes')
+            ->selectRaw('DATE_FORMAT(date_given, "%Y-%m") as month, SUM(amount) as total')
+            ->where('date_given', '>=', now()->subMonths(6))
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get()
+            ->toArray();
     }
 
     private function getDefaultStats(): array
@@ -766,5 +876,41 @@ class DashboardController extends Controller
             'age_distribution' => ['adult' => 0, 'youth' => 0, 'child' => 0],
             'marital_distribution' => ['single' => 0, 'married' => 0, 'divorced' => 0, 'widowed' => 0],
         ];
+    }
+
+    /**
+     * Optimized API endpoint for live dashboard statistics
+     */
+    public function getStatsApi(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            
+            if (!$user) {
+                return response()->json(['error' => 'Unauthenticated'], 401);
+            }
+
+            // Use shorter cache for API calls
+            $stats = Cache::remember("api_stats", 30, function() use ($user) {
+                return $this->getOptimizedStats($user);
+            });
+            
+            return response()->json([
+                'success' => true,
+                'data' => $stats,
+                'timestamp' => now()->toISOString(),
+                'cached' => true,
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Dashboard stats API error: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to fetch stats',
+                'data' => $this->getDefaultStats(),
+                'timestamp' => now()->toISOString(),
+            ], 500);
+        }
     }
 }

@@ -66,7 +66,9 @@ class MemberController extends Controller
         }
 
         if ($request->filled('gender')) {
-            $query->where('gender', $request->get('gender'));
+            // Ensure proper capitalization of gender value
+            $gender = ucfirst(strtolower($request->get('gender')));
+            $query->where('gender', $gender);
         }
 
         if ($request->filled('age_group')) {
@@ -103,6 +105,7 @@ class MemberController extends Controller
                 'membership_status', 'gender', 'age_group', 'sort', 'direction'
             ]),
             'stats' => $this->getStats(),
+            'filterOptions' => $this->getFilterOptions(),
         ]);
     }
 
@@ -129,7 +132,7 @@ class MemberController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'date_of_birth' => 'nullable|date|before:today',
-            'gender' => 'required|in:male,female',
+            'gender' => 'required|in:Male,Female',
             'id_number' => 'nullable|string|max:20|unique:members',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255|unique:members',
@@ -156,10 +159,28 @@ class MemberController extends Controller
 
         try {
             $member = Member::create($validated);
+            
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Member created successfully!',
+                    'member' => $member
+                ]);
+            }
+            
             return redirect()->route('members.show', $member->id)
-                ->with('success', 'Member created successfully! Member ID: ' . $member->id);
+                ->with('success', 'Member created successfully! Member ID: ' . $member->id)
+                ->with('member', $member);
         } catch (\Exception $e) {
             Log::error('Failed to create member: ' . $e->getMessage());
+            
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create member: ' . $e->getMessage()
+                ], 422);
+            }
+            
             return back()->withErrors(['error' => 'Failed to create member.'])->withInput();
         }
     }
@@ -198,7 +219,7 @@ class MemberController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'date_of_birth' => 'nullable|date|before:today',
-            'gender' => 'required|in:male,female',
+            'gender' => 'required|in:Male,Female',
             'id_number' => 'nullable|string|max:20|unique:members,id_number,' . $member->id,
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255|unique:members,email,' . $member->id,
@@ -260,38 +281,6 @@ class MemberController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()
                            ->with('error', 'Error updating member status: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Quick status toggle for AJAX requests
-     */
-    public function quickStatusToggle(Request $request)
-    {
-        $request->validate([
-            'member_id' => 'required|exists:members,id',
-            'status' => 'required|in:active,inactive,transferred,deceased'
-        ]);
-
-        try {
-            $member = Member::findOrFail($request->member_id);
-            $member->update(['membership_status' => $request->status]);
-
-            return response()->json([
-                'success' => true,
-                'message' => "Member status updated to {$request->status}",
-                'member' => [
-                    'id' => $member->id,
-                    'name' => $member->full_name,
-                    'status' => $member->membership_status
-                ]
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Quick status toggle failed: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update member status: ' . $e->getMessage()
-            ], 500);
         }
     }
 
@@ -1001,8 +990,36 @@ class MemberController extends Controller
     private function getStats(): array
     {
         try {
+            $totalMembers = Member::count();
+            $currentMonth = now();
+            
+            // Get detailed status breakdown
+            $statusStats = Member::selectRaw('membership_status, COUNT(*) as count')
+                ->groupBy('membership_status')
+                ->pluck('count', 'membership_status')
+                ->toArray();
+
+            // Calculate active members percentage
+            $activeMembers = $statusStats['active'] ?? 0;
+            $inactiveMembers = $statusStats['inactive'] ?? 0;
+            $transferredMembers = $statusStats['transferred'] ?? 0;
+            $deceasedMembers = $statusStats['deceased'] ?? 0;
+            
+            // Get new members this month
+            $newThisMonth = Member::whereMonth('created_at', $currentMonth->month)
+                ->whereYear('created_at', $currentMonth->year)
+                ->count();
+
+            // Get gender breakdown
+            $genderStats = Member::selectRaw('gender, COUNT(*) as count')
+                ->groupBy('gender')
+                ->pluck('count', 'gender')
+                ->toArray();
+
             return [
-                'total_members' => Member::count(),
+                'total_members' => $totalMembers,
+                'active_members' => $activeMembers,
+                'new_this_month' => $newThisMonth,
                 'by_church' => Member::groupBy('local_church')
                     ->selectRaw('local_church, count(*) as count')
                     ->pluck('count', 'local_church')
@@ -1011,18 +1028,51 @@ class MemberController extends Controller
                     ->selectRaw('church_group, count(*) as count')
                     ->pluck('count', 'church_group')
                     ->toArray(),
-                'by_status' => Member::groupBy('membership_status')
-                    ->selectRaw('membership_status, count(*) as count')
-                    ->pluck('count', 'membership_status')
-                    ->toArray(),
+                'by_status' => [
+                    'active' => $activeMembers,
+                    'inactive' => $inactiveMembers,
+                    'transferred' => $transferredMembers,
+                    'deceased' => $deceasedMembers,
+                ],
+                'by_gender' => $genderStats,
+                'statistics' => [
+                    'total_members' => $totalMembers,
+                    'active_members' => $activeMembers,
+                    'inactive_members' => $inactiveMembers,
+                    'transferred_members' => $transferredMembers,
+                    'deceased_members' => $deceasedMembers,
+                    'active_percentage' => $totalMembers > 0 ? round(($activeMembers / $totalMembers) * 100, 1) : 0,
+                    'new_this_month' => $newThisMonth,
+                    'male_members' => $genderStats['male'] ?? $genderStats['Male'] ?? 0,
+                    'female_members' => $genderStats['female'] ?? $genderStats['Female'] ?? 0,
+                ],
             ];
         } catch (\Exception $e) {
             Log::error('Failed to get stats: ' . $e->getMessage());
             return [
                 'total_members' => 0,
+                'active_members' => 0,
+                'new_this_month' => 0,
                 'by_church' => [],
                 'by_group' => [],
-                'by_status' => [],
+                'by_status' => [
+                    'active' => 0,
+                    'inactive' => 0,
+                    'transferred' => 0,
+                    'deceased' => 0,
+                ],
+                'by_gender' => [],
+                'statistics' => [
+                    'total_members' => 0,
+                    'active_members' => 0,
+                    'inactive_members' => 0,
+                    'transferred_members' => 0,
+                    'deceased_members' => 0,
+                    'active_percentage' => 0,
+                    'new_this_month' => 0,
+                    'male_members' => 0,
+                    'female_members' => 0,
+                ],
             ];
         }
     }
@@ -1060,8 +1110,8 @@ class MemberController extends Controller
                     ['value' => 'deceased', 'label' => 'Deceased'],
                 ],
                 'genders' => [
-                    ['value' => 'male', 'label' => 'Male'],
-                    ['value' => 'female', 'label' => 'Female'],
+                    ['value' => 'Male', 'label' => 'Male'],
+                    ['value' => 'Female', 'label' => 'Female'],
                 ],
                 'families' => Family::select('id', 'family_name')
                     ->orderBy('family_name')
@@ -1079,11 +1129,74 @@ class MemberController extends Controller
                 'church_groups' => [],
                 'membership_statuses' => [],
                 'genders' => [
-                    ['value' => 'male', 'label' => 'Male'],
-                    ['value' => 'female', 'label' => 'Female'],
+                    ['value' => 'Male', 'label' => 'Male'],
+                    ['value' => 'Female', 'label' => 'Female'],
                 ],
                 'families' => [],
             ];
+        }
+    }
+
+    /**
+     * Quick status toggle for members
+     */
+    public function quickStatusToggle(Request $request)
+    {
+        $request->validate([
+            'member_id' => 'required|exists:members,id',
+            'status' => 'required|in:active,inactive,transferred,deceased'
+        ]);
+
+        try {
+            $member = Member::findOrFail($request->member_id);
+            $oldStatus = $member->membership_status;
+            
+            $member->update([
+                'membership_status' => $request->status
+            ]);
+
+            // Log the activity
+            Log::info('Member status changed', [
+                'member_id' => $member->id,
+                'member_name' => $member->full_name,
+                'old_status' => $oldStatus,
+                'new_status' => $request->status,
+                'changed_by' => Auth::id(),
+            ]);
+
+            // For AJAX requests, return JSON
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Member status updated to {$request->status} successfully!",
+                    'member' => [
+                        'id' => $member->id,
+                        'full_name' => $member->full_name,
+                        'membership_status' => $member->membership_status,
+                    ]
+                ]);
+            }
+
+            // For Inertia requests, redirect back with flash message
+            return redirect()->back()->with('success', "Member status updated to {$request->status} successfully!");
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update member status', [
+                'member_id' => $request->member_id,
+                'status' => $request->status,
+                'error' => $e->getMessage()
+            ]);
+
+            // For AJAX requests, return JSON
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to update member status. Please try again.'
+                ], 500);
+            }
+
+            // For Inertia requests, redirect back with error
+            return redirect()->back()->with('error', 'Failed to update member status. Please try again.');
         }
     }
 
@@ -1325,7 +1438,9 @@ class MemberController extends Controller
         }
 
         if (!empty($filters['gender'])) {
-            $query->where('gender', $filters['gender']);
+            // Ensure proper capitalization of gender value
+            $gender = ucfirst(strtolower($filters['gender']));
+            $query->where('gender', $gender);
         }
 
         if (!empty($filters['age_group'])) {

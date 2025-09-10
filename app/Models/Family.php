@@ -24,6 +24,13 @@ class Family extends Model
         'created_by',
     ];
 
+    protected $casts = [
+        'head_of_family_id' => 'integer',
+        'created_by' => 'integer',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
     /**
      * Get the head of family member
      */

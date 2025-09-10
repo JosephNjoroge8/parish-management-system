@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('profile_photo_path', 2048)->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->date('date_of_birth')->nullable();
-            $table->enum('gender', ['male', 'female'])->nullable();
+            $table->enum('gender', ['Male', 'Female'])->nullable();
             $table->text('address')->nullable();
             $table->string('occupation')->nullable();
             $table->string('emergency_contact')->nullable();

@@ -14,7 +14,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register custom Artisan commands
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \App\Console\Commands\OptimizeLogs::class,
+                \App\Console\Commands\PerformanceOptimization::class,
+            ]);
+        }
+
+        // Register performance optimization services
+        $this->app->singleton(\App\Services\CacheOptimizationService::class);
+        $this->app->singleton(\App\Services\PerformanceMonitorService::class);
     }
 
     /**
@@ -22,7 +32,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Vite::prefetch(concurrency: 3);
+        // Configure Vite for production
+        if (app()->environment('production')) {
+            Vite::useHotFile(public_path('hot'))
+                ->useBuildDirectory('build');
+        } else {
+            Vite::prefetch(concurrency: 3);
+        }
         
         // Register model observers
         Member::observe(MemberObserver::class);

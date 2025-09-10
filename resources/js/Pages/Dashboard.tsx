@@ -1,7 +1,7 @@
-// resources/js/Pages/Dashboard.jsx
-import React from 'react';
+// resources/js/Pages/Dashboard.tsx
+import React, { useEffect, useState, useCallback } from 'react';
 import SidebarLayout from '@/Layouts/SidebarLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { PageProps } from '@/types';
 import { 
     Users, 
@@ -20,7 +20,8 @@ import {
     Clock,
     MapPin,
     ArrowUpRight,
-    Plus
+    Plus,
+    RefreshCw
 } from 'lucide-react';
 
 interface User {
@@ -64,6 +65,19 @@ interface Stats {
     group_participation_rate?: number;
     total_users?: number;
     active_users?: number;
+    church_distribution?: Record<string, number>;
+    group_distribution?: Record<string, number>;
+    status_distribution?: Record<string, number>;
+    gender_distribution?: {
+        male: number;
+        female: number;
+    };
+    age_groups?: {
+        children: number;
+        youth: number;
+        adults: number;
+        seniors: number;
+    };
 }
 
 interface Activity {
@@ -363,6 +377,49 @@ export default function Dashboard({
     const safeQuickActions = quickActions || [];
     const safeAlerts = alerts || [];
 
+    // State for real-time stats updates
+    const [liveStats, setLiveStats] = useState<Stats>(safeStats);
+    const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+    const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Function to refresh dashboard data
+    const refreshData = useCallback(async () => {
+        setIsRefreshing(true);
+        setError(null);
+        try {
+            const response = await fetch('/api/dashboard/stats', {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data) {
+                    setLiveStats(result.data);
+                    setLastUpdated(new Date());
+                } else {
+                    setError('Invalid response format');
+                }
+            } else {
+                setError(`Failed to fetch data: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Failed to refresh dashboard data:', error);
+            setError('Network error occurred');
+        } finally {
+            setIsRefreshing(false);
+        }
+    }, []);
+
+    // Auto-refresh every 5 minutes
+    useEffect(() => {
+        const interval = setInterval(refreshData, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [refreshData]);
+
     const getGreeting = () => {
         const hour = new Date().getHours();
         if (hour < 12) return '🌅 Good morning';
@@ -382,8 +439,33 @@ export default function Dashboard({
                         <p className="text-sm text-gray-600 mt-1">Manage your parish community with grace</p>
                     </div>
                     <div className="text-right">
+                        <div className="flex items-center space-x-2">
+                            {isRefreshing && (
+                                <div className="flex items-center text-sm text-gray-500">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mr-2"></div>
+                                    Updating...
+                                </div>
+                            )}
+                            {error && (
+                                <div className="flex items-center text-sm text-red-500" title={error}>
+                                    <AlertTriangle className="w-4 h-4 mr-1" />
+                                    Error
+                                </div>
+                            )}
+                            <button
+                                onClick={refreshData}
+                                disabled={isRefreshing}
+                                className="text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 transition-colors"
+                                title="Refresh data"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            </button>
+                        </div>
                         <p className="text-sm text-gray-500">Welcome back,</p>
                         <p className="font-semibold text-gray-900">{user.name}</p>
+                        <p className="text-xs text-gray-400">
+                            Last updated: {lastUpdated.toLocaleTimeString()}
+                        </p>
                     </div>
                 </div>
             }
@@ -457,18 +539,18 @@ export default function Dashboard({
                                 <>
                                     <StatCard
                                         title="Total Members"
-                                        value={safeStats.total_members}
+                                        value={liveStats.total_members}
                                         icon={Users}
                                         color="royal-purple"
-                                        trend={safeStats.member_growth_rate}
+                                        trend={liveStats.member_growth_rate}
                                         link={route('members.index')}
                                     />
                                     <StatCard
                                         title="Active Members"
-                                        value={safeStats.active_members}
+                                        value={liveStats.active_members}
                                         icon={Heart}
                                         color="peaceful-green"
-                                        subtitle={`${safeStats.new_members_this_month || 0} new this month`}
+                                        subtitle={`${liveStats.new_members_this_month || 0} new this month`}
                                         link={route('members.index')}
                                     />
                                 </>
@@ -478,17 +560,17 @@ export default function Dashboard({
                                 <>
                                     <StatCard
                                         title="Parish Families"
-                                        value={safeStats.total_families}
+                                        value={liveStats.total_families}
                                         icon={Home}
                                         color="divine-blue"
                                         link={route('families.index')}
                                     />
                                     <StatCard
                                         title="Active Families"
-                                        value={safeStats.active_families}
+                                        value={liveStats.active_families}
                                         icon={Church}
                                         color="sacred-gold"
-                                        subtitle={`${safeStats.new_families_this_month || 0} new this month`}
+                                        subtitle={`${liveStats.new_families_this_month || 0} new this month`}
                                         link={route('families.index')}
                                     />
                                 </>
@@ -501,31 +583,31 @@ export default function Dashboard({
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             <StatCard
                                 title="Tithes This Month"
-                                value={safeStats.total_tithes_this_month}
+                                value={liveStats.total_tithes_this_month}
                                 icon={DollarSign}
                                 color="peaceful-green"
-                                subtitle={`${safeStats.tithe_contributors_this_month || 0} contributors`}
+                                subtitle={`${liveStats.tithe_contributors_this_month || 0} contributors`}
                                 link={route('tithes.index')}
                             />
                             <StatCard
                                 title="Yearly Tithes"
-                                value={safeStats.total_tithes_this_year}
+                                value={liveStats.total_tithes_this_year}
                                 icon={DollarSign}
                                 color="sacred-gold"
                                 link={route('reports.financial')}
                             />
                             <StatCard
                                 title="Average Offering"
-                                value={safeStats.average_tithe_amount}
+                                value={liveStats.average_tithe_amount}
                                 icon={Heart}
                                 color="holy-red"
                             />
                             <StatCard
                                 title="Sacraments"
-                                value={safeStats.sacraments_this_month}
+                                value={liveStats.sacraments_this_month}
                                 icon={Star}
                                 color="royal-purple"
-                                subtitle={`${safeStats.sacraments_this_year || 0} this year`}
+                                subtitle={`${liveStats.sacraments_this_year || 0} this year`}
                                 link={route('sacraments.index')}
                             />
                         </div>
@@ -536,20 +618,20 @@ export default function Dashboard({
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <StatCard
                                 title="Active Groups"
-                                value={safeStats.active_community_groups}
+                                value={liveStats.active_community_groups}
                                 icon={Users}
                                 color="divine-blue"
                                 link={route('community-groups.index')}
                             />
                             <StatCard
                                 title="Group Members"
-                                value={safeStats.total_group_members}
+                                value={liveStats.total_group_members}
                                 icon={Heart}
                                 color="peaceful-green"
                             />
                             <StatCard
                                 title="Participation Rate"
-                                value={safeStats.group_participation_rate}
+                                value={liveStats.group_participation_rate}
                                 icon={TrendingUp}
                                 color="sacred-gold"
                                 subtitle="% in groups"
@@ -624,6 +706,124 @@ export default function Dashboard({
                         </div>
                     </div>
                 </div>
+
+                {/* Detailed Parish Breakdown */}
+                {user.permissions.can_access_members && (
+                    <div className="space-y-6">
+                        <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                            <BarChart3 className="w-5 h-5 mr-2 text-indigo-500" />
+                            Parish Breakdown
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Church Distribution */}
+                            <div className="bg-white rounded-xl shadow-lg p-6">
+                                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                    <Church className="w-5 h-5 mr-2 text-purple-500" />
+                                    By Local Church
+                                </h4>
+                                <div className="space-y-3">
+                                    {liveStats.church_distribution && Object.keys(liveStats.church_distribution).length > 0 ? (
+                                        Object.entries(liveStats.church_distribution).map(([church, count]) => (
+                                            <div key={church} className="flex items-center justify-between">
+                                                <span className="text-sm text-gray-600">{church || 'Unknown'}</span>
+                                                <span className="font-semibold text-gray-900">{count || 0}</span>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-gray-500 text-sm">No church data available</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Group Distribution */}
+                            <div className="bg-white rounded-xl shadow-lg p-6">
+                                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                    <Users className="w-5 h-5 mr-2 text-blue-500" />
+                                    By Church Group
+                                </h4>
+                                <div className="space-y-3">
+                                    {liveStats.group_distribution && Object.keys(liveStats.group_distribution).length > 0 ? (
+                                        Object.entries(liveStats.group_distribution).map(([group, count]) => (
+                                            <div key={group} className="flex items-center justify-between">
+                                                <span className="text-sm text-gray-600">{group || 'Unknown'}</span>
+                                                <span className="font-semibold text-gray-900">{count || 0}</span>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-gray-500 text-sm">No group data available</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Demographics */}
+                            <div className="bg-white rounded-xl shadow-lg p-6">
+                                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                    <Heart className="w-5 h-5 mr-2 text-pink-500" />
+                                    Demographics
+                                </h4>
+                                <div className="space-y-3">
+                                    {/* Gender Distribution */}
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-700 mb-2">Gender</p>
+                                        {liveStats.gender_distribution && (
+                                            <div className="space-y-1">
+                                                <div className="flex justify-between">
+                                                    <span className="text-xs text-gray-600">Male</span>
+                                                    <span className="text-xs font-semibold">{liveStats.gender_distribution.male || 0}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-xs text-gray-600">Female</span>
+                                                    <span className="text-xs font-semibold">{liveStats.gender_distribution.female || 0}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Age Groups */}
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-700 mb-2">Age Groups</p>
+                                        {liveStats.age_groups && (
+                                            <div className="space-y-1">
+                                                <div className="flex justify-between">
+                                                    <span className="text-xs text-gray-600">Children (0-18)</span>
+                                                    <span className="text-xs font-semibold">{liveStats.age_groups.children || 0}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-xs text-gray-600">Youth (18-30)</span>
+                                                    <span className="text-xs font-semibold">{liveStats.age_groups.youth || 0}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-xs text-gray-600">Adults (30-60)</span>
+                                                    <span className="text-xs font-semibold">{liveStats.age_groups.adults || 0}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-xs text-gray-600">Seniors (60+)</span>
+                                                    <span className="text-xs font-semibold">{liveStats.age_groups.seniors || 0}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Membership Status */}
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-700 mb-2">Status</p>
+                                        {liveStats.status_distribution && Object.keys(liveStats.status_distribution).length > 0 && (
+                                            <div className="space-y-1">
+                                                {Object.entries(liveStats.status_distribution).map(([status, count]) => (
+                                                    <div key={status} className="flex justify-between">
+                                                        <span className="text-xs text-gray-600 capitalize">{status || 'Unknown'}</span>
+                                                        <span className="text-xs font-semibold">{count || 0}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </SidebarLayout>
     );

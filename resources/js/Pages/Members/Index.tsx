@@ -84,6 +84,17 @@ interface Stats {
     by_group: Record<string, number>;
     by_status: Record<string, number>;
     by_gender: Record<string, number>;
+    statistics?: {
+        total_members: number;
+        active_members: number;
+        inactive_members: number;
+        transferred_members: number;
+        deceased_members: number;
+        active_percentage: number;
+        new_this_month: number;
+        male_members: number;
+        female_members: number;
+    };
 }
 
 interface FilterOption {
@@ -92,11 +103,11 @@ interface FilterOption {
 }
 
 interface FilterOptions {
-    local_churches: string[];
-    church_groups: FilterOption[];
-    membership_statuses: FilterOption[];
-    genders: FilterOption[];
-    age_groups: FilterOption[];
+    local_churches?: string[];
+    church_groups?: FilterOption[];
+    membership_statuses?: FilterOption[];
+    genders?: FilterOption[];
+    age_groups?: FilterOption[];
 }
 
 interface Filters {
@@ -123,7 +134,8 @@ export default function MembersIndex({
     members, 
     stats, 
     filters = {}, 
-    filterOptions 
+    filterOptions,
+    flash 
 }: MembersIndexProps) {
     const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
     const [showFilters, setShowFilters] = useState(false);
@@ -136,6 +148,20 @@ export default function MembersIndex({
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
+
+    // Handle flash messages
+    useEffect(() => {
+        if (flash?.success) {
+            window.dispatchEvent(new CustomEvent('flash-message', {
+                detail: { type: 'success', message: flash.success }
+            }));
+        }
+        if (flash?.error) {
+            window.dispatchEvent(new CustomEvent('flash-message', {
+                detail: { type: 'error', message: flash.error }
+            }));
+        }
+    }, [flash]);
 
     // Form for handling filters
     const { data, setData, get, processing } = useForm({
@@ -150,22 +176,40 @@ export default function MembersIndex({
         per_page: filters.per_page || 15,
     });
 
-    // Safe access to data with fallbacks
-    const membersData = useMemo(() => members?.data || [], [members]);
-    const currentPage = members?.current_page || 1;
-    const lastPage = members?.last_page || 1;
-    const total = members?.total || 0;
-    const from = members?.from || 0;
-    const to = members?.to || 0;
+    // Safe access to data with fallbacks and better performance
+    const membersData = useMemo(() => members?.data || [], [members?.data]);
+    const currentPage = useMemo(() => members?.current_page || 1, [members?.current_page]);
+    const lastPage = useMemo(() => members?.last_page || 1, [members?.last_page]);
+    const total = useMemo(() => members?.total || 0, [members?.total]);
+    const from = useMemo(() => members?.from || 0, [members?.from]);
+    const to = useMemo(() => members?.to || 0, [members?.to]);
 
     const safeStats = useMemo(() => ({
         total_members: stats?.total_members || 0,
-        active_members: stats?.active_members || 0,
+        active_members: stats?.active_members || (stats?.by_status?.active || 0),
         new_this_month: stats?.new_this_month || 0,
         by_church: stats?.by_church || {},
         by_group: stats?.by_group || {},
-        by_status: stats?.by_status || {},
+        by_status: {
+            active: stats?.by_status?.active || 0,
+            inactive: stats?.by_status?.inactive || 0,
+            transferred: stats?.by_status?.transferred || 0,
+            deceased: stats?.by_status?.deceased || 0,
+            ...stats?.by_status,
+        },
         by_gender: stats?.by_gender || {},
+        statistics: {
+            total_members: stats?.statistics?.total_members || stats?.total_members || 0,
+            active_members: stats?.statistics?.active_members || stats?.active_members || (stats?.by_status?.active || 0),
+            inactive_members: stats?.statistics?.inactive_members || (stats?.by_status?.inactive || 0),
+            transferred_members: stats?.statistics?.transferred_members || (stats?.by_status?.transferred || 0),
+            deceased_members: stats?.statistics?.deceased_members || (stats?.by_status?.deceased || 0),
+            active_percentage: stats?.statistics?.active_percentage || 0,
+            new_this_month: stats?.statistics?.new_this_month || stats?.new_this_month || 0,
+            male_members: stats?.statistics?.male_members || (stats?.by_gender?.male || stats?.by_gender?.Male || 0),
+            female_members: stats?.statistics?.female_members || (stats?.by_gender?.female || stats?.by_gender?.Female || 0),
+            ...stats?.statistics,
+        },
     }), [stats]);
 
     const safeFilterOptions = useMemo(() => ({
@@ -176,16 +220,18 @@ export default function MembersIndex({
         age_groups: filterOptions?.age_groups || [],
     }), [filterOptions]);
 
-    // Debounced search function
+    // Optimized debounced search function
     const debouncedSearch = useCallback(
         debounce((query: string) => {
             setData('search', query);
             setIsLoading(true);
             get(route('members.index'), {
                 preserveState: true,
+                preserveScroll: true,
+                only: ['members', 'stats'],
                 onFinish: () => setIsLoading(false),
             });
-        }, 300),
+        }, 500), // Increased to 500ms for better performance
         [setData, get]
     );
 
@@ -206,12 +252,14 @@ export default function MembersIndex({
         });
     }, [searchQuery, setData, get]);
 
-    // Handle filter changes
+    // Optimized filter changes
     const handleFilterChange = useCallback((key: string, value: string) => {
         setData(key as keyof typeof data, value);
         setIsLoading(true);
         get(route('members.index'), {
             preserveState: true,
+            preserveScroll: true,
+            only: ['members', 'stats'],
             onFinish: () => setIsLoading(false),
         });
     }, [setData, get]);
@@ -389,39 +437,26 @@ export default function MembersIndex({
 
     // Handle status change
     const handleStatusChange = useCallback(async (memberId: number, newStatus: string) => {
-        try {
-            const response = await fetch(route('quick.member-status-toggle'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-                body: JSON.stringify({
-                    member_id: memberId,
-                    status: newStatus
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                window.dispatchEvent(new CustomEvent('flash-message', {
-                    detail: { type: 'success', message: result.message }
-                }));
-                
-                // Refresh the page to show updated status
+        router.post(route('quick.member-status-toggle'), {
+            member_id: memberId,
+            status: newStatus
+        }, {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: (page) => {
+                // Refresh the members data
                 router.reload({ only: ['members'] });
-            } else {
-                throw new Error(result.message || 'Failed to update status');
+            },
+            onError: (errors) => {
+                const errorMessage = Object.values(errors)[0] || 'Failed to update member status';
+                window.dispatchEvent(new CustomEvent('flash-message', {
+                    detail: { 
+                        type: 'error', 
+                        message: errorMessage
+                    }
+                }));
             }
-        } catch (error) {
-            window.dispatchEvent(new CustomEvent('flash-message', {
-                detail: { 
-                    type: 'error', 
-                    message: error instanceof Error ? error.message : 'Failed to update member status' 
-                }
-            }));
-        }
+        });
     }, []);
 
     // Delete member
@@ -561,8 +596,8 @@ export default function MembersIndex({
 
             <div className="py-8">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                    {/* Statistics Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    {/* Enhanced Statistics Cards with Status Breakdown */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
                         <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
                             <div className="p-6">
                                 <div className="flex items-center">
@@ -595,11 +630,11 @@ export default function MembersIndex({
                                                 Active Members
                                             </dt>
                                             <dd className="text-2xl font-bold text-gray-900">
-                                                {safeStats.active_members.toLocaleString()}
+                                                {(safeStats.by_status?.active || safeStats.active_members || 0).toLocaleString()}
                                             </dd>
                                             <dd className="text-xs text-green-600 font-medium">
                                                 {safeStats.total_members > 0 
-                                                    ? `${Math.round((safeStats.active_members / safeStats.total_members) * 100)}% active` 
+                                                    ? `${Math.round(((safeStats.by_status?.active || safeStats.active_members || 0) / safeStats.total_members) * 100)}% active` 
                                                     : '0% active'
                                                 }
                                             </dd>
@@ -609,6 +644,69 @@ export default function MembersIndex({
                             </div>
                         </div>
 
+                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+                            <div className="p-6">
+                                <div className="flex items-center">
+                                    <div className="flex-shrink-0">
+                                        <Users className="h-8 w-8 text-yellow-600" />
+                                    </div>
+                                    <div className="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt className="text-sm font-medium text-gray-500 truncate">
+                                                Inactive Members
+                                            </dt>
+                                            <dd className="text-2xl font-bold text-gray-900">
+                                                {(safeStats.by_status?.inactive || 0).toLocaleString()}
+                                            </dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+                            <div className="p-6">
+                                <div className="flex items-center">
+                                    <div className="flex-shrink-0">
+                                        <Users className="h-8 w-8 text-blue-600" />
+                                    </div>
+                                    <div className="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt className="text-sm font-medium text-gray-500 truncate">
+                                                Transferred
+                                            </dt>
+                                            <dd className="text-2xl font-bold text-gray-900">
+                                                {(safeStats.by_status?.transferred || 0).toLocaleString()}
+                                            </dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+                            <div className="p-6">
+                                <div className="flex items-center">
+                                    <div className="flex-shrink-0">
+                                        <Users className="h-8 w-8 text-gray-600" />
+                                    </div>
+                                    <div className="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt className="text-sm font-medium text-gray-500 truncate">
+                                                Deceased
+                                            </dt>
+                                            <dd className="text-2xl font-bold text-gray-900">
+                                                {(safeStats.by_status?.deceased || 0).toLocaleString()}
+                                            </dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Additional Quick Stats Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                         <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
                             <div className="p-6">
                                 <div className="flex items-center">
@@ -645,6 +743,29 @@ export default function MembersIndex({
                                             </dd>
                                             <dd className="text-xs text-orange-600 font-medium">
                                                 Active groups
+                                            </dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+                            <div className="p-6">
+                                <div className="flex items-center">
+                                    <div className="flex-shrink-0">
+                                        <Users className="h-8 w-8 text-indigo-600" />
+                                    </div>
+                                    <div className="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt className="text-sm font-medium text-gray-500 truncate">
+                                                Churches
+                                            </dt>
+                                            <dd className="text-2xl font-bold text-gray-900">
+                                                {Object.keys(safeStats.by_church).length}
+                                            </dd>
+                                            <dd className="text-xs text-indigo-600 font-medium">
+                                                Local churches
                                             </dd>
                                         </dl>
                                     </div>

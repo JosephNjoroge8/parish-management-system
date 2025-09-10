@@ -74,6 +74,21 @@ class Member extends Model
     {
         return $this->belongsTo(Member::class, 'minister_id');
     }
+    
+    public function baptismRecord()
+    {
+        return $this->hasOne(BaptismRecord::class);
+    }
+    
+    public function marriageRecordAsHusband()
+    {
+        return $this->hasOne(MarriageRecord::class, 'husband_id');
+    }
+    
+    public function marriageRecordAsWife()
+    {
+        return $this->hasOne(MarriageRecord::class, 'wife_id');
+    }
 
     // Accessors
     public function getFullNameAttribute()
@@ -99,7 +114,7 @@ class Member extends Model
     // Mutators
     public function setGenderAttribute($value)
     {
-        $this->attributes['gender'] = strtolower($value);
+        $this->attributes['gender'] = ucfirst(strtolower(trim($value)));
     }
 
     public function setDateOfBirthAttribute($value)
@@ -163,7 +178,9 @@ class Member extends Model
     public function scopeByGender($query, $gender)
     {
         if ($gender) {
-            return $query->where('gender', $gender);
+            // Ensure consistent capitalization
+            $formattedGender = ucfirst(strtolower(trim($gender)));
+            return $query->where('gender', $formattedGender);
         }
         
         return $query;

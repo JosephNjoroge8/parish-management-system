@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Save, ArrowLeft, Users, AlertCircle, Info, Church, Search, X, ChevronDown, Loader2 } from 'lucide-react';
 import { PageProps } from '@/types';
 import { debounce } from 'lodash';
+import axios from 'axios';
 
 // Define interfaces
 interface Family {
@@ -53,6 +54,70 @@ interface MemberFormData {
     emergency_contact: string;
     emergency_phone: string;
     notes: string;
+    // Baptism Record Fields
+    father_name: string;
+    mother_name: string;
+    birth_village: string;
+    county: string;
+    baptism_location: string;
+    baptized_by: string;
+    eucharist_location: string;
+    eucharist_date: string;
+    confirmation_location: string;
+    confirmation_reg_no: string;
+    confirmation_no: string;
+    marriage_spouse: string;
+    marriage_location: string;
+    marriage_date: string;
+    marriage_reg_no: string;
+    marriage_no: string;
+    // Marriage Record Fields
+    record_number: string;
+    husband_name: string;
+    husband_father_name: string;
+    husband_mother_name: string;
+    husband_tribe: string;
+    husband_clan: string;
+    husband_birth_place: string;
+    husband_domicile: string;
+    husband_baptized_at: string;
+    husband_baptism_date: string;
+    husband_widower_of: string;
+    husband_parent_consent: boolean;
+    wife_name: string;
+    wife_father_name: string;
+    wife_mother_name: string;
+    wife_tribe: string;
+    wife_clan: string;
+    wife_birth_place: string;
+    wife_domicile: string;
+    wife_baptized_at: string;
+    wife_baptism_date: string;
+    wife_widow_of: string;
+    wife_parent_consent: boolean;
+    banas_number: string;
+    banas_church_1: string;
+    banas_date_1: string;
+    banas_church_2: string;
+    banas_date_2: string;
+    dispensation_from: string;
+    dispensation_given_by: string;
+    dispensation_impediment: string;
+    dispensation_date: string;
+    marriage_church: string;
+    district: string;
+    province: string;
+    presence_of: string;
+    delegated_by: string;
+    delegation_date: string;
+    male_witness_name: string;
+    male_witness_father: string;
+    male_witness_clan: string;
+    female_witness_name: string;
+    female_witness_father: string;
+    female_witness_clan: string;
+    civil_marriage_certificate: string;
+    other_documents: string;
 }
 
 const FormInput = ({
@@ -79,7 +144,7 @@ const FormInput = ({
     placeholder?: string;
     rows?: number;
     value: string;
-    onChange: (value: string) => void;
+    onChange: (value: string | boolean) => void;
     className?: string;
     maxLength?: number;
     min?: string;
@@ -219,6 +284,70 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         emergency_contact: '',
         emergency_phone: '',
         notes: '',
+        // Baptism Record Fields
+        father_name: '',
+        mother_name: '',
+        birth_village: '',
+        county: '',
+        baptism_location: '',
+        baptized_by: '',
+        eucharist_location: '',
+        eucharist_date: '',
+        confirmation_location: '',
+        confirmation_reg_no: '',
+        confirmation_no: '',
+        marriage_spouse: '',
+        marriage_location: '',
+        marriage_date: '',
+        marriage_reg_no: '',
+        marriage_no: '',
+        // Marriage Record Fields
+        record_number: '',
+        husband_name: '',
+        husband_father_name: '',
+        husband_mother_name: '',
+        husband_tribe: '',
+        husband_clan: '',
+        husband_birth_place: '',
+        husband_domicile: '',
+        husband_baptized_at: '',
+        husband_baptism_date: '',
+        husband_widower_of: '',
+        husband_parent_consent: false,
+        wife_name: '',
+        wife_father_name: '',
+        wife_mother_name: '',
+        wife_tribe: '',
+        wife_clan: '',
+        wife_birth_place: '',
+        wife_domicile: '',
+        wife_baptized_at: '',
+        wife_baptism_date: '',
+        wife_widow_of: '',
+        wife_parent_consent: false,
+        banas_number: '',
+        banas_church_1: '',
+        banas_date_1: '',
+        banas_church_2: '',
+        banas_date_2: '',
+        dispensation_from: '',
+        dispensation_given_by: '',
+        dispensation_impediment: '',
+        dispensation_date: '',
+        marriage_church: '',
+        district: '',
+        province: '',
+        presence_of: '',
+        delegated_by: '',
+        delegation_date: '',
+        male_witness_name: '',
+        male_witness_father: '',
+        male_witness_clan: '',
+        female_witness_name: '',
+        female_witness_father: '',
+        female_witness_clan: '',
+        civil_marriage_certificate: '',
+        other_documents: '',
     });
 
     // Enhanced debounced family search function with better error handling
@@ -283,7 +412,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
     );
 
     // Optimized field change handler to prevent input lag
-    const handleInputChange = useCallback((field: keyof MemberFormData, value: string) => {
+    const handleInputChange = useCallback((field: keyof MemberFormData, value: string | boolean) => {
         setData(prev => ({
             ...prev,
             [field]: value
@@ -368,6 +497,17 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
             ]);
         }
     }, [data.church_group]);
+    
+    // Show marriage record tab when matrimony status is 'married'
+    useEffect(() => {
+        if (data.matrimony_status === 'married') {
+            // Prompt the user to fill out the marriage record form
+            const shouldNavigate = window.confirm('You\'ve selected "Married" as matrimony status. Would you like to fill out the marriage record details now?');
+            if (shouldNavigate) {
+                setActiveTab('marriage_record');
+            }
+        }
+    }, [data.matrimony_status]);
 
     // Optimized function to determine fields based on church group
     const updateFormFieldsByGroup = useCallback((churchGroup: string): void => {
@@ -415,7 +555,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
     }, []);
 
     // Enhanced form submission with better error handling
-    const handleSubmit = useCallback((e: React.FormEvent<HTMLFormElement>): void => {
+    const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
         e.preventDefault();
         
         if (clearErrors) {
@@ -423,7 +563,10 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         }
         
         // Validate required fields before submission
-        const missingFields = requiredFields.filter(field => !data[field as keyof MemberFormData]?.trim());
+        const missingFields = requiredFields.filter(field => {
+            const value = data[field as keyof MemberFormData];
+            return typeof value === 'string' ? !value.trim() : !value;
+        });
         
         if (missingFields.length > 0) {
             const firstMissingField = missingFields[0];
@@ -436,13 +579,130 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         }
         
         post(route('members.store'), {
-            onSuccess: (page) => {
-                // Show success message
-                alert('Member created successfully! Redirecting to member details...');
+            onSuccess: async (page) => {
+                const response = page.props as any;
+                const memberId = response.member?.id;
                 
-                // Optional: If the response contains the created member data,
-                // we could redirect to the member's detail page
-                // For now, the default Inertia behavior will handle the redirect
+                if (memberId) {
+                    // If baptism information is filled out, submit baptism record
+                    if (data.father_name && data.mother_name && data.baptism_location && data.baptism_date) {
+                        try {
+                            const baptismResponse = await fetch(route('sacramental-records.store-baptism'), {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                    'X-Requested-With': 'XMLHttpRequest', // This is important for Laravel to identify AJAX requests
+                                },
+                                body: JSON.stringify({
+                                    member_id: memberId,
+                                    father_name: data.father_name,
+                                    mother_name: data.mother_name,
+                                    tribe: data.tribe,
+                                    birth_village: data.birth_village,
+                                    county: data.county,
+                                    birth_date: data.date_of_birth,
+                                    residence: data.residence,
+                                    baptism_location: data.baptism_location,
+                                    baptism_date: data.baptism_date,
+                                    baptized_by: data.baptized_by,
+                                    sponsor: data.sponsor,
+                                    eucharist_location: data.eucharist_location,
+                                    eucharist_date: data.eucharist_date,
+                                    confirmation_location: data.confirmation_location,
+                                    confirmation_date: data.confirmation_date,
+                                    confirmation_number: data.confirmation_no,
+                                    confirmation_register_number: data.confirmation_reg_no,
+                                    marriage_spouse: data.marriage_spouse,
+                                    marriage_location: data.marriage_location,
+                                    marriage_date: data.marriage_date,
+                                    marriage_register_number: data.marriage_reg_no,
+                                    marriage_number: data.marriage_no,
+                                })
+                            });
+
+                            if (!baptismResponse.ok) {
+                                console.error('Failed to save baptism record:', await baptismResponse.text());
+                            }
+                        } catch (error) {
+                            console.error('Error saving baptism record:', error);
+                        }
+                    }
+                    
+                    // If matrimony status is married, submit marriage record
+                    if (data.matrimony_status === 'married' && data.husband_name && data.wife_name && data.marriage_church && data.marriage_date) {
+                        try {
+                            const marriageResponse = await fetch(route('sacramental-records.store-marriage'), {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                    'X-Requested-With': 'XMLHttpRequest', // This is important for Laravel to identify AJAX requests
+                                },
+                                body: JSON.stringify({
+                                    husband_id: data.gender === 'Male' ? memberId : null,
+                                    wife_id: data.gender === 'Female' ? memberId : null,
+                                    record_number: data.record_number,
+                                    husband_name: data.husband_name,
+                                    husband_father_name: data.husband_father_name,
+                                    husband_mother_name: data.husband_mother_name,
+                                    husband_tribe: data.husband_tribe,
+                                    husband_clan: data.husband_clan,
+                                    husband_birth_place: data.husband_birth_place,
+                                    husband_domicile: data.husband_domicile,
+                                    husband_baptized_at: data.husband_baptized_at,
+                                    husband_baptism_date: data.husband_baptism_date,
+                                    husband_widower_of: data.husband_widower_of,
+                                    husband_parent_consent: data.husband_parent_consent,
+                                    wife_name: data.wife_name,
+                                    wife_father_name: data.wife_father_name,
+                                    wife_mother_name: data.wife_mother_name,
+                                    wife_tribe: data.wife_tribe,
+                                    wife_clan: data.wife_clan,
+                                    wife_birth_place: data.wife_birth_place,
+                                    wife_domicile: data.wife_domicile,
+                                    wife_baptized_at: data.wife_baptized_at,
+                                    wife_baptism_date: data.wife_baptism_date,
+                                    wife_widow_of: data.wife_widow_of,
+                                    wife_parent_consent: data.wife_parent_consent,
+                                    banas_number: data.banas_number,
+                                    banas_church_1: data.banas_church_1,
+                                    banas_date_1: data.banas_date_1,
+                                    banas_church_2: data.banas_church_2,
+                                    banas_date_2: data.banas_date_2,
+                                    dispensation_from: data.dispensation_from,
+                                    dispensation_given_by: data.dispensation_given_by,
+                                    dispensation_impediment: data.dispensation_impediment,
+                                    dispensation_date: data.dispensation_date,
+                                    marriage_date: data.marriage_date,
+                                    marriage_church: data.marriage_church,
+                                    district: data.district,
+                                    province: data.province,
+                                    presence_of: data.presence_of,
+                                    delegated_by: data.delegated_by,
+                                    delegation_date: data.delegation_date,
+                                    male_witness_name: data.male_witness_name,
+                                    male_witness_father: data.male_witness_father,
+                                    male_witness_clan: data.male_witness_clan,
+                                    female_witness_name: data.female_witness_name,
+                                    female_witness_father: data.female_witness_father,
+                                    female_witness_clan: data.female_witness_clan,
+                                    civil_marriage_certificate_number: data.civil_marriage_certificate,
+                                    other_documents: data.other_documents,
+                                })
+                            });
+
+                            if (!marriageResponse.ok) {
+                                console.error('Failed to save marriage record:', await marriageResponse.text());
+                            }
+                        } catch (error) {
+                            console.error('Error saving marriage record:', error);
+                        }
+                    }
+                
+                    // Show success message
+                    alert('Member created successfully! Redirecting to member details...');
+                }
             },
             onError: (validationErrors) => {
                 const firstErrorField = Object.keys(validationErrors)[0];
@@ -458,10 +718,16 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                         setActiveTab('church');
                     } else if (['first_name', 'last_name', 'middle_name', 'date_of_birth', 'gender', 'id_number', 'occupation', 'education_level'].includes(firstErrorField)) {
                         setActiveTab('personal');
-                    } else if (['family_id', 'parent', 'minister', 'sponsor', 'tribe', 'clan', 'baptism_date', 'confirmation_date', 'matrimony_status'].includes(firstErrorField)) {
+                    } else if (['family_id', 'parent', 'minister', 'sponsor', 'tribe', 'clan', 'baptism_date', 'confirmation_date', 
+                              'matrimony_status', 'father_name', 'mother_name', 'birth_village', 'county', 'baptism_location',
+                              'baptized_by', 'eucharist_location', 'eucharist_date', 'confirmation_location', 
+                              'confirmation_no', 'confirmation_reg_no'].includes(firstErrorField)) {
                         setActiveTab('church_details');
                     } else if (['phone', 'email', 'residence', 'emergency_contact', 'emergency_phone', 'notes'].includes(firstErrorField)) {
                         setActiveTab('contact');
+                    } else if (['record_number', 'husband_name', 'wife_name', 'husband_father_name', 'wife_father_name',
+                               'marriage_date', 'marriage_church'].includes(firstErrorField)) {
+                        setActiveTab('marriage_record');
                     }
                 }
             }
@@ -474,6 +740,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         { id: 'personal', name: 'Personal Info', icon: Users },
         { id: 'church_details', name: 'Church Details', icon: Info },
         { id: 'contact', name: 'Contact Info', icon: AlertCircle },
+        { id: 'marriage_record', name: 'Marriage Record', icon: Church },
     ], []);
 
     // Utility functions
@@ -789,6 +1056,23 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                 return (
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {isFieldVisible('matrimony_status') && (
+                                <FormInput
+                                    id="matrimony_status"
+                                    label="Matrimony Status"
+                                    type="select"
+                                    required={isFieldRequired('matrimony_status')}
+                                    placeholder="Select Matrimony Status"
+                                    value={data.matrimony_status}
+                                    onChange={(value) => handleInputChange('matrimony_status', value)}
+                                    options={[
+                                        { value: 'single', label: 'Single' },
+                                        { value: 'married', label: 'Married' },
+                                        { value: 'widowed', label: 'Widowed' }
+                                    ]}
+                                />
+                            )}
+
                             {isFieldVisible('family_id') && (
                                 <div className="md:col-span-2">
                                     <FamilySearchField />
@@ -850,7 +1134,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     placeholder="Family clan"
                                 />
                             )}
-
+                            
                             {isFieldVisible('baptism_date') && (
                                 <FormInput
                                     id="baptism_date"
@@ -870,23 +1154,136 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     onChange={(value) => handleInputChange('confirmation_date', value)}
                                 />
                             )}
+                        </div>
 
-                            {isFieldVisible('matrimony_status') && (
-                                <FormInput
-                                    id="matrimony_status"
-                                    label="Matrimony Status"
-                                    type="select"
-                                    required={isFieldRequired('matrimony_status')}
-                                    placeholder="Select Matrimony Status"
-                                    value={data.matrimony_status}
-                                    onChange={(value) => handleInputChange('matrimony_status', value)}
-                                    options={[
-                                        { value: 'single', label: 'Single' },
-                                        { value: 'married', label: 'Married' },
-                                        { value: 'widowed', label: 'Widowed' }
-                                    ]}
-                                />
-                            )}
+                        {/* Baptism Record Information */}
+                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Baptism Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormInput
+                                id="father_name"
+                                label="Father's Name"
+                                maxLength={255}
+                                value={data.father_name}
+                                onChange={(value) => handleInputChange('father_name', value)}
+                                placeholder="Enter father's full name"
+                            />
+                            
+                            <FormInput
+                                id="mother_name"
+                                label="Mother's Name"
+                                maxLength={255}
+                                value={data.mother_name}
+                                onChange={(value) => handleInputChange('mother_name', value)}
+                                placeholder="Enter mother's full name"
+                            />
+                            
+                            <FormInput
+                                id="birth_village"
+                                label="Born In (Village)"
+                                maxLength={255}
+                                value={data.birth_village}
+                                onChange={(value) => handleInputChange('birth_village', value)}
+                                placeholder="Enter birth village"
+                            />
+                            
+                            <FormInput
+                                id="county"
+                                label="County"
+                                maxLength={255}
+                                value={data.county}
+                                onChange={(value) => handleInputChange('county', value)}
+                                placeholder="Enter county"
+                            />
+
+                            <FormInput
+                                id="baptism_location"
+                                label="Baptism At"
+                                maxLength={255}
+                                value={data.baptism_location}
+                                onChange={(value) => handleInputChange('baptism_location', value)}
+                                placeholder="Location of baptism"
+                            />
+                            
+                            <FormInput
+                                id="baptism_date"
+                                label="Baptism Date"
+                                type="date"
+                                value={data.baptism_date}
+                                onChange={(value) => handleInputChange('baptism_date', value)}
+                            />
+                            
+                            <FormInput
+                                id="baptized_by"
+                                label="Baptized By"
+                                maxLength={255}
+                                value={data.baptized_by}
+                                onChange={(value) => handleInputChange('baptized_by', value)}
+                                placeholder="Name of officiant"
+                            />
+                            
+                            <FormInput
+                                id="sponsor"
+                                label="Sponsor"
+                                maxLength={255}
+                                value={data.sponsor}
+                                onChange={(value) => handleInputChange('sponsor', value)}
+                                placeholder="Name of sponsor"
+                            />
+                        </div>
+                        
+                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Eucharist & Confirmation Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormInput
+                                id="eucharist_location"
+                                label="Eucharist At"
+                                maxLength={255}
+                                value={data.eucharist_location}
+                                onChange={(value) => handleInputChange('eucharist_location', value)}
+                                placeholder="Location of first communion"
+                            />
+                            
+                            <FormInput
+                                id="eucharist_date"
+                                label="Eucharist Date"
+                                type="date"
+                                value={data.eucharist_date}
+                                onChange={(value) => handleInputChange('eucharist_date', value)}
+                            />
+
+                            <FormInput
+                                id="confirmation_location"
+                                label="Confirmation At"
+                                maxLength={255}
+                                value={data.confirmation_location}
+                                onChange={(value) => handleInputChange('confirmation_location', value)}
+                                placeholder="Location of confirmation"
+                            />
+                            
+                            <FormInput
+                                id="confirmation_date"
+                                label="Confirmation Date"
+                                type="date"
+                                value={data.confirmation_date}
+                                onChange={(value) => handleInputChange('confirmation_date', value)}
+                            />
+                            
+                            <FormInput
+                                id="confirmation_reg_no"
+                                label="Register No."
+                                maxLength={50}
+                                value={data.confirmation_reg_no}
+                                onChange={(value) => handleInputChange('confirmation_reg_no', value)}
+                                placeholder="Register number"
+                            />
+                            
+                            <FormInput
+                                id="confirmation_no"
+                                label="Confirmation No."
+                                maxLength={50}
+                                value={data.confirmation_no}
+                                onChange={(value) => handleInputChange('confirmation_no', value)}
+                                placeholder="Confirmation certificate number"
+                            />
                         </div>
                     </div>
                 );
@@ -963,6 +1360,487 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     placeholder="Any additional information about this member..."
                                 />
                             </div>
+                        </div>
+                    </div>
+                );
+                
+
+
+            case 'marriage_record':
+                // Only show if matrimony status is 'married'
+                if (data.matrimony_status !== 'married') {
+                    return (
+                        <div className="flex flex-col items-center justify-center py-12">
+                            <div className="text-center">
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">Marriage Record</h3>
+                                <p className="text-gray-600">
+                                    To add marriage record details, first select "Married" as the matrimony status in the Church Details tab.
+                                </p>
+                            </div>
+                        </div>
+                    );
+                }
+                
+                return (
+                    <div className="space-y-6">
+                        <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                            <h3 className="font-medium text-blue-800">Church Marriage Record</h3>
+                            <p className="text-sm text-blue-600">This information will be used for official church marriage records.</p>
+                        </div>
+                        
+                        <FormInput
+                            id="record_number"
+                            label="Record Number"
+                            maxLength={50}
+                            value={data.record_number}
+                            onChange={(value) => handleInputChange('record_number', value)}
+                            placeholder="Official marriage record number"
+                        />
+                        
+                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Husband's Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormInput
+                                id="husband_name"
+                                label="Husband's Name"
+                                required
+                                maxLength={255}
+                                value={data.husband_name}
+                                onChange={(value) => handleInputChange('husband_name', value)}
+                                placeholder="Enter husband's full name"
+                            />
+                            
+                            <FormInput
+                                id="husband_father_name"
+                                label="Son of (Father's Name)"
+                                required
+                                maxLength={255}
+                                value={data.husband_father_name}
+                                onChange={(value) => handleInputChange('husband_father_name', value)}
+                                placeholder="Enter husband's father's name"
+                            />
+                            
+                            <FormInput
+                                id="husband_mother_name"
+                                label="Mother's Name"
+                                required
+                                maxLength={255}
+                                value={data.husband_mother_name}
+                                onChange={(value) => handleInputChange('husband_mother_name', value)}
+                                placeholder="Enter husband's mother's name"
+                            />
+                            
+                            <FormInput
+                                id="husband_tribe"
+                                label="Tribe"
+                                maxLength={255}
+                                value={data.husband_tribe}
+                                onChange={(value) => handleInputChange('husband_tribe', value)}
+                                placeholder="Enter husband's tribe"
+                            />
+                            
+                            <FormInput
+                                id="husband_clan"
+                                label="Clan"
+                                maxLength={255}
+                                value={data.husband_clan}
+                                onChange={(value) => handleInputChange('husband_clan', value)}
+                                placeholder="Enter husband's clan"
+                            />
+                            
+                            <FormInput
+                                id="husband_birth_place"
+                                label="Born In"
+                                maxLength={255}
+                                value={data.husband_birth_place}
+                                onChange={(value) => handleInputChange('husband_birth_place', value)}
+                                placeholder="Enter husband's birth place"
+                            />
+                            
+                            <FormInput
+                                id="husband_domicile"
+                                label="Domicile"
+                                maxLength={255}
+                                value={data.husband_domicile}
+                                onChange={(value) => handleInputChange('husband_domicile', value)}
+                                placeholder="Enter husband's current residence"
+                            />
+                            
+                            <FormInput
+                                id="husband_baptized_at"
+                                label="Baptized At"
+                                maxLength={255}
+                                value={data.husband_baptized_at}
+                                onChange={(value) => handleInputChange('husband_baptized_at', value)}
+                                placeholder="Location of baptism"
+                            />
+                            
+                            <FormInput
+                                id="husband_baptism_date"
+                                label="Baptism Date"
+                                type="date"
+                                value={data.husband_baptism_date}
+                                onChange={(value) => handleInputChange('husband_baptism_date', value)}
+                            />
+                            
+                            <FormInput
+                                id="husband_widower_of"
+                                label="Widower of"
+                                maxLength={255}
+                                value={data.husband_widower_of}
+                                onChange={(value) => handleInputChange('husband_widower_of', value)}
+                                placeholder="If applicable"
+                            />
+                            
+                            <div className="flex items-center space-x-4 py-2">
+                                <label htmlFor="husband_parent_consent" className="text-sm font-medium text-gray-700">
+                                    Parent Consent Obtained
+                                </label>
+                                <input
+                                    type="checkbox"
+                                    id="husband_parent_consent"
+                                    checked={data.husband_parent_consent}
+                                    onChange={(e) => handleInputChange('husband_parent_consent', e.target.checked)}
+                                    className="rounded text-blue-500 focus:ring-blue-500"
+                                />
+                            </div>
+                        </div>
+                        
+                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Wife's Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormInput
+                                id="wife_name"
+                                label="Wife's Name"
+                                required
+                                maxLength={255}
+                                value={data.wife_name}
+                                onChange={(value) => handleInputChange('wife_name', value)}
+                                placeholder="Enter wife's full name"
+                            />
+                            
+                            <FormInput
+                                id="wife_father_name"
+                                label="Daughter of (Father's Name)"
+                                required
+                                maxLength={255}
+                                value={data.wife_father_name}
+                                onChange={(value) => handleInputChange('wife_father_name', value)}
+                                placeholder="Enter wife's father's name"
+                            />
+                            
+                            <FormInput
+                                id="wife_mother_name"
+                                label="Mother's Name"
+                                required
+                                maxLength={255}
+                                value={data.wife_mother_name}
+                                onChange={(value) => handleInputChange('wife_mother_name', value)}
+                                placeholder="Enter wife's mother's name"
+                            />
+                            
+                            <FormInput
+                                id="wife_tribe"
+                                label="Tribe"
+                                maxLength={255}
+                                value={data.wife_tribe}
+                                onChange={(value) => handleInputChange('wife_tribe', value)}
+                                placeholder="Enter wife's tribe"
+                            />
+                            
+                            <FormInput
+                                id="wife_clan"
+                                label="Clan"
+                                maxLength={255}
+                                value={data.wife_clan}
+                                onChange={(value) => handleInputChange('wife_clan', value)}
+                                placeholder="Enter wife's clan"
+                            />
+                            
+                            <FormInput
+                                id="wife_birth_place"
+                                label="Born In"
+                                maxLength={255}
+                                value={data.wife_birth_place}
+                                onChange={(value) => handleInputChange('wife_birth_place', value)}
+                                placeholder="Enter wife's birth place"
+                            />
+                            
+                            <FormInput
+                                id="wife_domicile"
+                                label="Domicile"
+                                maxLength={255}
+                                value={data.wife_domicile}
+                                onChange={(value) => handleInputChange('wife_domicile', value)}
+                                placeholder="Enter wife's current residence"
+                            />
+                            
+                            <FormInput
+                                id="wife_baptized_at"
+                                label="Baptized At"
+                                maxLength={255}
+                                value={data.wife_baptized_at}
+                                onChange={(value) => handleInputChange('wife_baptized_at', value)}
+                                placeholder="Location of baptism"
+                            />
+                            
+                            <FormInput
+                                id="wife_baptism_date"
+                                label="Baptism Date"
+                                type="date"
+                                value={data.wife_baptism_date}
+                                onChange={(value) => handleInputChange('wife_baptism_date', value)}
+                            />
+                            
+                            <FormInput
+                                id="wife_widow_of"
+                                label="Widow of"
+                                maxLength={255}
+                                value={data.wife_widow_of}
+                                onChange={(value) => handleInputChange('wife_widow_of', value)}
+                                placeholder="If applicable"
+                            />
+                            
+                            <div className="flex items-center space-x-4 py-2">
+                                <label htmlFor="wife_parent_consent" className="text-sm font-medium text-gray-700">
+                                    Parent Consent Obtained
+                                </label>
+                                <input
+                                    type="checkbox"
+                                    id="wife_parent_consent"
+                                    checked={data.wife_parent_consent}
+                                    onChange={(e) => handleInputChange('wife_parent_consent', e.target.checked)}
+                                    className="rounded text-blue-500 focus:ring-blue-500"
+                                />
+                            </div>
+                        </div>
+                        
+                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Banas Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormInput
+                                id="banas_number"
+                                label="Banas Number"
+                                maxLength={50}
+                                value={data.banas_number}
+                                onChange={(value) => handleInputChange('banas_number', value)}
+                                placeholder="Enter banas number"
+                            />
+                            
+                            <FormInput
+                                id="banas_church_1"
+                                label="In the Church of (1)"
+                                maxLength={255}
+                                value={data.banas_church_1}
+                                onChange={(value) => handleInputChange('banas_church_1', value)}
+                                placeholder="Enter church name"
+                            />
+                            
+                            <FormInput
+                                id="banas_date_1"
+                                label="Dates (1)"
+                                type="date"
+                                value={data.banas_date_1}
+                                onChange={(value) => handleInputChange('banas_date_1', value)}
+                            />
+                            
+                            <FormInput
+                                id="banas_church_2"
+                                label="In the Church of (2)"
+                                maxLength={255}
+                                value={data.banas_church_2}
+                                onChange={(value) => handleInputChange('banas_church_2', value)}
+                                placeholder="Enter church name (if applicable)"
+                            />
+                            
+                            <FormInput
+                                id="banas_date_2"
+                                label="Dates (2)"
+                                type="date"
+                                value={data.banas_date_2}
+                                onChange={(value) => handleInputChange('banas_date_2', value)}
+                            />
+                        </div>
+                        
+                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Dispensation Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormInput
+                                id="dispensation_from"
+                                label="Dispensation From"
+                                maxLength={255}
+                                value={data.dispensation_from}
+                                onChange={(value) => handleInputChange('dispensation_from', value)}
+                                placeholder="Enter dispensation source"
+                            />
+                            
+                            <FormInput
+                                id="dispensation_given_by"
+                                label="Given By"
+                                maxLength={255}
+                                value={data.dispensation_given_by}
+                                onChange={(value) => handleInputChange('dispensation_given_by', value)}
+                                placeholder="Enter name"
+                            />
+                            
+                            <FormInput
+                                id="dispensation_impediment"
+                                label="Dispensation from the Impediment(s) of"
+                                maxLength={255}
+                                value={data.dispensation_impediment}
+                                onChange={(value) => handleInputChange('dispensation_impediment', value)}
+                                placeholder="Enter impediments"
+                            />
+                            
+                            <FormInput
+                                id="dispensation_date"
+                                label="Dispensation Date"
+                                type="date"
+                                value={data.dispensation_date}
+                                onChange={(value) => handleInputChange('dispensation_date', value)}
+                            />
+                        </div>
+                        
+                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Marriage Ceremony Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormInput
+                                id="marriage_date"
+                                label="Marriage Date"
+                                type="date"
+                                required
+                                value={data.marriage_date}
+                                onChange={(value) => handleInputChange('marriage_date', value)}
+                            />
+                            
+                            <FormInput
+                                id="marriage_church"
+                                label="In the Church of"
+                                required
+                                maxLength={255}
+                                value={data.marriage_church}
+                                onChange={(value) => handleInputChange('marriage_church', value)}
+                                placeholder="Enter church name"
+                            />
+                            
+                            <FormInput
+                                id="district"
+                                label="District of"
+                                maxLength={255}
+                                value={data.district}
+                                onChange={(value) => handleInputChange('district', value)}
+                                placeholder="Enter district"
+                            />
+                            
+                            <FormInput
+                                id="province"
+                                label="Province of"
+                                maxLength={255}
+                                value={data.province}
+                                onChange={(value) => handleInputChange('province', value)}
+                                placeholder="Enter province"
+                            />
+                            
+                            <FormInput
+                                id="presence_of"
+                                label="In the Presence of"
+                                maxLength={255}
+                                value={data.presence_of}
+                                onChange={(value) => handleInputChange('presence_of', value)}
+                                placeholder="Enter officiating clergy name"
+                            />
+                            
+                            <FormInput
+                                id="delegated_by"
+                                label="Delegated By"
+                                maxLength={255}
+                                value={data.delegated_by}
+                                onChange={(value) => handleInputChange('delegated_by', value)}
+                                placeholder="Enter name if applicable"
+                            />
+                            
+                            <FormInput
+                                id="delegation_date"
+                                label="Delegation Date"
+                                type="date"
+                                value={data.delegation_date}
+                                onChange={(value) => handleInputChange('delegation_date', value)}
+                            />
+                        </div>
+                        
+                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Witness Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormInput
+                                id="male_witness_name"
+                                label="Male Witness Full Name"
+                                required
+                                maxLength={255}
+                                value={data.male_witness_name}
+                                onChange={(value) => handleInputChange('male_witness_name', value)}
+                                placeholder="Enter name"
+                            />
+                            
+                            <FormInput
+                                id="male_witness_father"
+                                label="Son of"
+                                maxLength={255}
+                                value={data.male_witness_father}
+                                onChange={(value) => handleInputChange('male_witness_father', value)}
+                                placeholder="Enter father's name"
+                            />
+                            
+                            <FormInput
+                                id="male_witness_clan"
+                                label="Clan"
+                                maxLength={255}
+                                value={data.male_witness_clan}
+                                onChange={(value) => handleInputChange('male_witness_clan', value)}
+                                placeholder="Enter clan"
+                            />
+                            
+                            <FormInput
+                                id="female_witness_name"
+                                label="Female Witness Full Name"
+                                required
+                                maxLength={255}
+                                value={data.female_witness_name}
+                                onChange={(value) => handleInputChange('female_witness_name', value)}
+                                placeholder="Enter name"
+                            />
+                            
+                            <FormInput
+                                id="female_witness_father"
+                                label="Daughter of"
+                                maxLength={255}
+                                value={data.female_witness_father}
+                                onChange={(value) => handleInputChange('female_witness_father', value)}
+                                placeholder="Enter father's name"
+                            />
+                            
+                            <FormInput
+                                id="female_witness_clan"
+                                label="Clan"
+                                maxLength={255}
+                                value={data.female_witness_clan}
+                                onChange={(value) => handleInputChange('female_witness_clan', value)}
+                                placeholder="Enter clan"
+                            />
+                        </div>
+                        
+                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Additional Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormInput
+                                id="civil_marriage_certificate"
+                                label="Civil Marriage Certificate Number"
+                                maxLength={100}
+                                value={data.civil_marriage_certificate}
+                                onChange={(value) => handleInputChange('civil_marriage_certificate', value)}
+                                placeholder="Enter certificate number"
+                            />
+                            
+                            <FormInput
+                                id="other_documents"
+                                label="Other Documents"
+                                maxLength={255}
+                                value={data.other_documents}
+                                onChange={(value) => handleInputChange('other_documents', value)}
+                                placeholder="List any other documents"
+                            />
                         </div>
                     </div>
                 );

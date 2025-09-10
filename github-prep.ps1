@@ -36,7 +36,19 @@ else {
     Write-Host "No commit message provided. You can commit later with 'git commit -m \"Your message\"'" -ForegroundColor Yellow
 }
 
-# Step 6: Check remote status
+# Step 6: Check remote status and branch name
+Write-Host "`nChecking current branch name..." -ForegroundColor Yellow
+$currentBranch = git rev-parse --abbrev-ref HEAD 2>$null
+if (-not $currentBranch) {
+    Write-Host "No branches found. This might be a new repository." -ForegroundColor Yellow
+    Write-Host "Creating an initial commit..." -ForegroundColor Yellow
+    git add .
+    git commit -m "Initial commit"
+    $currentBranch = "master"  # Default to master for new repositories
+}
+
+Write-Host "Current branch: $currentBranch" -ForegroundColor Green
+
 Write-Host "`nChecking remote repository status..." -ForegroundColor Yellow
 $remotes = git remote -v
 if ($remotes) {
@@ -47,7 +59,19 @@ if ($remotes) {
     $push = Read-Host
     if ($push -eq "y") {
         Write-Host "Pushing to remote repository..." -ForegroundColor Yellow
-        git push origin main
+        git push -u origin $currentBranch
+        
+        # If current branch is master and we want to push to main, create main branch
+        if ($currentBranch -eq "master") {
+            Write-Host "`nWould you like to create and push a main branch as well? (y/n)" -ForegroundColor Cyan
+            $createMain = Read-Host
+            if ($createMain -eq "y") {
+                Write-Host "Creating and pushing main branch..." -ForegroundColor Yellow
+                git checkout -b main
+                git push -u origin main
+                Write-Host "Main branch created and pushed successfully." -ForegroundColor Green
+            }
+        }
     }
 }
 else {
@@ -62,7 +86,7 @@ else {
         if ($repoUrl) {
             git remote add origin $repoUrl
             Write-Host "Remote repository added. You can now push with:" -ForegroundColor Green
-            Write-Host "git push -u origin main" -ForegroundColor Cyan
+            Write-Host "git push -u origin $currentBranch" -ForegroundColor Cyan
         }
     }
 }

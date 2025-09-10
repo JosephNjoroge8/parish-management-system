@@ -32,6 +32,19 @@ if not "%commitMessage%"=="" (
 )
 
 echo.
+echo [93mChecking current branch name...[0m
+for /f "tokens=*" %%a in ('git rev-parse --abbrev-ref HEAD 2^>nul') do set currentBranch=%%a
+if "%currentBranch%"=="" (
+    echo [93mNo branches found. This might be a new repository.[0m
+    echo [93mCreating an initial commit...[0m
+    git add .
+    git commit -m "Initial commit"
+    set currentBranch=master
+)
+
+echo [92mCurrent branch: %currentBranch%[0m
+
+echo.
 echo [93mChecking remote repository status...[0m
 git remote -v
 if %ERRORLEVEL% EQU 0 (
@@ -42,7 +55,18 @@ if %ERRORLEVEL% EQU 0 (
     set /p push="Would you like to push to the remote repository? (y/n): "
     if /i "%push%"=="y" (
         echo [93mPushing to remote repository...[0m
-        git push origin main
+        git push -u origin %currentBranch%
+        
+        if "%currentBranch%"=="master" (
+            echo.
+            set /p createMain="Would you like to create and push a main branch as well? (y/n): "
+            if /i "%createMain%"=="y" (
+                echo [93mCreating and pushing main branch...[0m
+                git checkout -b main
+                git push -u origin main
+                echo [92mMain branch created and pushed successfully.[0m
+            )
+        )
     )
 ) else (
     echo [93mNo remote repository configured. You need to add one with:[0m
@@ -55,7 +79,7 @@ if %ERRORLEVEL% EQU 0 (
         if not "%repoUrl%"=="" (
             git remote add origin %repoUrl%
             echo [92mRemote repository added. You can now push with:[0m
-            echo [96mgit push -u origin main[0m
+            echo [96mgit push -u origin %currentBranch%[0m
         )
     )
 )

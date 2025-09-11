@@ -13,15 +13,8 @@
 
         <!-- Scripts -->
         @routes
-        
-        @if (app()->environment('production'))
-            {{-- Production: Use built assets only --}}
-            @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/Pages/{$page['component']}.tsx"])
-        @else
-            {{-- Development: Include HMR --}}
-            @viteReactRefresh
-            @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/Pages/{$page['component']}.tsx"])
-        @endif
+        @viteReactRefresh
+        @vite(['resources/css/app.css', 'resources/js/app.tsx'])
         
         @inertiaHead
     </head>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Head, useForm, Link } from '@inertiajs/react';
+import { Head, useForm, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Save, ArrowLeft, Users, AlertCircle, Info, Church, Search, X, ChevronDown, Loader2 } from 'lucide-react';
 import { PageProps } from '@/types';
@@ -143,7 +143,7 @@ const FormInput = ({
     required?: boolean;
     placeholder?: string;
     rows?: number;
-    value: string;
+    value: string | boolean;
     onChange: (value: string | boolean) => void;
     className?: string;
     maxLength?: number;
@@ -159,12 +159,23 @@ const FormInput = ({
 
     let InputComponent;
 
-    if (type === 'textarea') {
+    if (type === 'checkbox') {
+        InputComponent = (
+            <input
+                type="checkbox"
+                id={id}
+                checked={Boolean(value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.checked)}
+                className="rounded text-blue-500 focus:ring-blue-500"
+                required={required}
+            />
+        );
+    } else if (type === 'textarea') {
         InputComponent = (
             <textarea
                 id={id}
-                value={value}
-                onChange={e => onChange(e.target.value)}
+                value={String(value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
                 className={inputClassName}
                 placeholder={placeholder}
                 required={required}
@@ -176,8 +187,8 @@ const FormInput = ({
         InputComponent = (
             <select
                 id={id}
-                value={value}
-                onChange={e => onChange(e.target.value)}
+                value={String(value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
                 className={inputClassName}
                 required={required}
             >
@@ -194,8 +205,8 @@ const FormInput = ({
             <input
                 type={type}
                 id={id}
-                value={value}
-                onChange={e => onChange(e.target.value)}
+                value={String(value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
                 className={inputClassName}
                 placeholder={placeholder}
                 required={required}
@@ -370,32 +381,26 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                 
                 setFamilySearchResults(localResults);
                 
-                // Then, make API call for more comprehensive search
-                const response = await fetch(`/api/families/search?q=${encodeURIComponent(query)}&limit=10`, {
-                    method: 'GET',
+                // Then, make API call for more comprehensive search using axios
+                const response = await axios.get(`/api/families/search`, {
+                    params: { q: query, limit: 10 },
                     headers: {
-                        'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json',
                     },
                 });
 
-                if (response.ok) {
-                    const results = await response.json();
-                    const apiResults = results.data || results || [];
-                    
-                    // Merge and deduplicate results
-                    const mergedResults = [...localResults];
-                    apiResults.forEach((apiFamily: Family) => {
-                        if (!mergedResults.some(local => local.id === apiFamily.id)) {
-                            mergedResults.push(apiFamily);
-                        }
-                    });
-                    
-                    setFamilySearchResults(mergedResults.slice(0, 10));
-                } else {
-                    console.warn('API family search failed, using local results');
-                }
+                const apiResults = response.data?.data || response.data || [];
+                
+                // Merge and deduplicate results
+                const mergedResults = [...localResults];
+                apiResults.forEach((apiFamily: Family) => {
+                    if (!mergedResults.some(local => local.id === apiFamily.id)) {
+                        mergedResults.push(apiFamily);
+                    }
+                });
+                
+                setFamilySearchResults(mergedResults.slice(0, 10));
             } catch (error) {
                 console.warn('Family search error, using local results:', error);
                 // Fallback to local search
@@ -413,7 +418,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
 
     // Optimized field change handler to prevent input lag
     const handleInputChange = useCallback((field: keyof MemberFormData, value: string | boolean) => {
-        setData(prev => ({
+        setData((prev: any) => ({
             ...prev,
             [field]: value
         }));
@@ -476,39 +481,6 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         };
     }, []);
 
-    // Initialize family search results
-    useEffect(() => {
-        setFamilySearchResults(families.slice(0, 10));
-    }, [families]);
-
-    // Auto-update form fields when church group changes - OPTIMIZED
-    useEffect(() => {
-        if (data.church_group) {
-            updateFormFieldsByGroup(data.church_group);
-        } else {
-            // Reset to show only basic fields when no group is selected
-            setVisibleFields([
-                'local_church', 'church_group', 'first_name', 'middle_name', 'last_name', 
-                'date_of_birth', 'gender', 'phone', 'email', 'residence', 'membership_date', 
-                'membership_status', 'emergency_contact', 'emergency_phone', 'notes'
-            ]);
-            setRequiredFields([
-                'local_church', 'church_group', 'first_name', 'last_name', 'date_of_birth', 'gender'
-            ]);
-        }
-    }, [data.church_group]);
-    
-    // Show marriage record tab when matrimony status is 'married'
-    useEffect(() => {
-        if (data.matrimony_status === 'married') {
-            // Prompt the user to fill out the marriage record form
-            const shouldNavigate = window.confirm('You\'ve selected "Married" as matrimony status. Would you like to fill out the marriage record details now?');
-            if (shouldNavigate) {
-                setActiveTab('marriage_record');
-            }
-        }
-    }, [data.matrimony_status]);
-
     // Optimized function to determine fields based on church group
     const updateFormFieldsByGroup = useCallback((churchGroup: string): void => {
         const baseFields = [
@@ -552,7 +524,38 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
 
         setVisibleFields(visible);
         setRequiredFields(required);
-    }, []);
+    }, [setVisibleFields, setRequiredFields]);
+
+    // Initialize family search results
+    useEffect(() => {
+        setFamilySearchResults(families.slice(0, 10));
+    }, [families]);
+
+    // Auto-update form fields when church group changes - OPTIMIZED
+    useEffect(() => {
+        if (data.church_group) {
+            updateFormFieldsByGroup(data.church_group);
+        } else {
+            // Reset to show only basic fields when no group is selected
+            setVisibleFields([
+                'local_church', 'church_group', 'first_name', 'middle_name', 'last_name', 
+                'date_of_birth', 'gender', 'phone', 'email', 'residence', 'membership_date', 
+                'membership_status', 'emergency_contact', 'emergency_phone', 'notes'
+            ]);
+            setRequiredFields([
+                'local_church', 'church_group', 'first_name', 'last_name', 'date_of_birth', 'gender'
+            ]);
+        }
+    }, [data.church_group, updateFormFieldsByGroup]);
+    
+    // Show marriage record tab when matrimony status is 'married'
+    useEffect(() => {
+        if (data.matrimony_status === 'married') {
+            // Auto-navigate to marriage record tab with helpful message
+            setActiveTab('marriage_record');
+            // Could show a toast notification here instead of confirm dialog
+        }
+    }, [data.matrimony_status]);
 
     // Enhanced form submission with better error handling
     const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
@@ -563,7 +566,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         }
         
         // Validate required fields before submission
-        const missingFields = requiredFields.filter(field => {
+        const missingFields = requiredFields.filter((field: string) => {
             const value = data[field as keyof MemberFormData];
             return typeof value === 'string' ? !value.trim() : !value;
         });
@@ -579,7 +582,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         }
         
         post(route('members.store'), {
-            onSuccess: async (page) => {
+            onSuccess: async (page: any) => {
                 const response = page.props as any;
                 const memberId = response.member?.id;
                 
@@ -587,124 +590,114 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                     // If baptism information is filled out, submit baptism record
                     if (data.father_name && data.mother_name && data.baptism_location && data.baptism_date) {
                         try {
-                            const baptismResponse = await fetch(route('sacramental-records.store-baptism'), {
-                                method: 'POST',
+                            await axios.post(route('sacramental-records.store-baptism'), {
+                                member_id: memberId,
+                                father_name: data.father_name,
+                                mother_name: data.mother_name,
+                                tribe: data.tribe,
+                                birth_village: data.birth_village,
+                                county: data.county,
+                                birth_date: data.date_of_birth,
+                                residence: data.residence,
+                                baptism_location: data.baptism_location,
+                                baptism_date: data.baptism_date,
+                                baptized_by: data.baptized_by,
+                                sponsor: data.sponsor,
+                                eucharist_location: data.eucharist_location,
+                                eucharist_date: data.eucharist_date,
+                                confirmation_location: data.confirmation_location,
+                                confirmation_date: data.confirmation_date,
+                                confirmation_number: data.confirmation_no,
+                                confirmation_register_number: data.confirmation_reg_no,
+                                marriage_spouse: data.marriage_spouse,
+                                marriage_location: data.marriage_location,
+                                marriage_date: data.marriage_date,
+                                marriage_register_number: data.marriage_reg_no,
+                                marriage_number: data.marriage_no,
+                            }, {
                                 headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                                    'X-Requested-With': 'XMLHttpRequest', // This is important for Laravel to identify AJAX requests
+                                    'X-Requested-With': 'XMLHttpRequest',
                                 },
-                                body: JSON.stringify({
-                                    member_id: memberId,
-                                    father_name: data.father_name,
-                                    mother_name: data.mother_name,
-                                    tribe: data.tribe,
-                                    birth_village: data.birth_village,
-                                    county: data.county,
-                                    birth_date: data.date_of_birth,
-                                    residence: data.residence,
-                                    baptism_location: data.baptism_location,
-                                    baptism_date: data.baptism_date,
-                                    baptized_by: data.baptized_by,
-                                    sponsor: data.sponsor,
-                                    eucharist_location: data.eucharist_location,
-                                    eucharist_date: data.eucharist_date,
-                                    confirmation_location: data.confirmation_location,
-                                    confirmation_date: data.confirmation_date,
-                                    confirmation_number: data.confirmation_no,
-                                    confirmation_register_number: data.confirmation_reg_no,
-                                    marriage_spouse: data.marriage_spouse,
-                                    marriage_location: data.marriage_location,
-                                    marriage_date: data.marriage_date,
-                                    marriage_register_number: data.marriage_reg_no,
-                                    marriage_number: data.marriage_no,
-                                })
                             });
-
-                            if (!baptismResponse.ok) {
-                                console.error('Failed to save baptism record:', await baptismResponse.text());
-                            }
                         } catch (error) {
                             console.error('Error saving baptism record:', error);
+                            // Could show a toast notification here instead of console.error
                         }
                     }
                     
                     // If matrimony status is married, submit marriage record
                     if (data.matrimony_status === 'married' && data.husband_name && data.wife_name && data.marriage_church && data.marriage_date) {
                         try {
-                            const marriageResponse = await fetch(route('sacramental-records.store-marriage'), {
-                                method: 'POST',
+                            await axios.post(route('sacramental-records.store-marriage'), {
+                                husband_id: data.gender === 'Male' ? memberId : null,
+                                wife_id: data.gender === 'Female' ? memberId : null,
+                                record_number: data.record_number,
+                                husband_name: data.husband_name,
+                                husband_father_name: data.husband_father_name,
+                                husband_mother_name: data.husband_mother_name,
+                                husband_tribe: data.husband_tribe,
+                                husband_clan: data.husband_clan,
+                                husband_birth_place: data.husband_birth_place,
+                                husband_domicile: data.husband_domicile,
+                                husband_baptized_at: data.husband_baptized_at,
+                                husband_baptism_date: data.husband_baptism_date,
+                                husband_widower_of: data.husband_widower_of,
+                                husband_parent_consent: data.husband_parent_consent,
+                                wife_name: data.wife_name,
+                                wife_father_name: data.wife_father_name,
+                                wife_mother_name: data.wife_mother_name,
+                                wife_tribe: data.wife_tribe,
+                                wife_clan: data.wife_clan,
+                                wife_birth_place: data.wife_birth_place,
+                                wife_domicile: data.wife_domicile,
+                                wife_baptized_at: data.wife_baptized_at,
+                                wife_baptism_date: data.wife_baptism_date,
+                                wife_widow_of: data.wife_widow_of,
+                                wife_parent_consent: data.wife_parent_consent,
+                                banas_number: data.banas_number,
+                                banas_church_1: data.banas_church_1,
+                                banas_date_1: data.banas_date_1,
+                                banas_church_2: data.banas_church_2,
+                                banas_date_2: data.banas_date_2,
+                                dispensation_from: data.dispensation_from,
+                                dispensation_given_by: data.dispensation_given_by,
+                                dispensation_impediment: data.dispensation_impediment,
+                                dispensation_date: data.dispensation_date,
+                                marriage_date: data.marriage_date,
+                                marriage_church: data.marriage_church,
+                                district: data.district,
+                                province: data.province,
+                                presence_of: data.presence_of,
+                                delegated_by: data.delegated_by,
+                                delegation_date: data.delegation_date,
+                                male_witness_name: data.male_witness_name,
+                                male_witness_father: data.male_witness_father,
+                                male_witness_clan: data.male_witness_clan,
+                                female_witness_name: data.female_witness_name,
+                                female_witness_father: data.female_witness_father,
+                                female_witness_clan: data.female_witness_clan,
+                                civil_marriage_certificate_number: data.civil_marriage_certificate,
+                                other_documents: data.other_documents,
+                            }, {
                                 headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                                    'X-Requested-With': 'XMLHttpRequest', // This is important for Laravel to identify AJAX requests
+                                    'X-Requested-With': 'XMLHttpRequest',
                                 },
-                                body: JSON.stringify({
-                                    husband_id: data.gender === 'Male' ? memberId : null,
-                                    wife_id: data.gender === 'Female' ? memberId : null,
-                                    record_number: data.record_number,
-                                    husband_name: data.husband_name,
-                                    husband_father_name: data.husband_father_name,
-                                    husband_mother_name: data.husband_mother_name,
-                                    husband_tribe: data.husband_tribe,
-                                    husband_clan: data.husband_clan,
-                                    husband_birth_place: data.husband_birth_place,
-                                    husband_domicile: data.husband_domicile,
-                                    husband_baptized_at: data.husband_baptized_at,
-                                    husband_baptism_date: data.husband_baptism_date,
-                                    husband_widower_of: data.husband_widower_of,
-                                    husband_parent_consent: data.husband_parent_consent,
-                                    wife_name: data.wife_name,
-                                    wife_father_name: data.wife_father_name,
-                                    wife_mother_name: data.wife_mother_name,
-                                    wife_tribe: data.wife_tribe,
-                                    wife_clan: data.wife_clan,
-                                    wife_birth_place: data.wife_birth_place,
-                                    wife_domicile: data.wife_domicile,
-                                    wife_baptized_at: data.wife_baptized_at,
-                                    wife_baptism_date: data.wife_baptism_date,
-                                    wife_widow_of: data.wife_widow_of,
-                                    wife_parent_consent: data.wife_parent_consent,
-                                    banas_number: data.banas_number,
-                                    banas_church_1: data.banas_church_1,
-                                    banas_date_1: data.banas_date_1,
-                                    banas_church_2: data.banas_church_2,
-                                    banas_date_2: data.banas_date_2,
-                                    dispensation_from: data.dispensation_from,
-                                    dispensation_given_by: data.dispensation_given_by,
-                                    dispensation_impediment: data.dispensation_impediment,
-                                    dispensation_date: data.dispensation_date,
-                                    marriage_date: data.marriage_date,
-                                    marriage_church: data.marriage_church,
-                                    district: data.district,
-                                    province: data.province,
-                                    presence_of: data.presence_of,
-                                    delegated_by: data.delegated_by,
-                                    delegation_date: data.delegation_date,
-                                    male_witness_name: data.male_witness_name,
-                                    male_witness_father: data.male_witness_father,
-                                    male_witness_clan: data.male_witness_clan,
-                                    female_witness_name: data.female_witness_name,
-                                    female_witness_father: data.female_witness_father,
-                                    female_witness_clan: data.female_witness_clan,
-                                    civil_marriage_certificate_number: data.civil_marriage_certificate,
-                                    other_documents: data.other_documents,
-                                })
                             });
-
-                            if (!marriageResponse.ok) {
-                                console.error('Failed to save marriage record:', await marriageResponse.text());
-                            }
                         } catch (error) {
                             console.error('Error saving marriage record:', error);
+                            // Could show a toast notification here instead of console.error
                         }
                     }
                 
-                    // Show success message
-                    alert('Member created successfully! Redirecting to member details...');
+                    // Navigate to members list with success message
+                    router.visit(route('members.index'), {
+                        onFinish: () => {
+                            // This will be handled by the backend flash message
+                        }
+                    });
                 }
             },
-            onError: (validationErrors) => {
+            onError: (validationErrors: any) => {
                 const firstErrorField = Object.keys(validationErrors)[0];
                 if (firstErrorField) {
                     const element = document.getElementById(firstErrorField);
@@ -761,123 +754,141 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
     }, [errors]);
 
     // Enhanced Family Search Component
-    const FamilySearchField = useCallback(() => (
-        <div className="relative" ref={familySearchRef}>
-            <label htmlFor="family_search" className="block text-sm font-medium text-gray-700 mb-2">
-                Family {isFieldRequired('family_id') && <span className="text-red-500">*</span>}
-            </label>
-            <div className="relative">                <input
-                    ref={familyInputRef}
-                    type="text"
-                    id="family_search"
-                    value={familySearchQuery}
-                    onChange={useCallback((e: React.ChangeEvent<HTMLInputElement>) => handleFamilySearchChange(e.target.value), [handleFamilySearchChange])}
-                    onFocus={() => setShowFamilyDropdown(true)}
-                    className={`w-full px-4 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                        hasError('family_id') ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Search by family name or code..."
-                    autoComplete="off"
-                />
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                    {isSearchingFamilies ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                    ) : selectedFamily ? (
-                        <button
-                            type="button"
-                            onClick={clearFamilySelection}
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    ) : (
-                        <Search className="w-4 h-4 text-gray-400" />
-                    )}
-                </div>
-            </div>
+    const FamilySearchField = useCallback(() => {
+        const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            handleFamilySearchChange(e.target.value);
+        };
 
-            {/* Selected Family Display */}
-            {selectedFamily && (
-                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                            <h4 className="text-sm font-medium text-blue-900">
-                                {selectedFamily.family_name}
-                                {selectedFamily.family_code && (
-                                    <span className="ml-2 text-blue-600">({selectedFamily.family_code})</span>
-                                )}
-                            </h4>
-                            {selectedFamily.head_of_family_name && (
-                                <p className="text-sm text-blue-700">Head: {selectedFamily.head_of_family_name}</p>
-                            )}
-                            {selectedFamily.parish_section && (
-                                <p className="text-sm text-blue-600">Section: {selectedFamily.parish_section}</p>
-                            )}
-                            {selectedFamily.members_count !== undefined && (
-                                <p className="text-sm text-blue-600">Members: {selectedFamily.members_count}</p>
-                            )}
-                        </div>
-                        <button
-                            type="button"
-                            onClick={clearFamilySelection}
-                            className="text-blue-400 hover:text-blue-600 transition-colors"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
+        return (
+            <div className="relative" ref={familySearchRef}>
+                <label htmlFor="family_search" className="block text-sm font-medium text-gray-700 mb-2">
+                    Family {isFieldRequired('family_id') && <span className="text-red-500">*</span>}
+                </label>
+                <div className="relative">
+                    <input
+                        ref={familyInputRef}
+                        type="text"
+                        id="family_search"
+                        value={familySearchQuery}
+                        onChange={handleInputChange}
+                        onFocus={() => setShowFamilyDropdown(true)}
+                        className={`w-full px-4 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                            hasError('family_id') ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        placeholder="Search by family name or code..."
+                        autoComplete="off"
+                        aria-expanded={showFamilyDropdown}
+                        aria-haspopup="listbox"
+                        role="combobox"
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                        {isSearchingFamilies ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                        ) : selectedFamily ? (
+                            <button
+                                type="button"
+                                onClick={clearFamilySelection}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                                aria-label="Clear family selection"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        ) : (
+                            <Search className="w-4 h-4 text-gray-400" />
+                        )}
                     </div>
                 </div>
-            )}
 
-            {/* Search Results Dropdown */}
-            {showFamilyDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {isSearchingFamilies && familySearchQuery.length >= 2 ? (
-                        <div className="p-4 text-center text-gray-500">
-                            <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-                            Searching families...
-                        </div>
-                    ) : familySearchResults.length > 0 ? (
-                        familySearchResults.map((family) => (
-                            <button
-                                key={family.id}
-                                type="button"
-                                onClick={() => handleFamilySelect(family)}
-                                className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-blue-50 focus:outline-none transition-colors"
-                            >
-                                <div className="font-medium text-gray-900">
-                                    {family.family_name}
-                                    {family.family_code && (
-                                        <span className="ml-2 text-sm text-gray-600">({family.family_code})</span>
+                {/* Selected Family Display */}
+                {selectedFamily && (
+                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                                <h4 className="text-sm font-medium text-blue-900">
+                                    {selectedFamily.family_name}
+                                    {selectedFamily.family_code && (
+                                        <span className="ml-2 text-blue-600">({selectedFamily.family_code})</span>
                                     )}
-                                </div>
-                                {family.head_of_family_name && (
-                                    <div className="text-sm text-gray-600">Head: {family.head_of_family_name}</div>
+                                </h4>
+                                {selectedFamily.head_of_family_name && (
+                                    <p className="text-sm text-blue-700">Head: {selectedFamily.head_of_family_name}</p>
                                 )}
-                                <div className="flex items-center space-x-4 text-xs text-gray-500 mt-1">
-                                    {family.parish_section && <span>Section: {family.parish_section}</span>}
-                                    {family.members_count !== undefined && <span>Members: {family.members_count}</span>}
-                                </div>
+                                {selectedFamily.parish_section && (
+                                    <p className="text-sm text-blue-600">Section: {selectedFamily.parish_section}</p>
+                                )}
+                                {selectedFamily.members_count !== undefined && (
+                                    <p className="text-sm text-blue-600">Members: {selectedFamily.members_count}</p>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={clearFamilySelection}
+                                className="text-blue-400 hover:text-blue-600 transition-colors"
+                                aria-label="Remove family selection"
+                            >
+                                <X className="w-4 h-4" />
                             </button>
-                        ))
-                    ) : (
-                        <div className="p-4 text-center text-gray-500">
-                            <div className="mb-2">No families found</div>
-                            <div className="text-sm">Try searching with a different name or code</div>
                         </div>
-                    )}
-                </div>
-            )}
-            
-            {hasError('family_id') && (
-                <p className="mt-1 text-sm text-red-600">{getErrorMessage('family_id')}</p>
-            )}
-            {!selectedFamily && familySearchQuery.length === 0 && (
-                <p className="mt-1 text-sm text-gray-500">
-                    Start typing to search for a family, or leave empty if not applicable
-                </p>
-            )}
-        </div>
-    ), [
+                    </div>
+                )}
+
+                {/* Search Results Dropdown */}
+                {showFamilyDropdown && (
+                    <div 
+                        className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                        role="listbox"
+                        aria-label="Family search results"
+                    >
+                        {isSearchingFamilies && familySearchQuery.length >= 2 ? (
+                            <div className="p-4 text-center text-gray-500">
+                                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
+                                Searching families...
+                            </div>
+                        ) : familySearchResults.length > 0 ? (
+                            familySearchResults.map((family) => (
+                                <button
+                                    key={family.id}
+                                    type="button"
+                                    onClick={() => handleFamilySelect(family)}
+                                    className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-blue-50 focus:outline-none transition-colors"
+                                    role="option"
+                                    aria-selected={selectedFamily?.id === family.id}
+                                >
+                                    <div className="font-medium text-gray-900">
+                                        {family.family_name}
+                                        {family.family_code && (
+                                            <span className="ml-2 text-sm text-gray-600">({family.family_code})</span>
+                                        )}
+                                    </div>
+                                    {family.head_of_family_name && (
+                                        <div className="text-sm text-gray-600">Head: {family.head_of_family_name}</div>
+                                    )}
+                                    <div className="flex items-center space-x-4 text-xs text-gray-500 mt-1">
+                                        {family.parish_section && <span>Section: {family.parish_section}</span>}
+                                        {family.members_count !== undefined && <span>Members: {family.members_count}</span>}
+                                    </div>
+                                </button>
+                            ))
+                        ) : (
+                            <div className="p-4 text-center text-gray-500">
+                                <div className="mb-2">No families found</div>
+                                <div className="text-sm">Try searching with a different name or code</div>
+                            </div>
+                        )}
+                    </div>
+                )}
+                
+                {hasError('family_id') && (
+                    <p className="mt-1 text-sm text-red-600" role="alert">{getErrorMessage('family_id')}</p>
+                )}
+                {!selectedFamily && familySearchQuery.length === 0 && (
+                    <p className="mt-1 text-sm text-gray-500">
+                        Start typing to search for a family, or leave empty if not applicable
+                    </p>
+                )}
+            </div>
+        );
+    }, [
         familySearchQuery, isSearchingFamilies, selectedFamily, familySearchResults, 
         showFamilyDropdown, handleFamilySearchChange, handleFamilySelect, 
         clearFamilySelection, hasError, getErrorMessage, isFieldRequired
@@ -1407,6 +1418,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 value={data.husband_name}
                                 onChange={(value) => handleInputChange('husband_name', value)}
                                 placeholder="Enter husband's full name"
+                                hasError={hasError('husband_name')}
+                                errorMessage={getErrorMessage('husband_name')}
                             />
                             
                             <FormInput
@@ -1417,6 +1430,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 value={data.husband_father_name}
                                 onChange={(value) => handleInputChange('husband_father_name', value)}
                                 placeholder="Enter husband's father's name"
+                                hasError={hasError('husband_father_name')}
+                                errorMessage={getErrorMessage('husband_father_name')}
                             />
                             
                             <FormInput
@@ -1427,6 +1442,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 value={data.husband_mother_name}
                                 onChange={(value) => handleInputChange('husband_mother_name', value)}
                                 placeholder="Enter husband's mother's name"
+                                hasError={hasError('husband_mother_name')}
+                                errorMessage={getErrorMessage('husband_mother_name')}
                             />
                             
                             <FormInput
@@ -1499,7 +1516,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     type="checkbox"
                                     id="husband_parent_consent"
                                     checked={data.husband_parent_consent}
-                                    onChange={(e) => handleInputChange('husband_parent_consent', e.target.checked)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('husband_parent_consent', e.target.checked)}
                                     className="rounded text-blue-500 focus:ring-blue-500"
                                 />
                             </div>
@@ -1607,7 +1624,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     type="checkbox"
                                     id="wife_parent_consent"
                                     checked={data.wife_parent_consent}
-                                    onChange={(e) => handleInputChange('wife_parent_consent', e.target.checked)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('wife_parent_consent', e.target.checked)}
                                     className="rounded text-blue-500 focus:ring-blue-500"
                                 />
                             </div>

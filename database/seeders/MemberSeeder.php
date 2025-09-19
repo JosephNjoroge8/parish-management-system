@@ -424,7 +424,7 @@ class MemberSeeder extends Seeder
             // Additional individual members
             [
                 'local_church' => 'St Veronica Pembe Tatu',
-                'church_group' => 'Young Parents',
+                'church_group' => 'C.W.A',
                 'first_name' => 'Agnes',
                 'middle_name' => 'Wanjugu',
                 'last_name' => 'Muthoni',
@@ -522,7 +522,6 @@ class MemberSeeder extends Seeder
         $churchGroups = [
             'PMC', 
             'Youth', 
-            'Young Parents', 
             'C.W.A', 
             'CMA', 
             'Choir',

@@ -14,6 +14,7 @@ import {
     Settings,
     Users2,
     Menu,
+    Shield,
     X
 } from 'lucide-react';
 
@@ -96,6 +97,14 @@ export default function AuthenticatedLayout({
             icon: UserPlus,
             active: route().current('admin.users.*'),
             permission: user.permissions?.can_manage_users,
+        },
+        {
+            name: 'Role & Permission Management',
+            short: 'Roles',
+            href: route('admin.roles.index'),
+            icon: Shield,
+            active: route().current('admin.roles.*'),
+            permission: user.permissions?.can_manage_roles || user.permissions?.can_manage_users,
         },
     ];
 

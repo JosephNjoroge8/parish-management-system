@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -64,18 +65,21 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Override hasRole with comprehensive fallback
+     * Check if user has specific role with comprehensive fallback
      */
     public function hasRole($roles, string $guard = null): bool
     {
-        // Try Spatie first
+        // Try Spatie first using parent trait method
         try {
-            if (trait_exists('\Spatie\Permission\Traits\HasRoles') && 
-                method_exists($this, 'spatieHasRole')) {
-                return $this->spatieHasRole($roles, $guard);
+            if (method_exists($this, 'roles') && $this->roles()->exists()) {
+                $userRoles = $this->roles->pluck('name')->toArray();
+                $checkRoles = is_array($roles) ? $roles : [$roles];
+                if (!empty(array_intersect($userRoles, $checkRoles))) {
+                    return true;
+                }
             }
         } catch (\Exception $e) {
-            // Fall through to custom logic
+            Log::info('Spatie role check failed, using fallback', ['error' => $e->getMessage()]);
         }
 
         // Fallback 1: Check by email
@@ -94,18 +98,29 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Override hasPermissionTo with comprehensive fallback
+     * Check if user has specific permission with comprehensive fallback
      */
     public function hasPermissionTo($permission, $guardName = null): bool
     {
-        // Try Spatie first
+        // Try Spatie first using parent trait method
         try {
-            if (trait_exists('\Spatie\Permission\Traits\HasRoles') && 
-                method_exists($this, 'spatieHasPermissionTo')) {
-                return $this->spatieHasPermissionTo($permission, $guardName);
+            if (method_exists($this, 'permissions') && $this->permissions()->exists()) {
+                $userPermissions = $this->permissions->pluck('name')->toArray();
+                if (in_array($permission, $userPermissions)) {
+                    return true;
+                }
+            }
+            
+            // Check role-based permissions
+            if (method_exists($this, 'roles') && $this->roles()->exists()) {
+                foreach ($this->roles as $role) {
+                    if ($role->permissions && $role->permissions->pluck('name')->contains($permission)) {
+                        return true;
+                    }
+                }
             }
         } catch (\Exception $e) {
-            // Fall through to custom logic
+            Log::info('Spatie permission check failed, using fallback', ['error' => $e->getMessage()]);
         }
 
         // Super admins have all permissions
@@ -113,7 +128,7 @@ class User extends Authenticatable implements MustVerifyEmail
             return true;
         }
 
-        // Default to true for development
+        // Default to true for development (remove in production)
         return true;
     }
 

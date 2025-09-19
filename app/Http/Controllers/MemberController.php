@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Member;
 use App\Models\Family;
+use App\Models\BaptismRecord;
+use App\Models\MarriageRecord;
+use App\Models\Sacrament;
 use App\Exports\MembersExport;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -140,39 +143,176 @@ class MemberController extends Controller
             'emergency_contact' => 'nullable|string|max:255',
             'emergency_phone' => 'nullable|string|max:20',
             'local_church' => 'required|in:St James Kangemi,St Veronica Pembe Tatu,Our Lady of Consolata Cathedral,St Peter Kiawara,Sacred Heart Kandara',
-            'church_group' => 'required|in:PMC,Youth,Young Parents,C.W.A,CMA,Choir,Catholic Action,Pioneer',
+            'small_christian_community' => 'nullable|string|max:255',
+            'church_group' => 'required|in:PMC,Youth,C.W.A,CMA,Choir,Catholic Action,Pioneer',
+            'additional_church_groups' => 'nullable|array',
+            'additional_church_groups.*' => 'in:PMC,Youth,C.W.A,CMA,Choir,Catholic Action,Pioneer',
             'membership_status' => 'required|in:active,inactive,transferred,deceased',
             'membership_date' => 'nullable|date',
             'baptism_date' => 'nullable|date',
             'confirmation_date' => 'nullable|date',
             'matrimony_status' => 'nullable|in:single,married,divorced,widowed',
+            'marriage_type' => 'nullable|in:customary,church',
             'occupation' => 'nullable|in:employed,self_employed,not_employed',
-            'education_level' => 'nullable|string|max:255',
+            'education_level' => 'nullable|in:none,primary,kcpe,secondary,kcse,certificate,diploma,degree,masters,phd',
             'family_id' => 'nullable|exists:families,id',
             'parent' => 'nullable|string|max:255',
-            'sponsor' => 'nullable|string|max:255',
+            'godparent' => 'nullable|string|max:255',
             'minister' => 'nullable|string|max:255',
             'tribe' => 'nullable|string|max:255',
             'clan' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
+            
+            // Comprehensive Baptism Record Fields
+            'birth_village' => 'nullable|string|max:255',
+            'county' => 'nullable|string|max:255',
+            'baptism_location' => 'nullable|string|max:255',
+            'baptized_by' => 'nullable|string|max:255',
+            'sponsor' => 'nullable|string|max:255',
+            'father_name' => 'nullable|string|max:255',
+            'mother_name' => 'nullable|string|max:255',
+            
+            // Optional Sacrament Fields
+            'eucharist_location' => 'nullable|string|max:255',
+            'eucharist_date' => 'nullable|date',
+            'confirmation_location' => 'nullable|string|max:255',
+            'confirmation_register_number' => 'nullable|string|max:50',
+            'confirmation_number' => 'nullable|string|max:50',
+            
+            // Marriage Information
+            'marriage_spouse' => 'nullable|string|max:255',
+            'marriage_location' => 'nullable|string|max:255',
+            'marriage_date' => 'nullable|date',
+            'marriage_register_number' => 'nullable|string|max:50',
+            'marriage_number' => 'nullable|string|max:50',
+            
+            // Comprehensive Church Marriage Record Fields
+            'spouse_name' => 'nullable|string|max:255',
+            'spouse_father_name' => 'nullable|string|max:255',
+            'spouse_mother_name' => 'nullable|string|max:255',
+            'spouse_tribe' => 'nullable|string|max:255',
+            'spouse_clan' => 'nullable|string|max:255',
+            'spouse_birth_place' => 'nullable|string|max:255',
+            'spouse_domicile' => 'nullable|string|max:255',
+            'spouse_baptized_at' => 'nullable|string|max:255',
+            'spouse_baptism_date' => 'nullable|date',
+            'spouse_widower_widow_of' => 'nullable|string|max:255',
+            'spouse_parent_consent' => 'nullable|in:Yes,No',
+            
+            // Banas Information
+            'banas_number' => 'nullable|string|max:255',
+            'banas_church_1' => 'nullable|string|max:255',
+            'banas_date_1' => 'nullable|date',
+            'banas_church_2' => 'nullable|string|max:255',
+            'banas_date_2' => 'nullable|date',
+            'dispensation_from' => 'nullable|string|max:255',
+            'dispensation_given_by' => 'nullable|string|max:255',
+            
+            // Dispensation Information
+            'dispensation_impediment' => 'nullable|string|max:1000',
+            'dispensation_authority' => 'nullable|string|max:255',
+            'dispensation_date' => 'nullable|date',
+            
+            // Marriage Contract Details
+            'marriage_church' => 'nullable|string|max:255',
+            'district' => 'nullable|string|max:255',
+            'province' => 'nullable|string|max:255',
+            'presence_of' => 'nullable|string|max:255',
+            'delegated_by' => 'nullable|string|max:255',
+            'delegation_date' => 'nullable|date',
+            
+            // Witness Information
+            'male_witness_full_name' => 'nullable|string|max:255',
+            'male_witness_father' => 'nullable|string|max:255',
+            'male_witness_clan' => 'nullable|string|max:255',
+            'female_witness_full_name' => 'nullable|string|max:255',
+            'female_witness_father' => 'nullable|string|max:255',
+            'female_witness_clan' => 'nullable|string|max:255',
+            
+            // Additional Documents
+            'other_documents' => 'nullable|string|max:1000',
+            'civil_marriage_certificate_number' => 'nullable|string|max:255',
         ]);
 
         try {
-            $member = Member::create($validated);
+            // Validate church group gender restrictions
+            if (isset($validated['church_group']) && isset($validated['gender'])) {
+                if ($validated['church_group'] === 'C.W.A' && $validated['gender'] !== 'Female') {
+                    throw new \InvalidArgumentException('C.W.A membership is restricted to female members only.');
+                }
+                
+                if ($validated['church_group'] === 'CMA' && $validated['gender'] !== 'Male') {
+                    throw new \InvalidArgumentException('CMA membership is restricted to male members only.');
+                }
+            }
+
+            // Ensure additional church groups don't include the primary group
+            if (isset($validated['additional_church_groups']) && isset($validated['church_group'])) {
+                $validated['additional_church_groups'] = array_filter(
+                    $validated['additional_church_groups'],
+                    function($group) use ($validated) {
+                        return $group !== $validated['church_group'];
+                    }
+                );
+            }
+
+            DB::beginTransaction();
+
+            // Create the member with basic information
+            $memberData = array_filter($validated, function($key) {
+                return !in_array($key, [
+                    // Exclude comprehensive record fields from member table
+                    'birth_village', 'county', 'baptism_location', 'baptized_by', 'sponsor', 
+                    'father_name', 'mother_name', 'eucharist_location', 'eucharist_date',
+                    'confirmation_location', 'confirmation_register_number', 'confirmation_number',
+                    'marriage_spouse', 'marriage_location', 'marriage_date', 'marriage_register_number', 'marriage_number',
+                    'spouse_name', 'spouse_father_name', 'spouse_mother_name', 'spouse_tribe', 'spouse_clan',
+                    'spouse_birth_place', 'spouse_domicile', 'spouse_baptized_at', 'spouse_baptism_date',
+                    'spouse_widower_widow_of', 'spouse_parent_consent', 'banas_number', 'banas_church_1',
+                    'banas_date_1', 'banas_church_2', 'banas_date_2', 'dispensation_from', 'dispensation_given_by',
+                    'dispensation_impediment', 'dispensation_authority', 'dispensation_date', 'marriage_church',
+                    'district', 'province', 'presence_of', 'delegated_by', 'delegation_date',
+                    'male_witness_full_name', 'male_witness_father', 'male_witness_clan',
+                    'female_witness_full_name', 'female_witness_father', 'female_witness_clan',
+                    'other_documents', 'civil_marriage_certificate_number'
+                ]);
+            }, ARRAY_FILTER_USE_KEY);
+
+            $member = Member::create($memberData);
+            
+            // Inherit family data if applicable
+            if ($member->family_id) {
+                $member->inheritFamilyData();
+                $member->save();
+            }
+
+            // Create comprehensive baptism record if baptism date is provided
+            if (!empty($validated['baptism_date'])) {
+                $this->createComprehensiveBaptismRecord($member, $validated);
+            }
+
+            // Create comprehensive marriage record if church marriage
+            if ($validated['matrimony_status'] === 'married' && $validated['marriage_type'] === 'church') {
+                $this->createComprehensiveMarriageRecord($member, $validated);
+            }
+            
+            DB::commit();
             
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Member created successfully!',
-                    'member' => $member
+                    'message' => 'Member created successfully with comprehensive church records!',
+                    'member' => $member->load(['baptismRecord', 'marriageRecord'])
                 ]);
             }
             
             return redirect()->route('members.show', $member->id)
-                ->with('success', 'Member created successfully! Member ID: ' . $member->id)
+                ->with('success', 'Member created successfully with comprehensive church records! Member ID: ' . $member->id)
                 ->with('member', $member);
+                
         } catch (\Exception $e) {
-            Log::error('Failed to create member: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error('Failed to create member with comprehensive records: ' . $e->getMessage());
             
             if ($request->wantsJson()) {
                 return response()->json([
@@ -182,6 +322,252 @@ class MemberController extends Controller
             }
             
             return back()->withErrors(['error' => 'Failed to create member.'])->withInput();
+        }
+    }
+
+    /**
+     * Create comprehensive baptism record for a member
+     */
+    private function createComprehensiveBaptismRecord(Member $member, array $validated)
+    {
+        try {
+            // Check if baptism record already exists for this member
+            $existingRecord = BaptismRecord::where('member_id', $member->id)->first();
+            if ($existingRecord) {
+                return [
+                    'success' => false,
+                    'message' => 'A baptism record already exists for this member.',
+                ];
+            }
+
+            // Create baptism sacrament record
+            $baptismSacrament = new Sacrament([
+                'member_id' => $member->id,
+                'sacrament_type' => 'baptism',
+                'sacrament_date' => $validated['baptism_date'] ?? $member->date_of_birth,
+                'location' => $validated['baptism_location'] ?? '',
+                'celebrant' => $validated['baptized_by'] ?? '',
+                'godparent_1' => $validated['sponsor'] ?? '',
+                'recorded_by' => Auth::id(),
+            ]);
+            $baptismSacrament->save();
+
+            // Create eucharist sacrament record if date provided
+            $eucharistSacrament = null;
+            if (!empty($validated['eucharist_date']) && !empty($validated['eucharist_location'])) {
+                $eucharistSacrament = new Sacrament([
+                    'member_id' => $member->id,
+                    'sacrament_type' => 'eucharist',
+                    'sacrament_date' => $validated['eucharist_date'],
+                    'location' => $validated['eucharist_location'],
+                    'recorded_by' => Auth::id(),
+                ]);
+                $eucharistSacrament->save();
+            }
+
+            // Create confirmation sacrament record if date provided
+            $confirmationSacrament = null;
+            if (!empty($validated['confirmation_date']) && !empty($validated['confirmation_location'])) {
+                $confirmationSacrament = new Sacrament([
+                    'member_id' => $member->id,
+                    'sacrament_type' => 'confirmation',
+                    'sacrament_date' => $validated['confirmation_date'],
+                    'location' => $validated['confirmation_location'],
+                    'certificate_number' => $validated['confirmation_number'] ?? null,
+                    'book_number' => $validated['confirmation_register_number'] ?? null,
+                    'recorded_by' => Auth::id(),
+                ]);
+                $confirmationSacrament->save();
+            }
+
+            // Create comprehensive baptism record
+            $baptismRecord = new BaptismRecord([
+                'record_number' => BaptismRecord::generateRecordNumber(),
+                'member_id' => $member->id,
+                
+                // Personal information
+                'father_name' => $validated['father_name'] ?? '',
+                'mother_name' => $validated['mother_name'] ?? '',
+                'tribe' => $validated['tribe'] ?? $member->tribe ?? '',
+                'birth_village' => $validated['birth_village'] ?? '',
+                'county' => $validated['county'] ?? '',
+                'birth_date' => $member->date_of_birth,
+                'residence' => $validated['residence'] ?? $member->address ?? '',
+                
+                // Baptism information
+                'baptism_location' => $validated['baptism_location'] ?? '',
+                'baptism_date' => $validated['baptism_date'] ?? $member->date_of_birth,
+                'baptized_by' => $validated['baptized_by'] ?? '',
+                'sponsor' => $validated['sponsor'] ?? '',
+                
+                // Eucharist information
+                'eucharist_location' => $validated['eucharist_location'] ?? null,
+                'eucharist_date' => $validated['eucharist_date'] ?? null,
+                
+                // Confirmation information
+                'confirmation_location' => $validated['confirmation_location'] ?? null,
+                'confirmation_date' => $validated['confirmation_date'] ?? null,
+                'confirmation_register_number' => $validated['confirmation_register_number'] ?? null,
+                'confirmation_number' => $validated['confirmation_number'] ?? null,
+                
+                // Marriage information (if member is married)
+                'marriage_spouse' => null, // Will be filled when marriage record is created
+                'marriage_location' => null,
+                'marriage_date' => null,
+                'marriage_register_number' => null,
+                'marriage_number' => null,
+                
+                // Link sacrament records
+                'baptism_sacrament_id' => $baptismSacrament->id,
+                'eucharist_sacrament_id' => $eucharistSacrament ? $eucharistSacrament->id : null,
+                'confirmation_sacrament_id' => $confirmationSacrament ? $confirmationSacrament->id : null,
+                'marriage_sacrament_id' => null,
+            ]);
+            
+            $baptismRecord->save();
+            
+            // Link baptism record to sacrament records (polymorphic relationship)
+            $baptismSacrament->detailed_record_type = BaptismRecord::class;
+            $baptismSacrament->detailed_record_id = $baptismRecord->id;
+            $baptismSacrament->save();
+            
+            return [
+                'success' => true,
+                'record' => $baptismRecord,
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Failed to create baptism record: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Create comprehensive marriage record for a member
+     */
+    private function createComprehensiveMarriageRecord(Member $member, array $validated)
+    {
+        try {
+            // Only create if matrimony status is married and marriage details are provided
+            if ($member->matrimony_status !== 'married' || empty($validated['marriage_date'])) {
+                return [
+                    'success' => false,
+                    'message' => 'Marriage record only created for married members with marriage details.',
+                ];
+            }
+
+            // Generate record number
+            $recordNumber = MarriageRecord::generateRecordNumber();
+            
+            // Create the marriage sacrament record
+            $marriageSacrament = new Sacrament([
+                'member_id' => $member->id,
+                'sacrament_type' => 'marriage',
+                'sacrament_date' => $validated['marriage_date'],
+                'location' => $validated['marriage_church'] ?? $member->local_church,
+                'celebrant' => $validated['presence_of'] ?? '',
+                'witness_1' => $validated['male_witness_full_name'] ?? '',
+                'witness_2' => $validated['female_witness_full_name'] ?? '',
+                'certificate_number' => $recordNumber,
+                'notes' => 'District: ' . ($validated['district'] ?? '') . ', Province: ' . ($validated['province'] ?? ''),
+                'recorded_by' => Auth::id(),
+            ]);
+            
+            $marriageSacrament->save();
+            
+            // Create comprehensive marriage record
+            $marriageRecord = new MarriageRecord([
+                'record_number' => $recordNumber,
+                
+                // Determine if member is husband or wife
+                'husband_id' => $member->gender === 'Male' ? $member->id : null,
+                'wife_id' => $member->gender === 'Female' ? $member->id : null,
+                
+                // Member (husband/wife) information
+                ($member->gender === 'Male' ? 'husband' : 'wife') . '_name' => $member->full_name,
+                ($member->gender === 'Male' ? 'husband' : 'wife') . '_father_name' => $validated['father_name'] ?? '',
+                ($member->gender === 'Male' ? 'husband' : 'wife') . '_mother_name' => $validated['mother_name'] ?? '',
+                ($member->gender === 'Male' ? 'husband' : 'wife') . '_tribe' => $member->tribe ?? '',
+                ($member->gender === 'Male' ? 'husband' : 'wife') . '_clan' => $member->clan ?? '',
+                ($member->gender === 'Male' ? 'husband' : 'wife') . '_birth_place' => $validated['birth_village'] ?? '',
+                ($member->gender === 'Male' ? 'husband' : 'wife') . '_domicile' => $member->residence ?? '',
+                ($member->gender === 'Male' ? 'husband' : 'wife') . '_baptized_at' => $validated['baptism_location'] ?? '',
+                ($member->gender === 'Male' ? 'husband' : 'wife') . '_baptism_date' => $member->baptism_date,
+                ($member->gender === 'Male' ? 'husband' : 'wife') . '_parent_consent' => 'Yes',
+                
+                // Spouse information
+                ($member->gender === 'Male' ? 'wife' : 'husband') . '_name' => $validated['spouse_name'] ?? '',
+                ($member->gender === 'Male' ? 'wife' : 'husband') . '_father_name' => $validated['spouse_father_name'] ?? '',
+                ($member->gender === 'Male' ? 'wife' : 'husband') . '_mother_name' => $validated['spouse_mother_name'] ?? '',
+                ($member->gender === 'Male' ? 'wife' : 'husband') . '_tribe' => $validated['spouse_tribe'] ?? '',
+                ($member->gender === 'Male' ? 'wife' : 'husband') . '_clan' => $validated['spouse_clan'] ?? '',
+                ($member->gender === 'Male' ? 'wife' : 'husband') . '_birth_place' => $validated['spouse_birth_place'] ?? '',
+                ($member->gender === 'Male' ? 'wife' : 'husband') . '_domicile' => $validated['spouse_domicile'] ?? '',
+                ($member->gender === 'Male' ? 'wife' : 'husband') . '_baptized_at' => $validated['spouse_baptized_at'] ?? '',
+                ($member->gender === 'Male' ? 'wife' : 'husband') . '_baptism_date' => $validated['spouse_baptism_date'],
+                ($member->gender === 'Male' ? 'wife' : 'husband') . '_parent_consent' => $validated['spouse_parent_consent'] ?? 'Yes',
+                
+                // Banas information
+                'banas_number' => $validated['banas_number'] ?? '',
+                'banas_church_1' => $validated['banas_church_1'] ?? '',
+                'banas_date_1' => $validated['banas_date_1'],
+                'banas_church_2' => $validated['banas_church_2'],
+                'banas_date_2' => $validated['banas_date_2'],
+                'dispensation_from' => $validated['dispensation_from'],
+                'dispensation_given_by' => $validated['dispensation_given_by'],
+                
+                // Dispensation information
+                'dispensation_impediment' => $validated['dispensation_impediment'],
+                'dispensation_authority' => $validated['dispensation_authority'],
+                'dispensation_date' => $validated['dispensation_date'],
+                
+                // Marriage contract information
+                'marriage_date' => $validated['marriage_date'],
+                'marriage_month' => date('F', strtotime($validated['marriage_date'])),
+                'marriage_year' => date('Y', strtotime($validated['marriage_date'])),
+                'marriage_church' => $validated['marriage_church'] ?? $member->local_church,
+                'district' => $validated['district'] ?? '',
+                'province' => $validated['province'] ?? '',
+                'presence_of' => $validated['presence_of'] ?? '',
+                'delegated_by' => $validated['delegated_by'],
+                'delegation_date' => $validated['delegation_date'],
+                
+                // Witness information
+                'male_witness_full_name' => $validated['male_witness_full_name'] ?? '',
+                'male_witness_father' => $validated['male_witness_father'] ?? '',
+                'male_witness_clan' => $validated['male_witness_clan'] ?? '',
+                'female_witness_full_name' => $validated['female_witness_full_name'] ?? '',
+                'female_witness_father' => $validated['female_witness_father'] ?? '',
+                'female_witness_clan' => $validated['female_witness_clan'] ?? '',
+                
+                // Additional documents
+                'other_documents' => $validated['other_documents'],
+                'civil_marriage_certificate_number' => $validated['civil_marriage_certificate_number'],
+                
+                // System relationships
+                'parish_priest_id' => Auth::id(),
+                'sacrament_id' => $marriageSacrament->id,
+            ]);
+            
+            $marriageRecord->save();
+            
+            // Link marriage record to sacrament record (polymorphic relationship)
+            $marriageSacrament->detailed_record_type = MarriageRecord::class;
+            $marriageSacrament->detailed_record_id = $marriageRecord->id;
+            $marriageSacrament->save();
+            
+            return [
+                'success' => true,
+                'record' => $marriageRecord,
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Failed to create marriage record: ' . $e->getMessage(),
+            ];
         }
     }
 
@@ -227,7 +613,7 @@ class MemberController extends Controller
             'emergency_contact' => 'nullable|string|max:255',
             'emergency_phone' => 'nullable|string|max:20',
             'local_church' => 'required|in:St James Kangemi,St Veronica Pembe Tatu,Our Lady of Consolata Cathedral,St Peter Kiawara,Sacred Heart Kandara',
-            'church_group' => 'required|in:PMC,Youth,Young Parents,C.W.A,CMA,Choir,Catholic Action,Pioneer',
+            'church_group' => 'required|in:PMC,Youth,C.W.A,CMA,Choir,Catholic Action,Pioneer',
             'membership_status' => 'required|in:active,inactive,transferred,deceased',
             'membership_date' => 'nullable|date',
             'baptism_date' => 'nullable|date',
@@ -390,14 +776,27 @@ class MemberController extends Controller
         ];
 
         $filterOptions = [
-            'local_churches' => ['Kangemi', 'Pembe Tatu', 'Cathedral', 'Kiawara', 'Kandara'],
+            'local_churches' => ['St James Kangemi', 'St Veronica Pembe Tatu', 'Our Lady of Consolata Cathedral', 'St Peter Kiawara', 'Sacred Heart Kandara'],
             'church_groups' => [
                 ['value' => 'PMC', 'label' => 'PMC (Pontifical Missionary Childhood)'],
                 ['value' => 'Youth', 'label' => 'Youth'],
-                ['value' => 'Young Parents', 'label' => 'Young Parents'],
-                ['value' => 'C.W.A', 'label' => 'C.W.A'],
-                ['value' => 'CMA', 'label' => 'CMA'],
-                ['value' => 'Choir', 'label' => 'Choir']
+                ['value' => 'C.W.A', 'label' => 'C.W.A (Catholic Women Association)'],
+                ['value' => 'CMA', 'label' => 'CMA (Catholic Men Association)'],
+                ['value' => 'Choir', 'label' => 'Choir'],
+                ['value' => 'Catholic Action', 'label' => 'Catholic Action'],
+                ['value' => 'Pioneer', 'label' => 'Pioneer']
+            ],
+            'education_levels' => [
+                ['value' => 'none', 'label' => 'No Formal Education'],
+                ['value' => 'primary', 'label' => 'Primary Education'],
+                ['value' => 'kcpe', 'label' => 'KCPE'],
+                ['value' => 'secondary', 'label' => 'Secondary Education'],
+                ['value' => 'kcse', 'label' => 'KCSE'],
+                ['value' => 'certificate', 'label' => 'Certificate'],
+                ['value' => 'diploma', 'label' => 'Diploma'],
+                ['value' => 'degree', 'label' => 'Degree'],
+                ['value' => 'masters', 'label' => 'Masters'],
+                ['value' => 'phd', 'label' => 'PhD']
             ],
             'membership_statuses' => [
                 ['value' => 'active', 'label' => 'Active'],
@@ -651,7 +1050,7 @@ class MemberController extends Controller
             'date_of_birth' => 'required|date|before:today',
             'gender' => 'required|in:Male,Female', // Fixed: Use consistent capitalization
             'local_church' => 'required|in:Kangemi,Pembe Tatu,Cathedral,Kiawara,Kandara',
-            'church_group' => 'required|in:PMC,Youth,Young Parents,C.W.A,CMA,Choir',
+            'church_group' => 'required|in:PMC,Youth,C.W.A,CMA,Choir,Catholic Action,Pioneer',
         ];
 
         // Optional fields with validation
@@ -1096,12 +1495,23 @@ class MemberController extends Controller
                 'church_groups' => [
                     ['value' => 'PMC', 'label' => 'PMC (Pontifical Missionary Childhood)'],
                     ['value' => 'Youth', 'label' => 'Youth'],
-                    ['value' => 'Young Parents', 'label' => 'Young Parents'],
                     ['value' => 'C.W.A', 'label' => 'C.W.A (Catholic Women Association)'],
                     ['value' => 'CMA', 'label' => 'CMA (Catholic Men Association)'],
                     ['value' => 'Choir', 'label' => 'Choir'],
                     ['value' => 'Catholic Action', 'label' => 'Catholic Action'],
                     ['value' => 'Pioneer', 'label' => 'Pioneer'],
+                ],
+                'education_levels' => [
+                    ['value' => 'none', 'label' => 'No Formal Education'],
+                    ['value' => 'primary', 'label' => 'Primary Education'],
+                    ['value' => 'kcpe', 'label' => 'KCPE'],
+                    ['value' => 'secondary', 'label' => 'Secondary Education'],
+                    ['value' => 'kcse', 'label' => 'KCSE'],
+                    ['value' => 'certificate', 'label' => 'Certificate'],
+                    ['value' => 'diploma', 'label' => 'Diploma'],
+                    ['value' => 'degree', 'label' => 'Degree'],
+                    ['value' => 'masters', 'label' => 'Masters'],
+                    ['value' => 'phd', 'label' => 'PhD'],
                 ],
                 'membership_statuses' => [
                     ['value' => 'active', 'label' => 'Active'],
@@ -1113,6 +1523,22 @@ class MemberController extends Controller
                     ['value' => 'Male', 'label' => 'Male'],
                     ['value' => 'Female', 'label' => 'Female'],
                 ],
+                'tribes' => Member::select('tribe')
+                    ->whereNotNull('tribe')
+                    ->where('tribe', '!=', '')
+                    ->distinct()
+                    ->orderBy('tribe')
+                    ->pluck('tribe')
+                    ->map(fn($tribe) => ['value' => $tribe, 'label' => $tribe])
+                    ->toArray(),
+                'small_christian_communities' => Member::select('small_christian_community')
+                    ->whereNotNull('small_christian_community')
+                    ->where('small_christian_community', '!=', '')
+                    ->distinct()
+                    ->orderBy('small_christian_community')
+                    ->pluck('small_christian_community')
+                    ->map(fn($community) => ['value' => $community, 'label' => $community])
+                    ->toArray(),
                 'families' => Family::select('id', 'family_name')
                     ->orderBy('family_name')
                     ->get()
@@ -1464,5 +1890,24 @@ class MemberController extends Controller
                     break;
             }
         }
+    }
+
+    /**
+     * Download baptism certificate for a member
+     */
+    public function downloadBaptismCertificate(Member $member)
+    {
+        if (!$member->baptism_date) {
+            return back()->with('error', 'Member has no baptism record to generate certificate.');
+        }
+
+        $certificateData = $member->getBaptismCertificateData();
+        
+        // Here you would generate a PDF certificate
+        // For now, return JSON data for testing
+        return response()->json([
+            'certificate_data' => $certificateData,
+            'message' => 'Baptism certificate data ready for download'
+        ]);
     }
 }

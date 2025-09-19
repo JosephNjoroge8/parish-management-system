@@ -388,31 +388,24 @@ export default function Dashboard({
         setIsRefreshing(true);
         setError(null);
         try {
-            const response = await fetch('/api/dashboard/stats', {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                },
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                if (result.success && result.data) {
-                    setLiveStats(result.data);
+            // Use router.reload to refresh data from Laravel controller
+            router.reload({
+                only: ['stats', 'recentActivities', 'upcomingEvents'],
+                onSuccess: (page) => {
+                    setLiveStats(page.props.stats || safeStats);
                     setLastUpdated(new Date());
-                } else {
-                    setError('Invalid response format');
+                },
+                onError: (errors) => {
+                    setError('Failed to refresh dashboard data');
                 }
-            } else {
-                setError(`Failed to fetch data: ${response.status}`);
-            }
+            });
         } catch (error) {
             console.error('Failed to refresh dashboard data:', error);
             setError('Network error occurred');
         } finally {
             setIsRefreshing(false);
         }
-    }, []);
+    }, [safeStats]);
 
     // Auto-refresh every 5 minutes
     useEffect(() => {

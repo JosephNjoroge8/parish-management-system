@@ -86,19 +86,6 @@ class CommunityGroupSeeder extends Seeder
                 'meeting_location' => 'Church',
                 'status' => 'active',
                 'created_by' => $admin ? $admin->id : null,
-            ],
-            [
-                'name' => 'Young Parents Fellowship',
-                'description' => 'Support and fellowship for young married couples and parents',
-                'group_type' => 'other', // Changed from young_parents to other as it's not in enum
-                'leader_id' => $adultMembers->where('church_group', 'Young Parents')->first()?->id ?? $adultMembers->where('matrimony_status', 'married')->first()?->id,
-                'meeting_day' => 'saturday',
-                'meeting_time' => '16:00:00',
-                'meeting_location' => 'Parish Hall',
-                'status' => 'active',
-                'created_by' => $admin ? $admin->id : null,
-            ],
-            [
                 'name' => 'Catholic Action',
                 'description' => 'Social justice, community advocacy, and Catholic social teaching',
                 'group_type' => 'ministry', // Changed from apostolate to ministry

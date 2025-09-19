@@ -21,10 +21,14 @@ import {
     Clock,
     UserCheck,
     Contact,
-    RefreshCw
+    RefreshCw,
+    Home,
+    Award,
+    Crown,
+    ChevronRight
 } from 'lucide-react';
 
-// Define proper interfaces based on your database schema
+// Enhanced interfaces to match our new structure
 interface Family {
     id: number;
     family_name: string;
@@ -36,6 +40,7 @@ interface Family {
     deanery?: string;
     parish?: string;
     head_of_family_id?: number;
+    head_of_family_name?: string;
     created_by?: number;
     created_at?: string;
     updated_at?: string;
@@ -44,7 +49,9 @@ interface Family {
 interface Member {
     id: number;
     local_church?: string;
+    small_christian_community?: string;
     church_group?: string;
+    additional_church_groups?: string[];
     first_name: string;
     middle_name?: string;
     last_name: string;
@@ -53,7 +60,7 @@ interface Member {
     phone?: string;
     email?: string;
     id_number?: string;
-    sponsor?: string;
+    godparent?: string;
     occupation?: 'employed' | 'self_employed' | 'not_employed';
     education_level?: string;
     residence?: string;
@@ -64,7 +71,8 @@ interface Member {
     clan?: string;
     baptism_date?: string;
     confirmation_date?: string;
-    matrimony_status?: 'single' | 'married' | 'divorced' | 'widowed';
+    matrimony_status?: 'single' | 'married' | 'widowed';
+    marriage_type?: 'customary' | 'church';
     emergency_contact?: string;
     emergency_phone?: string;
     notes?: string;
@@ -104,6 +112,16 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
         }
     }, [member.id]);
 
+    // Safe route helper
+    const safeRoute = (routeName: string, params?: any) => {
+        try {
+            return route(routeName, params);
+        } catch (error) {
+            console.warn(`Route ${routeName} not found, falling back to members.index`);
+            return route('members.index');
+        }
+    };
+
     // Calculate age from date of birth with proper error handling
     const calculateAge = (dateOfBirth?: string): number | null => {
         if (!dateOfBirth) return null;
@@ -139,6 +157,61 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
         return parts.join(' ');
     };
 
+    // Format date for display
+    const formatDate = (dateString?: string): string => {
+        if (!dateString) return 'Not specified';
+        try {
+            return new Date(dateString).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        } catch (error) {
+            return 'Invalid date';
+        }
+    };
+
+    // Get church group label
+    const getChurchGroupLabel = (groupValue?: string): string => {
+        const groupLabels: Record<string, string> = {
+            'PMC': 'PMC (Pontifical Missionary Childhood)',
+            'Youth': 'Youth',
+            'C.W.A': 'C.W.A (Catholic Women Association)',
+            'CMA': 'CMA (Catholic Men Association)',
+            'Choir': 'Choir',
+            'Catholic Action': 'Catholic Action',
+            'Pioneer': 'Pioneer'
+        };
+        return groupLabels[groupValue || ''] || groupValue || 'Not specified';
+    };
+
+    // Get education level label
+    const getEducationLevelLabel = (level?: string): string => {
+        const educationLabels: Record<string, string> = {
+            'none': 'No Formal Education',
+            'primary': 'Primary Education',
+            'kcpe': 'KCPE',
+            'secondary': 'Secondary Education',
+            'kcse': 'KCSE',
+            'certificate': 'Certificate',
+            'diploma': 'Diploma',
+            'degree': 'Degree',
+            'masters': 'Masters',
+            'phd': 'PhD'
+        };
+        return educationLabels[level || ''] || level || 'Not specified';
+    };
+
+    // Get occupation label
+    const getOccupationLabel = (occupation?: string): string => {
+        const occupationLabels: Record<string, string> = {
+            'employed': 'Employed',
+            'self_employed': 'Self-employed',
+            'not_employed': 'Not Employed'
+        };
+        return occupationLabels[occupation || ''] || occupation || 'Not specified';
+    };
+
     const age = calculateAge(member.date_of_birth);
     const fullName = buildFullName(member.first_name || 'Unknown', member.last_name || 'Member', member.middle_name);
 
@@ -150,53 +223,7 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
             'transferred': 'bg-blue-50 text-blue-700 border-blue-200',
             'deceased': 'bg-gray-50 text-gray-700 border-gray-200'
         };
-        
-        return statusColors[status || 'active'] || 'bg-gray-50 text-gray-700 border-gray-200';
-    };
-
-    // Occupation label mapping
-    const getOccupationLabel = (occupation?: string): string => {
-        const occupationLabels: Record<string, string> = {
-            'employed': 'Employed',
-            'self_employed': 'Self Employed',
-            'not_employed': 'Not Employed'
-        };
-        
-        return occupationLabels[occupation || ''] || 'Not specified';
-    };
-
-    // Format date with proper error handling
-    const formatDate = (dateString?: string): string => {
-        if (!dateString) return 'Not provided';
-        
-        try {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return 'Invalid date';
-            
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-        } catch (error) {
-            console.warn('Error formatting date:', error);
-            return 'Invalid date';
-        }
-    };
-
-    // Safe route helper with better error handling
-    const safeRoute = (name: string, params?: any): string => {
-        try {
-            // Check if route function exists (it's a global function in Inertia)
-            if (typeof route === 'function') {
-                return route(name, params);
-            }
-            console.warn(`Route function not available for '${name}'`);
-            return '#';
-        } catch (error) {
-            console.warn(`Route '${name}' not found:`, error);
-            return '#';
-        }
+        return statusColors[status || 'active'] || statusColors.active;
     };
 
     // Capitalize first letter
@@ -348,194 +375,335 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
                                                     ID: {member.id}
                                                 </span>
                                                 {member.id_number && (
-                                                    <span className="text-gray-600 text-sm">
+                                                    <span className="text-gray-600 font-medium">
                                                         National ID: {member.id_number}
                                                     </span>
                                                 )}
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* Personal Information */}
+                                    
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-4">
+                                        <div className="flex items-center space-x-3">
+                                            <Calendar className="w-5 h-5 text-amber-500" />
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                                                <p className="text-gray-900 font-medium">{member.first_name || 'Not provided'}</p>
-                                            </div>
-                                            {member.middle_name && (
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
-                                                    <p className="text-gray-900 font-medium">{member.middle_name}</p>
-                                                </div>
-                                            )}
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                                                <p className="text-gray-900 font-medium">{member.last_name || 'Not provided'}</p>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                                                <div className="flex items-center space-x-2">
-                                                    <User className="w-4 h-4 text-amber-500" />
-                                                    <p className="text-gray-900 capitalize">{member.gender || 'Not specified'}</p>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                                                <div className="flex items-center space-x-2">
-                                                    <Calendar className="w-4 h-4 text-amber-500" />
-                                                    <span className="text-gray-900">
-                                                        {formatDate(member.date_of_birth)}
-                                                        {age !== null && <span className="text-gray-500 ml-2">({age} years old)</span>}
-                                                    </span>
-                                                </div>
+                                                <p className="text-sm text-gray-600">Date of Birth</p>
+                                                <p className="font-semibold text-gray-900">
+                                                    {formatDate(member.date_of_birth)}
+                                                    {age && <span className="text-sm text-gray-600 ml-2">({age} years old)</span>}
+                                                </p>
                                             </div>
                                         </div>
-                                        <div className="space-y-4">
-                                            {member.matrimony_status && (
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
-                                                    <div className="flex items-center space-x-2">
-                                                        <Heart className="w-4 h-4 text-rose-500" />
-                                                        <p className="text-gray-900 capitalize">{member.matrimony_status}</p>
-                                                    </div>
-                                                </div>
-                                            )}
+                                        
+                                        <div className="flex items-center space-x-3">
+                                            <User className="w-5 h-5 text-amber-500" />
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Membership Date</label>
-                                                <div className="flex items-center space-x-2">
-                                                    <Star className="w-4 h-4 text-amber-500" />
-                                                    <span className="text-gray-900">
-                                                        {formatDate(member.membership_date)}
-                                                    </span>
-                                                </div>
+                                                <p className="text-sm text-gray-600">Gender</p>
+                                                <p className="font-semibold text-gray-900">{member.gender || 'Not specified'}</p>
                                             </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Occupation Status</label>
-                                                <div className="flex items-center space-x-2">
-                                                    <Briefcase className="w-4 h-4 text-amber-500" />
-                                                    <p className="text-gray-900">{getOccupationLabel(member.occupation)}</p>
-                                                </div>
-                                            </div>
-                                            {member.education_level && (
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Education Level</label>
-                                                    <div className="flex items-center space-x-2">
-                                                        <GraduationCap className="w-4 h-4 text-amber-500" />
-                                                        <p className="text-gray-900">{member.education_level}</p>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            {member.id_number && (
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">National ID Number</label>
-                                                    <div className="flex items-center space-x-2">
-                                                        <Shield className="w-4 h-4 text-amber-500" />
-                                                        <p className="text-gray-900">{member.id_number}</p>
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
+
+                                        <div className="flex items-center space-x-3">
+                                            <Clock className="w-5 h-5 text-amber-500" />
+                                            <div>
+                                                <p className="text-sm text-gray-600">Member Since</p>
+                                                <p className="font-semibold text-gray-900">{formatDate(member.membership_date)}</p>
+                                            </div>
+                                        </div>
+
+                                        {member.matrimony_status && (
+                                            <div className="flex items-center space-x-3">
+                                                <Heart className="w-5 h-5 text-amber-500" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Matrimony Status</p>
+                                                    <p className="font-semibold text-gray-900">
+                                                        {capitalize(member.matrimony_status)}
+                                                        {member.matrimony_status === 'married' && member.marriage_type && (
+                                                            <span className="text-sm text-gray-600 ml-2">
+                                                                ({capitalize(member.marriage_type)} Marriage)
+                                                            </span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Church Information */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                    <Church className="w-5 h-5 text-amber-500 mr-2" />
-                                    Church Information
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Local Church</label>
-                                            <p className="text-gray-900 font-medium">{member.local_church || 'Not specified'}</p>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Church Group</label>
-                                            <p className="text-gray-900">{member.church_group || 'Not specified'}</p>
-                                        </div>
-                                        {member.minister && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Minister</label>
-                                                <p className="text-gray-900">{member.minister}</p>
-                                            </div>
-                                        )}
-                                        {member.sponsor && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Sponsor</label>
-                                                <p className="text-gray-900">{member.sponsor}</p>
-                                            </div>
-                                        )}
+                            {/* Church Information Card */}
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="h-2 bg-gradient-to-r from-blue-600 via-purple-500 to-blue-600"></div>
+                                <div className="p-6">
+                                    <div className="flex items-center space-x-3 mb-6">
+                                        <Church className="w-6 h-6 text-blue-600" />
+                                        <h3 className="text-xl font-bold text-gray-900">Church Information</h3>
                                     </div>
-                                    <div className="space-y-4">
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="flex items-start space-x-3">
+                                            <Church className="w-5 h-5 text-blue-500 mt-0.5" />
+                                            <div>
+                                                <p className="text-sm text-gray-600">Local Church</p>
+                                                <p className="font-semibold text-gray-900">{member.local_church || 'Not specified'}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start space-x-3">
+                                            <Users className="w-5 h-5 text-blue-500 mt-0.5" />
+                                            <div>
+                                                <p className="text-sm text-gray-600">Small Christian Community</p>
+                                                <p className="font-semibold text-gray-900">{member.small_christian_community || 'Not specified'}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start space-x-3">
+                                            <Crown className="w-5 h-5 text-blue-500 mt-0.5" />
+                                            <div>
+                                                <p className="text-sm text-gray-600">Primary Church Group</p>
+                                                <p className="font-semibold text-gray-900">{getChurchGroupLabel(member.church_group)}</p>
+                                            </div>
+                                        </div>
+
+                                        {member.additional_church_groups && member.additional_church_groups.length > 0 && (
+                                            <div className="flex items-start space-x-3">
+                                                <Star className="w-5 h-5 text-blue-500 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Additional Church Groups</p>
+                                                    <div className="flex flex-wrap gap-2 mt-1">
+                                                        {member.additional_church_groups.map((group, index) => (
+                                                            <span key={index} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                                {getChurchGroupLabel(group)}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {member.baptism_date && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Baptism Date</label>
-                                                <div className="flex items-center space-x-2">
-                                                    <Cross className="w-4 h-4 text-blue-500" />
-                                                    <span className="text-gray-900">{formatDate(member.baptism_date)}</span>
+                                            <div className="flex items-start space-x-3">
+                                                <Cross className="w-5 h-5 text-blue-500 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Baptism Date</p>
+                                                    <p className="font-semibold text-gray-900">{formatDate(member.baptism_date)}</p>
+                                                    {member.minister && (
+                                                        <p className="text-sm text-gray-600">By: {member.minister}</p>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
+
                                         {member.confirmation_date && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Confirmation Date</label>
-                                                <div className="flex items-center space-x-2">
-                                                    <UserCheck className="w-4 h-4 text-purple-500" />
-                                                    <span className="text-gray-900">{formatDate(member.confirmation_date)}</span>
+                                            <div className="flex items-start space-x-3">
+                                                <Award className="w-5 h-5 text-blue-500 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Confirmation Date</p>
+                                                    <p className="font-semibold text-gray-900">{formatDate(member.confirmation_date)}</p>
                                                 </div>
                                             </div>
                                         )}
-                                        {member.parent && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Parent/Guardian</label>
-                                                <p className="text-gray-900">{member.parent}</p>
+
+                                        {member.godparent && (
+                                            <div className="flex items-start space-x-3">
+                                                <Shield className="w-5 h-5 text-blue-500 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Godparent</p>
+                                                    <p className="font-semibold text-gray-900">{member.godparent}</p>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
                                 </div>
                             </div>
 
+                            {/* Personal Information Card */}
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="h-2 bg-gradient-to-r from-green-600 via-teal-500 to-green-600"></div>
+                                <div className="p-6">
+                                    <div className="flex items-center space-x-3 mb-6">
+                                        <User className="w-6 h-6 text-green-600" />
+                                        <h3 className="text-xl font-bold text-gray-900">Personal Information</h3>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {member.education_level && (
+                                            <div className="flex items-start space-x-3">
+                                                <GraduationCap className="w-5 h-5 text-green-500 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Education Level</p>
+                                                    <p className="font-semibold text-gray-900">{getEducationLevelLabel(member.education_level)}</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {member.occupation && (
+                                            <div className="flex items-start space-x-3">
+                                                <Briefcase className="w-5 h-5 text-green-500 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Occupation</p>
+                                                    <p className="font-semibold text-gray-900">{getOccupationLabel(member.occupation)}</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {member.tribe && (
+                                            <div className="flex items-start space-x-3">
+                                                <Users className="w-5 h-5 text-green-500 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Tribe</p>
+                                                    <p className="font-semibold text-gray-900">{member.tribe}</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {member.clan && (
+                                            <div className="flex items-start space-x-3">
+                                                <Home className="w-5 h-5 text-green-500 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Clan</p>
+                                                    <p className="font-semibold text-gray-900">{member.clan}</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {member.parent && (
+                                            <div className="flex items-start space-x-3">
+                                                <Users className="w-5 h-5 text-green-500 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Parent/Guardian</p>
+                                                    <p className="font-semibold text-gray-900">{member.parent}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Family Information Card */}
+                            {member.family && (
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                                    <div className="h-2 bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600"></div>
+                                    <div className="p-6">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <div className="flex items-center space-x-3">
+                                                <Home className="w-6 h-6 text-purple-600" />
+                                                <h3 className="text-xl font-bold text-gray-900">Family Information</h3>
+                                            </div>
+                                            {/* <Link
+                                                href={safeRoute('families.show', member.family.id)}
+                                                className="text-purple-600 hover:text-purple-800 flex items-center space-x-1 text-sm font-medium"
+                                            >
+                                                <span>View Family</span>
+                                                <ChevronRight className="w-4 h-4" />
+                                            </Link> */}
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="flex items-start space-x-3">
+                                                <Home className="w-5 h-5 text-purple-500 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Family Name</p>
+                                                    <p className="font-semibold text-gray-900">
+                                                        {member.family.family_name}
+                                                        {member.family.family_code && (
+                                                            <span className="text-sm text-gray-600 ml-2">({member.family.family_code})</span>
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {member.family.head_of_family_name && (
+                                                <div className="flex items-start space-x-3">
+                                                    <Crown className="w-5 h-5 text-purple-500 mt-0.5" />
+                                                    <div>
+                                                        <p className="text-sm text-gray-600">Head of Family</p>
+                                                        <p className="font-semibold text-gray-900">{member.family.head_of_family_name}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {member.family.parish_section && (
+                                                <div className="flex items-start space-x-3">
+                                                    <MapPin className="w-5 h-5 text-purple-500 mt-0.5" />
+                                                    <div>
+                                                        <p className="text-sm text-gray-600">Parish Section</p>
+                                                        <p className="font-semibold text-gray-900">{member.family.parish_section}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {member.family.address && (
+                                                <div className="flex items-start space-x-3">
+                                                    <MapPin className="w-5 h-5 text-purple-500 mt-0.5" />
+                                                    <div>
+                                                        <p className="text-sm text-gray-600">Family Address</p>
+                                                        <p className="font-semibold text-gray-900">{member.family.address}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Notes */}
+                            {member.notes && (
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                                    <div className="h-2 bg-gradient-to-r from-indigo-600 via-blue-500 to-indigo-600"></div>
+                                    <div className="p-6">
+                                        <div className="flex items-center space-x-3 mb-4">
+                                            <BookOpen className="w-6 h-6 text-indigo-600" />
+                                            <h3 className="text-xl font-bold text-gray-900">Additional Notes</h3>
+                                        </div>
+                                        <p className="text-gray-700 leading-relaxed">{member.notes}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Sidebar */}
+                        <div className="space-y-6">
                             {/* Contact Information */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                    <Phone className="w-5 h-5 text-amber-500 mr-2" />
-                                    Contact Information
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="h-2 bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-600"></div>
+                                <div className="p-6">
+                                    <div className="flex items-center space-x-3 mb-6">
+                                        <Contact className="w-6 h-6 text-emerald-600" />
+                                        <h3 className="text-xl font-bold text-gray-900">Contact</h3>
+                                    </div>
+                                    
                                     <div className="space-y-4">
                                         {member.phone && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                                                <div className="flex items-center space-x-2">
-                                                    <Phone className="w-4 h-4 text-amber-500" />
-                                                    <a href={`tel:${member.phone}`} className="text-blue-600 hover:text-blue-700">
+                                            <div className="flex items-center space-x-3">
+                                                <Phone className="w-5 h-5 text-emerald-500" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Phone</p>
+                                                    <a href={`tel:${member.phone}`} className="font-semibold text-emerald-600 hover:text-emerald-800">
                                                         {member.phone}
                                                     </a>
                                                 </div>
                                             </div>
                                         )}
+                                        
                                         {member.email && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                                <div className="flex items-center space-x-2">
-                                                    <Mail className="w-4 h-4 text-amber-500" />
-                                                    <a href={`mailto:${member.email}`} className="text-blue-600 hover:text-blue-700">
+                                            <div className="flex items-center space-x-3">
+                                                <Mail className="w-5 h-5 text-emerald-500" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Email</p>
+                                                    <a href={`mailto:${member.email}`} className="font-semibold text-emerald-600 hover:text-emerald-800">
                                                         {member.email}
                                                     </a>
                                                 </div>
                                             </div>
                                         )}
-                                    </div>
-                                    <div>
+
                                         {member.residence && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Residence</label>
-                                                <div className="flex items-start space-x-2">
-                                                    <MapPin className="w-4 h-4 text-amber-500 mt-1 flex-shrink-0" />
-                                                    <p className="text-gray-900">{member.residence}</p>
+                                            <div className="flex items-start space-x-3">
+                                                <MapPin className="w-5 h-5 text-emerald-500 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm text-gray-600">Residence</p>
+                                                    <p className="font-semibold text-gray-900">{member.residence}</p>
                                                 </div>
                                             </div>
                                         )}
@@ -543,181 +711,79 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
                                 </div>
                             </div>
 
-                            {/* Cultural Information */}
-                            {(member.tribe || member.clan) && (
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                        <Users className="w-5 h-5 text-amber-500 mr-2" />
-                                        Cultural Information
-                                    </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {member.tribe && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Tribe</label>
-                                                <p className="text-gray-900">{member.tribe}</p>
-                                            </div>
-                                        )}
-                                        {member.clan && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Clan</label>
-                                                <p className="text-gray-900">{member.clan}</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
                             {/* Emergency Contact */}
                             {(member.emergency_contact || member.emergency_phone) && (
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                        <Contact className="w-5 h-5 text-red-500 mr-2" />
-                                        Emergency Contact
-                                    </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {member.emergency_contact && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
-                                                <p className="text-gray-900">{member.emergency_contact}</p>
-                                            </div>
-                                        )}
-                                        {member.emergency_phone && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
-                                                <a href={`tel:${member.emergency_phone}`} className="text-blue-600 hover:text-blue-700">
-                                                    {member.emergency_phone}
-                                                </a>
-                                            </div>
-                                        )}
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                                    <div className="h-2 bg-gradient-to-r from-red-600 via-orange-500 to-red-600"></div>
+                                    <div className="p-6">
+                                        <div className="flex items-center space-x-3 mb-6">
+                                            <Shield className="w-6 h-6 text-red-600" />
+                                            <h3 className="text-xl font-bold text-gray-900">Emergency Contact</h3>
+                                        </div>
+                                        
+                                        <div className="space-y-4">
+                                            {member.emergency_contact && (
+                                                <div className="flex items-center space-x-3">
+                                                    <User className="w-5 h-5 text-red-500" />
+                                                    <div>
+                                                        <p className="text-sm text-gray-600">Contact Name</p>
+                                                        <p className="font-semibold text-gray-900">{member.emergency_contact}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            {member.emergency_phone && (
+                                                <div className="flex items-center space-x-3">
+                                                    <Phone className="w-5 h-5 text-red-500" />
+                                                    <div>
+                                                        <p className="text-sm text-gray-600">Phone</p>
+                                                        <a href={`tel:${member.emergency_phone}`} className="font-semibold text-red-600 hover:text-red-800">
+                                                            {member.emergency_phone}
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* System Information */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                    <Clock className="w-5 h-5 text-gray-500 mr-2" />
-                                    System Information
-                                </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Created At</label>
-                                        <p className="text-gray-900 text-sm">{formatDate(member.created_at)}</p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Last Updated</label>
-                                        <p className="text-gray-900 text-sm">{formatDate(member.updated_at)}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Sidebar */}
-                        <div className="space-y-6">
-                            {/* Family Information */}
-                            {member.family && (
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                                    <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                        <Heart className="w-5 h-5 text-rose-500 mr-2" />
-                                        Family
-                                    </h4>
+                            {/* Quick Actions */}
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="h-2 bg-gradient-to-r from-gray-600 via-slate-500 to-gray-600"></div>
+                                <div className="p-6">
+                                    <h3 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h3>
                                     <div className="space-y-3">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Family Name</label>
-                                            <Link 
-                                                href={safeRoute('families.show', member.family.id)}
-                                                className="text-blue-600 hover:text-blue-700 font-medium"
+                                        <Link
+                                            href={safeRoute('members.edit', member.id)}
+                                            className="w-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                                        >
+                                            <Edit className="w-4 h-4" />
+                                            <span>Edit Member</span>
+                                        </Link>
+                                        
+                                        {member.phone && (
+                                            <a
+                                                href={`tel:${member.phone}`}
+                                                className="w-full bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
                                             >
-                                                {member.family.family_name}
-                                            </Link>
-                                        </div>
-                                        {member.family.family_code && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Family Code</label>
-                                                <p className="text-gray-900">{member.family.family_code}</p>
-                                            </div>
+                                                <Phone className="w-4 h-4" />
+                                                <span>Call Member</span>
+                                            </a>
                                         )}
-                                        {member.family.parish_section && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Parish Section</label>
-                                                <p className="text-gray-900">{member.family.parish_section}</p>
-                                            </div>
+                                        
+                                        {member.email && (
+                                            <a
+                                                href={`mailto:${member.email}`}
+                                                className="w-full bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                                            >
+                                                <Mail className="w-4 h-4" />
+                                                <span>Send Email</span>
+                                            </a>
                                         )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Quick Stats */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                    <Star className="w-5 h-5 text-amber-500 mr-2" />
-                                    Quick Stats
-                                </h4>
-                                <div className="space-y-3">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm text-gray-600">Member ID</span>
-                                        <span className="font-semibold text-gray-900">#{member.id}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm text-gray-600">Membership Status</span>
-                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(member.membership_status)}`}>
-                                            {capitalize(member.membership_status || 'active')}
-                                        </span>
-                                    </div>
-                                    {age !== null && (
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-sm text-gray-600">Age</span>
-                                            <span className="font-semibold text-gray-900">{age} years</span>
-                                        </div>
-                                    )}
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm text-gray-600">Member Since</span>
-                                        <span className="font-semibold text-gray-900">
-                                            {member.membership_date ? new Date(member.membership_date).getFullYear() : 'N/A'}
-                                        </span>
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Actions */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                                <h4 className="text-lg font-semibold text-gray-900 mb-4">Actions</h4>
-                                <div className="space-y-3">
-                                    <Link
-                                        href={safeRoute('members.edit', member.id)}
-                                        className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-4 py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-all duration-200"
-                                    >
-                                        <Edit className="w-4 h-4" />
-                                        <span>Edit Member</span>
-                                    </Link>
-                                    <button
-                                        type="button"
-                                        onClick={() => console.log('Add Sacrament for member:', member.id)}
-                                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-all duration-200"
-                                    >
-                                        <Cross className="w-4 h-4" />
-                                        <span>Add Sacrament</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => console.log('Record Tithe for member:', member.id)}
-                                        className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-all duration-200"
-                                    >
-                                        <BookOpen className="w-4 h-4" />
-                                        <span>Record Tithe</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Notes */}
-                            {member.notes && (
-                                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Notes</h4>
-                                    <div className="max-h-32 overflow-y-auto">
-                                        <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{member.notes}</p>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>

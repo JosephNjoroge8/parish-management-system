@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { 
     Home, 
@@ -14,9 +14,16 @@ import {
     Menu,
     X,
     ChevronDown,
+    ChevronRight,
     FileText,
     Shield,
-    Church
+    Church,
+    Bell,
+    Search,
+    MessageSquare,
+    Award,
+    TrendingUp,
+    Gift
 } from 'lucide-react';
 
 interface User {
@@ -60,6 +67,13 @@ const SidebarLayout: React.FC<SidebarLayoutProps> = ({ children, header }) => {
     const user = props.auth?.user as User;
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [expandedMenus, setExpandedMenus] = useState<string[]>(['parish-management']);
+    const [notifications] = useState(3); // Mock notification count
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // Close sidebar on route change (mobile)
+    useEffect(() => {
+        setSidebarOpen(false);
+    }, [props.url]);
 
     const toggleMenu = (menuName: string) => {
         setExpandedMenus(prev => 

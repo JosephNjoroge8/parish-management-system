@@ -34,14 +34,11 @@ class Sacrament extends Model
         'sacrament_date' => 'date',
     ];
 
+    // Only 3 sacraments as requested
     const SACRAMENT_TYPES = [
         'baptism' => 'Baptism',
-        'eucharist' => 'First Holy Communion',
         'confirmation' => 'Confirmation',
-        'reconciliation' => 'Reconciliation',
-        'anointing' => 'Anointing of the Sick',
-        'marriage' => 'Marriage',
-        'holy_orders' => 'Holy Orders'
+        'marriage' => 'Marriage'
     ];
 
     public function member(): BelongsTo
@@ -79,8 +76,64 @@ class Sacrament extends Model
         return $query->whereYear('sacrament_date', $year);
     }
 
+    public function scopeInDateRange($query, $startDate, $endDate)
+    {
+        if ($startDate && $endDate) {
+            return $query->whereBetween('sacrament_date', [$startDate, $endDate]);
+        }
+        
+        if ($startDate) {
+            return $query->where('sacrament_date', '>=', $startDate);
+        }
+        
+        if ($endDate) {
+            return $query->where('sacrament_date', '<=', $endDate);
+        }
+        
+        return $query;
+    }
+
     public function getSacramentTypeNameAttribute(): string
     {
         return self::SACRAMENT_TYPES[$this->sacrament_type] ?? ucfirst($this->sacrament_type);
+    }
+
+    // Helper method to get sacrament type options for forms
+    public static function getSacramentTypeOptions()
+    {
+        return array_map(function($key, $value) {
+            return ['value' => $key, 'label' => $value];
+        }, array_keys(self::SACRAMENT_TYPES), self::SACRAMENT_TYPES);
+    }
+
+    // Get members by sacrament type
+    public static function getMembersBySacrament($type)
+    {
+        return self::with(['member:id,first_name,middle_name,last_name,date_of_birth,gender,phone,email,local_church,church_group'])
+            ->where('sacrament_type', $type)
+            ->orderBy('sacrament_date', 'desc')
+            ->get();
+    }
+
+    // Get sacrament statistics
+    public static function getStatistics()
+    {
+        $stats = [];
+        
+        foreach (self::SACRAMENT_TYPES as $type => $name) {
+            $stats[$type] = [
+                'name' => $name,
+                'total' => self::where('sacrament_type', $type)->count(),
+                'this_year' => self::where('sacrament_type', $type)
+                    ->whereYear('sacrament_date', date('Y'))
+                    ->count(),
+                'this_month' => self::where('sacrament_type', $type)
+                    ->whereYear('sacrament_date', date('Y'))
+                    ->whereMonth('sacrament_date', date('m'))
+                    ->count(),
+            ];
+        }
+        
+        return $stats;
     }
 }

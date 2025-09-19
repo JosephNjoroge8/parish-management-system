@@ -99,6 +99,40 @@ class CommunityGroupController extends Controller
         return response()->json($this->getGroupStatistics());
     }
 
+    /**
+     * Search for Small Christian Communities
+     * GET /api/small-christian-communities/search?q=search_term
+     */
+    public function searchSmallChristianCommunities(Request $request)
+    {
+        $search = $request->get('q', '');
+        $limit = $request->get('limit', 10);
+
+        if (empty($search)) {
+            return response()->json([]);
+        }
+
+        // Get unique small christian communities from members table
+        $communities = Member::select('small_christian_community')
+            ->whereNotNull('small_christian_community')
+            ->where('small_christian_community', '!=', '')
+            ->where('small_christian_community', 'like', '%' . $search . '%')
+            ->groupBy('small_christian_community')
+            ->orderBy('small_christian_community', 'asc')
+            ->limit($limit)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->small_christian_community,
+                    'name' => $item->small_christian_community,
+                    'value' => $item->small_christian_community,
+                    'label' => $item->small_christian_community,
+                ];
+            });
+
+        return response()->json($communities);
+    }
+
     private function getGroupStatistics($search = '', $sort = 'members_count', $direction = 'desc')
     {
         // Get all unique church groups from members table
@@ -190,10 +224,11 @@ class CommunityGroupController extends Controller
         $icons = [
             'PMC' => '👶',
             'Youth' => '🎯',
-            'Young Parents' => '👨‍👩‍👧‍👦',
-            'C.W.A' => '👩‍💼',
-            'CMA' => '👨‍💼',
+            'C.W.A' => '‍�',
+            'CMA' => '�‍💼',
             'Choir' => '🎵',
+            'Catholic Action' => '✊',
+            'Pioneer' => '�',
         ];
 
         return $icons[$groupName] ?? '👥';
@@ -204,10 +239,11 @@ class CommunityGroupController extends Controller
         $colors = [
             'PMC' => 'bg-pink-500',
             'Youth' => 'bg-blue-500',
-            'Young Parents' => 'bg-green-500',
             'C.W.A' => 'bg-purple-500',
             'CMA' => 'bg-indigo-500',
             'Choir' => 'bg-yellow-500',
+            'Catholic Action' => 'bg-green-500',
+            'Pioneer' => 'bg-red-500',
         ];
 
         return $colors[$groupName] ?? 'bg-gray-500';
@@ -218,10 +254,11 @@ class CommunityGroupController extends Controller
         $descriptions = [
             'PMC' => 'Pontifical Missionary Childhood - Children\'s mission group',
             'Youth' => 'Young adults and teenagers ministry',
-            'Young Parents' => 'Parents with young children fellowship group',
-            'C.W.A' => 'Catholic Women Association - Women fellowship',
-            'CMA' => 'Catholic Men Association - Men fellowship',
+            'C.W.A' => 'Catholic Women Association - Women fellowship and empowerment',
+            'CMA' => 'Catholic Men Association - Men fellowship and leadership',
             'Choir' => 'Parish music ministry and worship team',
+            'Catholic Action' => 'Social justice, community advocacy, and Catholic social teaching',
+            'Pioneer' => 'Pioneer Total Abstinence Association - Promoting sobriety and healthy living',
         ];
 
         return $descriptions[$groupName] ?? 'Church ministry group';

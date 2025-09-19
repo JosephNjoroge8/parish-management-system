@@ -25,10 +25,12 @@ interface CreateMemberProps extends PageProps {
     families: Family[];
 }
 
-// Form data interface matching backend expectations
+// Form data interface with all enhanced fields including comprehensive church records
 interface MemberFormData {
     local_church: string;
+    small_christian_community: string;
     church_group: string;
+    additional_church_groups: string[];
     first_name: string;
     middle_name: string;
     last_name: string;
@@ -37,7 +39,7 @@ interface MemberFormData {
     phone: string;
     email: string;
     id_number: string;
-    sponsor: string;
+    godparent: string;
     occupation: string;
     education_level: string;
     family_id: string;
@@ -49,52 +51,50 @@ interface MemberFormData {
     residence: string;
     confirmation_date: string;
     matrimony_status: string;
+    marriage_type: string;
     membership_date: string;
     membership_status: string;
     emergency_contact: string;
     emergency_phone: string;
     notes: string;
-    // Baptism Record Fields
-    father_name: string;
-    mother_name: string;
+    
+    // Comprehensive Baptism Record Fields (shown when baptism_date is filled)
     birth_village: string;
     county: string;
     baptism_location: string;
     baptized_by: string;
+    sponsor: string;
+    father_name: string;
+    mother_name: string;
+    
+    // Optional Sacrament Fields
     eucharist_location: string;
     eucharist_date: string;
     confirmation_location: string;
-    confirmation_reg_no: string;
-    confirmation_no: string;
+    confirmation_register_number: string;
+    confirmation_number: string;
+    
+    // Marriage Information (shown when matrimony_status is 'married')
     marriage_spouse: string;
     marriage_location: string;
     marriage_date: string;
-    marriage_reg_no: string;
-    marriage_no: string;
-    // Marriage Record Fields
-    record_number: string;
-    husband_name: string;
-    husband_father_name: string;
-    husband_mother_name: string;
-    husband_tribe: string;
-    husband_clan: string;
-    husband_birth_place: string;
-    husband_domicile: string;
-    husband_baptized_at: string;
-    husband_baptism_date: string;
-    husband_widower_of: string;
-    husband_parent_consent: boolean;
-    wife_name: string;
-    wife_father_name: string;
-    wife_mother_name: string;
-    wife_tribe: string;
-    wife_clan: string;
-    wife_birth_place: string;
-    wife_domicile: string;
-    wife_baptized_at: string;
-    wife_baptism_date: string;
-    wife_widow_of: string;
-    wife_parent_consent: boolean;
+    marriage_register_number: string;
+    marriage_number: string;
+    
+    // Comprehensive Church Marriage Record Fields (shown when marriage_type is 'church')
+    spouse_name: string;
+    spouse_father_name: string;
+    spouse_mother_name: string;
+    spouse_tribe: string;
+    spouse_clan: string;
+    spouse_birth_place: string;
+    spouse_domicile: string;
+    spouse_baptized_at: string;
+    spouse_baptism_date: string;
+    spouse_widower_widow_of: string;
+    spouse_parent_consent: string;
+    
+    // Banas Information
     banas_number: string;
     banas_church_1: string;
     banas_date_1: string;
@@ -102,22 +102,31 @@ interface MemberFormData {
     banas_date_2: string;
     dispensation_from: string;
     dispensation_given_by: string;
+    
+    // Dispensation Information
     dispensation_impediment: string;
+    dispensation_authority: string;
     dispensation_date: string;
+    
+    // Marriage Contract Details
     marriage_church: string;
     district: string;
     province: string;
     presence_of: string;
     delegated_by: string;
     delegation_date: string;
-    male_witness_name: string;
+    
+    // Witness Information
+    male_witness_full_name: string;
     male_witness_father: string;
     male_witness_clan: string;
-    female_witness_name: string;
+    female_witness_full_name: string;
     female_witness_father: string;
     female_witness_clan: string;
-    civil_marriage_certificate: string;
+    
+    // Additional Documents
     other_documents: string;
+    civil_marriage_certificate_number: string;
 }
 
 const FormInput = ({
@@ -237,6 +246,14 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
     const [visibleFields, setVisibleFields] = useState<string[]>([]);
     const [requiredFields, setRequiredFields] = useState<string[]>([]);
     
+    // Small Christian Community autocomplete state
+    const [communitySearchQuery, setCommunitySearchQuery] = useState<string>('');
+    const [communitySearchResults, setCommunitySearchResults] = useState<string[]>([]);
+    const [showCommunityDropdown, setShowCommunityDropdown] = useState<boolean>(false);
+    const [isSearchingCommunities, setIsSearchingCommunities] = useState<boolean>(false);
+    const communitySearchRef = useRef<HTMLDivElement>(null);
+    const communityInputRef = useRef<HTMLInputElement>(null);
+    
     // Family search state
     const [familySearchQuery, setFamilySearchQuery] = useState<string>('');
     const [familySearchResults, setFamilySearchResults] = useState<Family[]>([]);
@@ -245,6 +262,9 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
     const [isSearchingFamilies, setIsSearchingFamilies] = useState<boolean>(false);
     const familySearchRef = useRef<HTMLDivElement>(null);
     const familyInputRef = useRef<HTMLInputElement>(null);
+    
+    // Multiple church groups state
+    const [selectedAdditionalGroups, setSelectedAdditionalGroups] = useState<string[]>([]);
     
     // Local church options
     const localChurches = useMemo(() => [
@@ -255,21 +275,36 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         'Sacred Heart Kandara'
     ], []);
     
-    // Church group options with descriptions
+    // Church group options - Only 7 groups, with gender restrictions
     const churchGroups = useMemo(() => [
-        { value: 'PMC', label: 'PMC (Pontifical Missionary Childhood)', description: 'Children\'s group (under 13 years)' },
-        { value: 'Youth', label: 'Youth', description: 'Young people (13-25 years)' },
-        { value: 'Young Parents', label: 'Young Parents', description: 'Married couples with young children' },
-        { value: 'C.W.A', label: 'C.W.A (Catholic Women Association)', description: 'Women\'s fellowship group' },
-        { value: 'CMA', label: 'CMA (Catholic Men Association)', description: 'Men\'s fellowship group' },
-        { value: 'Choir', label: 'Choir', description: 'Church music ministry' },
-        { value: 'Catholic Action', label: 'Catholic Action', description: 'Catholic Action ministry' },
-        { value: 'Pioneer', label: 'Pioneer', description: 'Pioneer youth movement' }
+        { value: 'PMC', label: 'PMC (Pontifical Missionary Childhood)', description: 'Children\'s group', restriction: '' },
+        { value: 'Youth', label: 'Youth', description: 'Young people (13-30 years)', restriction: '' },
+        { value: 'C.W.A', label: 'C.W.A (Catholic Women Association)', description: 'Women\'s fellowship group', restriction: 'female' },
+        { value: 'CMA', label: 'CMA (Catholic Men Association)', description: 'Men\'s fellowship group', restriction: 'male' },
+        { value: 'Choir', label: 'Choir', description: 'Church music ministry', restriction: '' },
+        { value: 'Catholic Action', label: 'Catholic Action', description: 'Catholic Action ministry', restriction: '' },
+        { value: 'Pioneer', label: 'Pioneer', description: 'Pioneer total abstinence association', restriction: '' }
     ], []);
     
-    const { data, setData, post, processing, errors = {}, clearErrors } = useForm({
+    // Education levels following Kenyan system
+    const educationLevels = useMemo(() => [
+        { value: 'none', label: 'No Formal Education' },
+        { value: 'primary', label: 'Primary Education' },
+        { value: 'kcpe', label: 'KCPE' },
+        { value: 'secondary', label: 'Secondary Education' },
+        { value: 'kcse', label: 'KCSE' },
+        { value: 'certificate', label: 'Certificate' },
+        { value: 'diploma', label: 'Diploma' },
+        { value: 'degree', label: 'Degree' },
+        { value: 'masters', label: 'Masters' },
+        { value: 'phd', label: 'PhD' }
+    ], []);
+    
+    const { data, setData, post, processing, errors = {}, clearErrors } = useForm<MemberFormData>({
         local_church: '',
+        small_christian_community: '',
         church_group: '',
+        additional_church_groups: [],
         first_name: '',
         middle_name: '',
         last_name: '',
@@ -278,7 +313,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         phone: '',
         email: '',
         id_number: '',
-        sponsor: '',
+        godparent: '',
         occupation: '',
         education_level: '',
         family_id: '',
@@ -290,52 +325,50 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         residence: '',
         confirmation_date: '',
         matrimony_status: '',
+        marriage_type: '',
         membership_date: new Date().toISOString().split('T')[0],
         membership_status: 'active',
         emergency_contact: '',
         emergency_phone: '',
         notes: '',
-        // Baptism Record Fields
-        father_name: '',
-        mother_name: '',
+        
+        // Comprehensive Baptism Record Fields
         birth_village: '',
         county: '',
         baptism_location: '',
         baptized_by: '',
+        sponsor: '',
+        father_name: '',
+        mother_name: '',
+        
+        // Optional Sacrament Fields
         eucharist_location: '',
         eucharist_date: '',
         confirmation_location: '',
-        confirmation_reg_no: '',
-        confirmation_no: '',
+        confirmation_register_number: '',
+        confirmation_number: '',
+        
+        // Marriage Information
         marriage_spouse: '',
         marriage_location: '',
         marriage_date: '',
-        marriage_reg_no: '',
-        marriage_no: '',
-        // Marriage Record Fields
-        record_number: '',
-        husband_name: '',
-        husband_father_name: '',
-        husband_mother_name: '',
-        husband_tribe: '',
-        husband_clan: '',
-        husband_birth_place: '',
-        husband_domicile: '',
-        husband_baptized_at: '',
-        husband_baptism_date: '',
-        husband_widower_of: '',
-        husband_parent_consent: false,
-        wife_name: '',
-        wife_father_name: '',
-        wife_mother_name: '',
-        wife_tribe: '',
-        wife_clan: '',
-        wife_birth_place: '',
-        wife_domicile: '',
-        wife_baptized_at: '',
-        wife_baptism_date: '',
-        wife_widow_of: '',
-        wife_parent_consent: false,
+        marriage_register_number: '',
+        marriage_number: '',
+        
+        // Comprehensive Church Marriage Record Fields
+        spouse_name: '',
+        spouse_father_name: '',
+        spouse_mother_name: '',
+        spouse_tribe: '',
+        spouse_clan: '',
+        spouse_birth_place: '',
+        spouse_domicile: '',
+        spouse_baptized_at: '',
+        spouse_baptism_date: '',
+        spouse_widower_widow_of: '',
+        spouse_parent_consent: '',
+        
+        // Banas Information
         banas_number: '',
         banas_church_1: '',
         banas_date_1: '',
@@ -343,46 +376,46 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         banas_date_2: '',
         dispensation_from: '',
         dispensation_given_by: '',
+        
+        // Dispensation Information
         dispensation_impediment: '',
+        dispensation_authority: '',
         dispensation_date: '',
+        
+        // Marriage Contract Details
         marriage_church: '',
         district: '',
         province: '',
         presence_of: '',
         delegated_by: '',
         delegation_date: '',
-        male_witness_name: '',
+        
+        // Witness Information
+        male_witness_full_name: '',
         male_witness_father: '',
         male_witness_clan: '',
-        female_witness_name: '',
+        female_witness_full_name: '',
         female_witness_father: '',
         female_witness_clan: '',
-        civil_marriage_certificate: '',
+        
+        // Additional Documents
         other_documents: '',
+        civil_marriage_certificate_number: '',
     });
 
-    // Enhanced debounced family search function with better error handling
-    const debouncedFamilySearch = useCallback(
+    // Enhanced debounced community search function
+    const debouncedCommunitySearch = useCallback(
         debounce(async (query: string) => {
             if (query.trim().length < 2) {
-                setFamilySearchResults(families.slice(0, 10)); // Show first 10 families
-                setIsSearchingFamilies(false);
+                setCommunitySearchResults([]);
+                setIsSearchingCommunities(false);
                 return;
             }
 
-            setIsSearchingFamilies(true);
+            setIsSearchingCommunities(true);
             
             try {
-                // First, filter from local families data for instant results
-                const localResults = families.filter(family => 
-                    family.family_name.toLowerCase().includes(query.toLowerCase()) ||
-                    (family.family_code && family.family_code.toLowerCase().includes(query.toLowerCase()))
-                ).slice(0, 10);
-                
-                setFamilySearchResults(localResults);
-                
-                // Then, make API call for more comprehensive search using axios
-                const response = await axios.get(`/api/families/search`, {
+                const response = await axios.get(`/api/small-christian-communities/search`, {
                     params: { q: query, limit: 10 },
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
@@ -390,46 +423,79 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                     },
                 });
 
-                const apiResults = response.data?.data || response.data || [];
-                
-                // Merge and deduplicate results
-                const mergedResults = [...localResults];
-                apiResults.forEach((apiFamily: Family) => {
-                    if (!mergedResults.some(local => local.id === apiFamily.id)) {
-                        mergedResults.push(apiFamily);
-                    }
-                });
-                
-                setFamilySearchResults(mergedResults.slice(0, 10));
+                const results = response.data?.data || response.data || [];
+                setCommunitySearchResults(results);
             } catch (error) {
-                console.warn('Family search error, using local results:', error);
-                // Fallback to local search
+                console.warn('Community search error:', error);
+                setCommunitySearchResults([]);
+            } finally {
+                setIsSearchingCommunities(false);
+            }
+        }, 150),
+        []
+    );
+
+    // Enhanced debounced family search function
+    const debouncedFamilySearch = useCallback(
+        debounce(async (query: string) => {
+            if (query.trim().length < 2) {
+                setFamilySearchResults(families.slice(0, 10));
+                setIsSearchingFamilies(false);
+                return;
+            }
+
+            setIsSearchingFamilies(true);
+            
+            try {
                 const localResults = families.filter(family => 
                     family.family_name.toLowerCase().includes(query.toLowerCase()) ||
                     (family.family_code && family.family_code.toLowerCase().includes(query.toLowerCase()))
                 ).slice(0, 10);
+                
                 setFamilySearchResults(localResults);
+            } catch (error) {
+                console.warn('Family search error:', error);
             } finally {
                 setIsSearchingFamilies(false);
             }
-        }, 150), // Reduced debounce time for faster response
+        }, 150),
         [families]
     );
 
-    // Optimized field change handler to prevent input lag
-    const handleInputChange = useCallback((field: keyof MemberFormData, value: string | boolean) => {
+    // Optimized field change handler
+    const handleInputChange = useCallback((field: keyof MemberFormData, value: string | boolean | string[]) => {
         setData((prev: any) => ({
             ...prev,
             [field]: value
         }));
         
-        // Clear error for this field immediately
         if (errors[field]) {
             clearErrors(field);
         }
     }, [setData, errors, clearErrors]);
 
-    // Handle family search input change with optimized performance
+    // Handle community search input change
+    const handleCommunitySearchChange = useCallback((value: string) => {
+        setCommunitySearchQuery(value);
+        setShowCommunityDropdown(true);
+        setData('small_christian_community', value);
+        
+        if (value.trim().length === 0) {
+            setCommunitySearchResults([]);
+        } else {
+            debouncedCommunitySearch(value);
+        }
+    }, [setData, debouncedCommunitySearch]);
+
+    // Handle community selection
+    const handleCommunitySelect = useCallback((community: string) => {
+        setCommunitySearchQuery(community);
+        setData('small_christian_community', community);
+        setShowCommunityDropdown(false);
+        setCommunitySearchResults([]);
+    }, [setData]);
+
+    // Handle family search input change
     const handleFamilySearchChange = useCallback((value: string) => {
         setFamilySearchQuery(value);
         setShowFamilyDropdown(true);
@@ -437,13 +503,13 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         if (value.trim().length === 0) {
             setSelectedFamily(null);
             setData('family_id', '');
-            setFamilySearchResults(families.slice(0, 10)); // Show first 10 families when empty
+            setFamilySearchResults(families.slice(0, 10));
         } else {
             debouncedFamilySearch(value);
         }
     }, [setData, families, debouncedFamilySearch]);
 
-    // Handle family selection with auto-fill functionality
+    // Handle family selection
     const handleFamilySelect = useCallback((family: Family) => {
         setSelectedFamily(family);
         setFamilySearchQuery(family.family_name + (family.family_code ? ` (${family.family_code})` : ''));
@@ -467,11 +533,14 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         familyInputRef.current?.focus();
     }, [setData, families]);
 
-    // Handle clicking outside of family search dropdown
+    // Handle clicking outside of dropdowns
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (familySearchRef.current && !familySearchRef.current.contains(event.target as Node)) {
                 setShowFamilyDropdown(false);
+            }
+            if (communitySearchRef.current && !communitySearchRef.current.contains(event.target as Node)) {
+                setShowCommunityDropdown(false);
             }
         };
 
@@ -481,10 +550,10 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         };
     }, []);
 
-    // Optimized function to determine fields based on church group
+    // Update form fields based on church group
     const updateFormFieldsByGroup = useCallback((churchGroup: string): void => {
         const baseFields = [
-            'local_church', 'church_group', 'first_name', 'middle_name', 'last_name', 
+            'local_church', 'small_christian_community', 'church_group', 'first_name', 'middle_name', 'last_name', 
             'date_of_birth', 'gender', 'phone', 'email', 'residence', 'membership_date', 
             'membership_status', 'baptism_date', 'confirmation_date', 'emergency_contact', 
             'emergency_phone', 'notes'
@@ -504,21 +573,35 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                 break;
                 
             case 'C.W.A':
+                visible.push('occupation', 'education_level', 'godparent', 
+                           'matrimony_status', 'marriage_type', 'minister', 'tribe', 'clan', 'family_id');
+                required.push('matrimony_status');
+                break;
+                
             case 'CMA':
-            case 'Young Parents':
-                visible.push('id_number', 'occupation', 'education_level', 'sponsor', 
-                           'matrimony_status', 'minister', 'tribe', 'clan', 'family_id');
-                required.push('id_number', 'matrimony_status');
+                visible.push('occupation', 'education_level', 'godparent', 
+                           'matrimony_status', 'marriage_type', 'minister', 'tribe', 'clan', 'family_id');
+                required.push('matrimony_status');
                 break;
                 
             case 'Youth':
-                visible.push('id_number', 'education_level', 'parent', 'family_id');
+                visible.push('education_level', 'parent', 'family_id', 'godparent', 'tribe', 'clan');
                 required.push('education_level');
                 break;
                 
             case 'Choir':
-                visible.push('id_number', 'occupation', 'education_level', 'sponsor', 'family_id');
+                visible.push('occupation', 'education_level', 'godparent', 'family_id', 'tribe', 'clan');
                 required.push('phone');
+                break;
+                
+            case 'Catholic Action':
+                visible.push('id_number', 'occupation', 'education_level', 'godparent', 
+                           'matrimony_status', 'marriage_type', 'minister', 'tribe', 'clan', 'family_id');
+                break;
+                
+            case 'Pioneer':
+                visible.push('id_number', 'occupation', 'education_level', 'godparent', 
+                           'matrimony_status', 'marriage_type', 'minister', 'tribe', 'clan', 'family_id');
                 break;
         }
 
@@ -526,17 +609,87 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         setRequiredFields(required);
     }, [setVisibleFields, setRequiredFields]);
 
-    // Initialize family search results
+    // Validate church group gender restrictions
+    const validateChurchGroupGender = useCallback((group: string, gender: string): string | null => {
+        if (group === 'C.W.A' && gender !== 'Female') {
+            return 'C.W.A membership is restricted to female members only.';
+        }
+        
+        if (group === 'CMA' && gender !== 'Male') {
+            return 'CMA membership is restricted to male members only.';
+        }
+        
+        return null;
+    }, []);
+
+    // Auto-inherit family data for children and auto-populate parent names
+    const inheritFamilyData = useCallback(async () => {
+        if (selectedFamily && data.family_id) {
+            try {
+                const response = await axios.get(`/api/families/${data.family_id}/head`);
+                const familyHead = response.data;
+                
+                if (familyHead && data.date_of_birth) {
+                    const age = new Date().getFullYear() - new Date(data.date_of_birth).getFullYear();
+                    
+                    if (age < 18) {
+                        if (!data.tribe && familyHead.tribe) {
+                            setData('tribe', familyHead.tribe);
+                        }
+                        
+                        if (!data.clan && familyHead.clan) {
+                            setData('clan', familyHead.clan);
+                        }
+                        
+                        if (!data.small_christian_community && familyHead.small_christian_community) {
+                            setData('small_christian_community', familyHead.small_christian_community);
+                            setCommunitySearchQuery(familyHead.small_christian_community);
+                        }
+                    }
+                    
+                    // Auto-populate father/mother names for baptism record if family head is available
+                    if (familyHead.gender === 'Male' && !data.father_name) {
+                        setData('father_name', `${familyHead.first_name} ${familyHead.middle_name || ''} ${familyHead.last_name}`.trim());
+                    }
+                    
+                    // Try to get spouse information for mother's name
+                    try {
+                        const familyMembersResponse = await axios.get(`/api/families/${data.family_id}/members`);
+                        const familyMembers = familyMembersResponse.data;
+                        
+                        const spouse = familyMembers.find((member: any) => 
+                            member.id !== familyHead.id && 
+                            member.matrimony_status === 'married' &&
+                            member.gender !== familyHead.gender
+                        );
+                        
+                        if (spouse) {
+                            if (spouse.gender === 'Female' && !data.mother_name) {
+                                setData('mother_name', `${spouse.first_name} ${spouse.middle_name || ''} ${spouse.last_name}`.trim());
+                            } else if (spouse.gender === 'Male' && !data.father_name) {
+                                setData('father_name', `${spouse.first_name} ${spouse.middle_name || ''} ${spouse.last_name}`.trim());
+                            }
+                        }
+                    } catch (spouseError) {
+                        console.warn('Could not fetch family members for spouse info:', spouseError);
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not inherit family data:', error);
+            }
+        }
+    }, [selectedFamily, data.family_id, data.date_of_birth, data.tribe, data.clan, data.small_christian_community, data.father_name, data.mother_name, setData]);
+
+    // Initialize
     useEffect(() => {
         setFamilySearchResults(families.slice(0, 10));
     }, [families]);
 
-    // Auto-update form fields when church group changes - OPTIMIZED
+    // Auto-update form fields when church group changes
     useEffect(() => {
         if (data.church_group) {
             updateFormFieldsByGroup(data.church_group);
         } else {
-            // Reset to show only basic fields when no group is selected
             setVisibleFields([
                 'local_church', 'church_group', 'first_name', 'middle_name', 'last_name', 
                 'date_of_birth', 'gender', 'phone', 'email', 'residence', 'membership_date', 
@@ -547,17 +700,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
             ]);
         }
     }, [data.church_group, updateFormFieldsByGroup]);
-    
-    // Show marriage record tab when matrimony status is 'married'
-    useEffect(() => {
-        if (data.matrimony_status === 'married') {
-            // Auto-navigate to marriage record tab with helpful message
-            setActiveTab('marriage_record');
-            // Could show a toast notification here instead of confirm dialog
-        }
-    }, [data.matrimony_status]);
 
-    // Enhanced form submission with better error handling
+    // Enhanced form submission
     const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
         e.preventDefault();
         
@@ -565,7 +709,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
             clearErrors();
         }
         
-        // Validate required fields before submission
+        // Validate required fields
         const missingFields = requiredFields.filter((field: string) => {
             const value = data[field as keyof MemberFormData];
             return typeof value === 'string' ? !value.trim() : !value;
@@ -582,120 +726,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         }
         
         post(route('members.store'), {
-            onSuccess: async (page: any) => {
-                const response = page.props as any;
-                const memberId = response.member?.id;
-                
-                if (memberId) {
-                    // If baptism information is filled out, submit baptism record
-                    if (data.father_name && data.mother_name && data.baptism_location && data.baptism_date) {
-                        try {
-                            await axios.post(route('sacramental-records.store-baptism'), {
-                                member_id: memberId,
-                                father_name: data.father_name,
-                                mother_name: data.mother_name,
-                                tribe: data.tribe,
-                                birth_village: data.birth_village,
-                                county: data.county,
-                                birth_date: data.date_of_birth,
-                                residence: data.residence,
-                                baptism_location: data.baptism_location,
-                                baptism_date: data.baptism_date,
-                                baptized_by: data.baptized_by,
-                                sponsor: data.sponsor,
-                                eucharist_location: data.eucharist_location,
-                                eucharist_date: data.eucharist_date,
-                                confirmation_location: data.confirmation_location,
-                                confirmation_date: data.confirmation_date,
-                                confirmation_number: data.confirmation_no,
-                                confirmation_register_number: data.confirmation_reg_no,
-                                marriage_spouse: data.marriage_spouse,
-                                marriage_location: data.marriage_location,
-                                marriage_date: data.marriage_date,
-                                marriage_register_number: data.marriage_reg_no,
-                                marriage_number: data.marriage_no,
-                            }, {
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest',
-                                },
-                            });
-                        } catch (error) {
-                            console.error('Error saving baptism record:', error);
-                            // Could show a toast notification here instead of console.error
-                        }
-                    }
-                    
-                    // If matrimony status is married, submit marriage record
-                    if (data.matrimony_status === 'married' && data.husband_name && data.wife_name && data.marriage_church && data.marriage_date) {
-                        try {
-                            await axios.post(route('sacramental-records.store-marriage'), {
-                                husband_id: data.gender === 'Male' ? memberId : null,
-                                wife_id: data.gender === 'Female' ? memberId : null,
-                                record_number: data.record_number,
-                                husband_name: data.husband_name,
-                                husband_father_name: data.husband_father_name,
-                                husband_mother_name: data.husband_mother_name,
-                                husband_tribe: data.husband_tribe,
-                                husband_clan: data.husband_clan,
-                                husband_birth_place: data.husband_birth_place,
-                                husband_domicile: data.husband_domicile,
-                                husband_baptized_at: data.husband_baptized_at,
-                                husband_baptism_date: data.husband_baptism_date,
-                                husband_widower_of: data.husband_widower_of,
-                                husband_parent_consent: data.husband_parent_consent,
-                                wife_name: data.wife_name,
-                                wife_father_name: data.wife_father_name,
-                                wife_mother_name: data.wife_mother_name,
-                                wife_tribe: data.wife_tribe,
-                                wife_clan: data.wife_clan,
-                                wife_birth_place: data.wife_birth_place,
-                                wife_domicile: data.wife_domicile,
-                                wife_baptized_at: data.wife_baptized_at,
-                                wife_baptism_date: data.wife_baptism_date,
-                                wife_widow_of: data.wife_widow_of,
-                                wife_parent_consent: data.wife_parent_consent,
-                                banas_number: data.banas_number,
-                                banas_church_1: data.banas_church_1,
-                                banas_date_1: data.banas_date_1,
-                                banas_church_2: data.banas_church_2,
-                                banas_date_2: data.banas_date_2,
-                                dispensation_from: data.dispensation_from,
-                                dispensation_given_by: data.dispensation_given_by,
-                                dispensation_impediment: data.dispensation_impediment,
-                                dispensation_date: data.dispensation_date,
-                                marriage_date: data.marriage_date,
-                                marriage_church: data.marriage_church,
-                                district: data.district,
-                                province: data.province,
-                                presence_of: data.presence_of,
-                                delegated_by: data.delegated_by,
-                                delegation_date: data.delegation_date,
-                                male_witness_name: data.male_witness_name,
-                                male_witness_father: data.male_witness_father,
-                                male_witness_clan: data.male_witness_clan,
-                                female_witness_name: data.female_witness_name,
-                                female_witness_father: data.female_witness_father,
-                                female_witness_clan: data.female_witness_clan,
-                                civil_marriage_certificate_number: data.civil_marriage_certificate,
-                                other_documents: data.other_documents,
-                            }, {
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest',
-                                },
-                            });
-                        } catch (error) {
-                            console.error('Error saving marriage record:', error);
-                            // Could show a toast notification here instead of console.error
-                        }
-                    }
-                
-                    // Navigate to members list with success message
-                    router.visit(route('members.index'), {
-                        onFinish: () => {
-                            // This will be handled by the backend flash message
-                        }
-                    });
-                }
+            onSuccess: () => {
+                router.visit(route('members.index'));
             },
             onError: (validationErrors: any) => {
                 const firstErrorField = Object.keys(validationErrors)[0];
@@ -711,30 +743,49 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                         setActiveTab('church');
                     } else if (['first_name', 'last_name', 'middle_name', 'date_of_birth', 'gender', 'id_number', 'occupation', 'education_level'].includes(firstErrorField)) {
                         setActiveTab('personal');
-                    } else if (['family_id', 'parent', 'minister', 'sponsor', 'tribe', 'clan', 'baptism_date', 'confirmation_date', 
-                              'matrimony_status', 'father_name', 'mother_name', 'birth_village', 'county', 'baptism_location',
-                              'baptized_by', 'eucharist_location', 'eucharist_date', 'confirmation_location', 
-                              'confirmation_no', 'confirmation_reg_no'].includes(firstErrorField)) {
+                    } else if (['family_id', 'parent', 'minister', 'godparent', 'tribe', 'clan', 'baptism_date', 'confirmation_date', 'matrimony_status'].includes(firstErrorField)) {
                         setActiveTab('church_details');
                     } else if (['phone', 'email', 'residence', 'emergency_contact', 'emergency_phone', 'notes'].includes(firstErrorField)) {
                         setActiveTab('contact');
-                    } else if (['record_number', 'husband_name', 'wife_name', 'husband_father_name', 'wife_father_name',
-                               'marriage_date', 'marriage_church'].includes(firstErrorField)) {
-                        setActiveTab('marriage_record');
                     }
                 }
             }
         });
     }, [clearErrors, requiredFields, data, post]);
 
-    // Memoized tabs configuration
-    const tabs = useMemo(() => [
-        { id: 'church', name: 'Church Membership', icon: Church },
-        { id: 'personal', name: 'Personal Info', icon: Users },
-        { id: 'church_details', name: 'Church Details', icon: Info },
-        { id: 'contact', name: 'Contact Info', icon: AlertCircle },
-        { id: 'marriage_record', name: 'Marriage Record', icon: Church },
-    ], []);
+    // Calculate progress percentage
+    const progressPercentage = useMemo(() => {
+        const totalRequiredFields = requiredFields.length;
+        const completedFields = requiredFields.filter((field: string) => {
+            const value = data[field as keyof MemberFormData];
+            return typeof value === 'string' ? value.trim() !== '' : Boolean(value);
+        }).length;
+        
+        return totalRequiredFields > 0 ? Math.round((completedFields / totalRequiredFields) * 100) : 0;
+    }, [requiredFields, data]);
+
+    // Tabs configuration with dynamic baptism and marriage sections
+    const tabs = useMemo(() => {
+        const baseTabs = [
+            { id: 'church', name: 'Church Membership', icon: Church },
+            { id: 'personal', name: 'Personal Info', icon: Users },
+            { id: 'church_details', name: 'Church Details', icon: Info },
+        ];
+        
+        // Add baptism details tab if baptism date is provided
+        if (data.baptism_date) {
+            baseTabs.push({ id: 'baptism_details', name: 'Baptism Record', icon: AlertCircle });
+        }
+        
+        // Add marriage details tab if married and church marriage
+        if (data.matrimony_status === 'married' && data.marriage_type === 'church') {
+            baseTabs.push({ id: 'marriage_details', name: 'Marriage Record', icon: AlertCircle });
+        }
+        
+        baseTabs.push({ id: 'contact', name: 'Contact Info', icon: AlertCircle });
+        
+        return baseTabs;
+    }, [data.baptism_date, data.matrimony_status, data.marriage_type]);
 
     // Utility functions
     const isFieldVisible = useCallback((fieldName: string): boolean => {
@@ -753,7 +804,70 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         return Boolean(errors[fieldName as keyof typeof errors]);
     }, [errors]);
 
-    // Enhanced Family Search Component
+    // Small Christian Community Search Component
+    const SmallChristianCommunitySearchField = useCallback(() => {
+        const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            handleCommunitySearchChange(e.target.value);
+        };
+
+        return (
+            <div className="relative" ref={communitySearchRef}>
+                <label htmlFor="small_christian_community" className="block text-sm font-medium text-gray-700 mb-2">
+                    Small Christian Community {isFieldRequired('small_christian_community') && <span className="text-red-500">*</span>}
+                </label>
+                <div className="relative">
+                    <input
+                        ref={communityInputRef}
+                        type="text"
+                        id="small_christian_community"
+                        value={communitySearchQuery}
+                        onChange={handleInputChange}
+                        onFocus={() => setShowCommunityDropdown(true)}
+                        className={`w-full px-4 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                            hasError('small_christian_community') ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        placeholder="Type to search or enter new community name..."
+                        autoComplete="off"
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                        {isSearchingCommunities ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                        ) : (
+                            <Search className="w-4 h-4 text-gray-400" />
+                        )}
+                    </div>
+                </div>
+
+                {showCommunityDropdown && communitySearchResults.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {communitySearchResults.map((community, index) => (
+                            <button
+                                key={index}
+                                type="button"
+                                onClick={() => handleCommunitySelect(community)}
+                                className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-blue-50 focus:outline-none transition-colors"
+                            >
+                                <div className="font-medium text-gray-900">{community}</div>
+                            </button>
+                        ))}
+                    </div>
+                )}
+                
+                {hasError('small_christian_community') && (
+                    <p className="mt-1 text-sm text-red-600">{getErrorMessage('small_christian_community')}</p>
+                )}
+                <p className="mt-1 text-sm text-gray-500">
+                    This will help speed up data entry for future registrations
+                </p>
+            </div>
+        );
+    }, [
+        communitySearchQuery, isSearchingCommunities, communitySearchResults, 
+        showCommunityDropdown, handleCommunitySearchChange, handleCommunitySelect, 
+        hasError, getErrorMessage, isFieldRequired
+    ]);
+
+    // Family Search Component
     const FamilySearchField = useCallback(() => {
         const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             handleFamilySearchChange(e.target.value);
@@ -777,9 +891,6 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                         }`}
                         placeholder="Search by family name or code..."
                         autoComplete="off"
-                        aria-expanded={showFamilyDropdown}
-                        aria-haspopup="listbox"
-                        role="combobox"
                     />
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                         {isSearchingFamilies ? (
@@ -789,7 +900,6 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 type="button"
                                 onClick={clearFamilySelection}
                                 className="text-gray-400 hover:text-gray-600 transition-colors"
-                                aria-label="Clear family selection"
                             >
                                 <X className="w-4 h-4" />
                             </button>
@@ -799,7 +909,6 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                     </div>
                 </div>
 
-                {/* Selected Family Display */}
                 {selectedFamily && (
                     <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <div className="flex items-start justify-between">
@@ -813,78 +922,36 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 {selectedFamily.head_of_family_name && (
                                     <p className="text-sm text-blue-700">Head: {selectedFamily.head_of_family_name}</p>
                                 )}
-                                {selectedFamily.parish_section && (
-                                    <p className="text-sm text-blue-600">Section: {selectedFamily.parish_section}</p>
-                                )}
-                                {selectedFamily.members_count !== undefined && (
-                                    <p className="text-sm text-blue-600">Members: {selectedFamily.members_count}</p>
-                                )}
                             </div>
-                            <button
-                                type="button"
-                                onClick={clearFamilySelection}
-                                className="text-blue-400 hover:text-blue-600 transition-colors"
-                                aria-label="Remove family selection"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
                         </div>
                     </div>
                 )}
 
-                {/* Search Results Dropdown */}
-                {showFamilyDropdown && (
-                    <div 
-                        className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
-                        role="listbox"
-                        aria-label="Family search results"
-                    >
-                        {isSearchingFamilies && familySearchQuery.length >= 2 ? (
-                            <div className="p-4 text-center text-gray-500">
-                                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
-                                Searching families...
-                            </div>
-                        ) : familySearchResults.length > 0 ? (
-                            familySearchResults.map((family) => (
-                                <button
-                                    key={family.id}
-                                    type="button"
-                                    onClick={() => handleFamilySelect(family)}
-                                    className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-blue-50 focus:outline-none transition-colors"
-                                    role="option"
-                                    aria-selected={selectedFamily?.id === family.id}
-                                >
-                                    <div className="font-medium text-gray-900">
-                                        {family.family_name}
-                                        {family.family_code && (
-                                            <span className="ml-2 text-sm text-gray-600">({family.family_code})</span>
-                                        )}
-                                    </div>
-                                    {family.head_of_family_name && (
-                                        <div className="text-sm text-gray-600">Head: {family.head_of_family_name}</div>
+                {showFamilyDropdown && familySearchResults.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {familySearchResults.map((family) => (
+                            <button
+                                key={family.id}
+                                type="button"
+                                onClick={() => handleFamilySelect(family)}
+                                className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-blue-50 focus:outline-none transition-colors"
+                            >
+                                <div className="font-medium text-gray-900">
+                                    {family.family_name}
+                                    {family.family_code && (
+                                        <span className="ml-2 text-sm text-gray-600">({family.family_code})</span>
                                     )}
-                                    <div className="flex items-center space-x-4 text-xs text-gray-500 mt-1">
-                                        {family.parish_section && <span>Section: {family.parish_section}</span>}
-                                        {family.members_count !== undefined && <span>Members: {family.members_count}</span>}
-                                    </div>
-                                </button>
-                            ))
-                        ) : (
-                            <div className="p-4 text-center text-gray-500">
-                                <div className="mb-2">No families found</div>
-                                <div className="text-sm">Try searching with a different name or code</div>
-                            </div>
-                        )}
+                                </div>
+                                {family.head_of_family_name && (
+                                    <div className="text-sm text-gray-600">Head: {family.head_of_family_name}</div>
+                                )}
+                            </button>
+                        ))}
                     </div>
                 )}
                 
                 {hasError('family_id') && (
-                    <p className="mt-1 text-sm text-red-600" role="alert">{getErrorMessage('family_id')}</p>
-                )}
-                {!selectedFamily && familySearchQuery.length === 0 && (
-                    <p className="mt-1 text-sm text-gray-500">
-                        Start typing to search for a family, or leave empty if not applicable
-                    </p>
+                    <p className="mt-1 text-sm text-red-600">{getErrorMessage('family_id')}</p>
                 )}
             </div>
         );
@@ -894,7 +961,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         clearFamilySelection, hasError, getErrorMessage, isFieldRequired
     ]);
 
-    // Render tab content with memoization for better performance
+    // Render tab content
     const renderTabContent = useCallback((): JSX.Element | null => {
         switch (activeTab) {
             case 'church':
@@ -910,7 +977,13 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 value={data.local_church}
                                 onChange={(value) => handleInputChange('local_church', value)}
                                 options={localChurches.map(church => ({ value: church, label: church }))}
+                                hasError={hasError('local_church')}
+                                errorMessage={getErrorMessage('local_church')}
                             />
+
+                            <div className="md:col-span-2">
+                                <SmallChristianCommunitySearchField />
+                            </div>
 
                             <div>
                                 <FormInput
@@ -920,19 +993,86 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     required
                                     placeholder="Select Church Group"
                                     value={data.church_group}
-                                    onChange={(value) => handleInputChange('church_group', value)}
-                                    options={churchGroups.map(group => ({ value: group.value, label: group.label }))}
+                                    onChange={(value) => {
+                                        const genderError = validateChurchGroupGender(String(value), data.gender);
+                                        if (genderError && data.gender) {
+                                            alert(genderError);
+                                            return;
+                                        }
+                                        handleInputChange('church_group', value);
+                                    }}
+                                    options={churchGroups
+                                        .filter(group => {
+                                            if (!data.gender) return true;
+                                            if (group.restriction === 'male') return data.gender === 'Male';
+                                            if (group.restriction === 'female') return data.gender === 'Female';
+                                            return true;
+                                        })
+                                        .map(group => ({ value: group.value, label: group.label }))}
+                                    hasError={hasError('church_group')}
+                                    errorMessage={getErrorMessage('church_group')}
                                 />
                                 {data.church_group && (
                                     <div className="mt-2 p-2 bg-blue-50 rounded-lg">
                                         <p className="text-sm text-blue-700">
                                             {churchGroups.find(g => g.value === data.church_group)?.description}
                                         </p>
-                                        <p className="text-xs text-blue-600 mt-1">
-                                            Form fields have been customized for this group.
-                                        </p>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Additional Church Groups - Multiple Selection */}
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Additional Church Groups (Optional)
+                                </label>
+                                <div className="space-y-2">
+                                    <p className="text-sm text-gray-500 mb-3">
+                                        Select additional groups this member belongs to (besides their primary group)
+                                    </p>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        {churchGroups
+                                            .filter(group => {
+                                                if (group.value === data.church_group) return false;
+                                                if (!data.gender) return true;
+                                                if (group.restriction === 'male') return data.gender === 'Male';
+                                                if (group.restriction === 'female') return data.gender === 'Female';
+                                                return true;
+                                            })
+                                            .map(group => (
+                                                <label key={group.value} className="flex items-center space-x-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedAdditionalGroups.includes(group.value)}
+                                                        onChange={(e) => {
+                                                            const newGroups = e.target.checked
+                                                                ? [...selectedAdditionalGroups, group.value]
+                                                                : selectedAdditionalGroups.filter(g => g !== group.value);
+                                                            setSelectedAdditionalGroups(newGroups);
+                                                            setData('additional_church_groups', newGroups);
+                                                        }}
+                                                        className="rounded text-blue-500 focus:ring-blue-500"
+                                                    />
+                                                    <span className="text-sm font-medium text-gray-700">{group.label}</span>
+                                                </label>
+                                            ))}
+                                    </div>
+                                    {selectedAdditionalGroups.length > 0 && (
+                                        <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                            <p className="text-sm text-green-700 font-medium">Selected Additional Groups:</p>
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                {selectedAdditionalGroups.map(groupValue => {
+                                                    const group = churchGroups.find(g => g.value === groupValue);
+                                                    return (
+                                                        <span key={groupValue} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                            {group?.label}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             
                             <FormInput
@@ -943,6 +1083,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 max={new Date().toISOString().split('T')[0]}
                                 value={data.membership_date}
                                 onChange={(value) => handleInputChange('membership_date', value)}
+                                hasError={hasError('membership_date')}
+                                errorMessage={getErrorMessage('membership_date')}
                             />
 
                             <FormInput
@@ -958,6 +1100,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     { value: 'transferred', label: 'Transferred' },
                                     { value: 'deceased', label: 'Deceased' }
                                 ]}
+                                hasError={hasError('membership_status')}
+                                errorMessage={getErrorMessage('membership_status')}
                             />
                         </div>
                     </div>
@@ -975,6 +1119,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 value={data.first_name}
                                 onChange={(value) => handleInputChange('first_name', value)}
                                 placeholder="Enter first name"
+                                hasError={hasError('first_name')}
+                                errorMessage={getErrorMessage('first_name')}
                             />
 
                             <FormInput
@@ -984,6 +1130,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 value={data.middle_name}
                                 onChange={(value) => handleInputChange('middle_name', value)}
                                 placeholder="Enter middle name"
+                                hasError={hasError('middle_name')}
+                                errorMessage={getErrorMessage('middle_name')}
                             />
 
                             <FormInput
@@ -994,6 +1142,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 value={data.last_name}
                                 onChange={(value) => handleInputChange('last_name', value)}
                                 placeholder="Enter last name"
+                                hasError={hasError('last_name')}
+                                errorMessage={getErrorMessage('last_name')}
                             />
 
                             <FormInput
@@ -1003,7 +1153,12 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 required
                                 max={new Date().toISOString().split('T')[0]}
                                 value={data.date_of_birth}
-                                onChange={(value) => handleInputChange('date_of_birth', value)}
+                                onChange={(value) => {
+                                    handleInputChange('date_of_birth', value);
+                                    setTimeout(inheritFamilyData, 100);
+                                }}
+                                hasError={hasError('date_of_birth')}
+                                errorMessage={getErrorMessage('date_of_birth')}
                             />
 
                             <FormInput
@@ -1013,24 +1168,33 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 required
                                 placeholder="Select Gender"
                                 value={data.gender}
-                                onChange={(value) => handleInputChange('gender', value)}
+                                onChange={(value) => {
+                                    const genderError = validateChurchGroupGender(data.church_group, String(value));
+                                    if (genderError && data.church_group) {
+                                        alert(genderError);
+                                        return;
+                                    }
+                                    handleInputChange('gender', value);
+                                }}
                                 options={[
                                     { value: 'Male', label: 'Male' },
                                     { value: 'Female', label: 'Female' }
                                 ]}
+                                hasError={hasError('gender')}
+                                errorMessage={getErrorMessage('gender')}
                             />
 
-                            {isFieldVisible('id_number') && (
-                                <FormInput
-                                    id="id_number"
-                                    label="ID Number"
-                                    required={isFieldRequired('id_number')}
-                                    maxLength={20}
-                                    value={data.id_number}
-                                    onChange={(value) => handleInputChange('id_number', value)}
-                                    placeholder="National ID number"
-                                />
-                            )}
+                            <FormInput
+                                id="id_number"
+                                label="ID Number (Optional)"
+                                required={false}
+                                maxLength={20}
+                                value={data.id_number}
+                                onChange={(value) => handleInputChange('id_number', value)}
+                                placeholder="National ID number (optional)"
+                                hasError={hasError('id_number')}
+                                errorMessage={getErrorMessage('id_number')}
+                            />
 
                             {isFieldVisible('occupation') && (
                                 <FormInput
@@ -1045,6 +1209,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                         { value: 'self_employed', label: 'Self-employed' },
                                         { value: 'not_employed', label: 'Not Employed' }
                                     ]}
+                                    hasError={hasError('occupation')}
+                                    errorMessage={getErrorMessage('occupation')}
                                 />
                             )}
 
@@ -1052,11 +1218,14 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 <FormInput
                                     id="education_level"
                                     label="Education Level"
+                                    type="select"
                                     required={isFieldRequired('education_level')}
-                                    maxLength={255}
+                                    placeholder="Select Education Level"
                                     value={data.education_level}
                                     onChange={(value) => handleInputChange('education_level', value)}
-                                    placeholder="e.g., High School, University, Certificate"
+                                    options={educationLevels}
+                                    hasError={hasError('education_level')}
+                                    errorMessage={getErrorMessage('education_level')}
                                 />
                             )}
                         </div>
@@ -1067,23 +1236,6 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                 return (
                     <div className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {isFieldVisible('matrimony_status') && (
-                                <FormInput
-                                    id="matrimony_status"
-                                    label="Matrimony Status"
-                                    type="select"
-                                    required={isFieldRequired('matrimony_status')}
-                                    placeholder="Select Matrimony Status"
-                                    value={data.matrimony_status}
-                                    onChange={(value) => handleInputChange('matrimony_status', value)}
-                                    options={[
-                                        { value: 'single', label: 'Single' },
-                                        { value: 'married', label: 'Married' },
-                                        { value: 'widowed', label: 'Widowed' }
-                                    ]}
-                                />
-                            )}
-
                             {isFieldVisible('family_id') && (
                                 <div className="md:col-span-2">
                                     <FamilySearchField />
@@ -1099,28 +1251,34 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     value={data.parent}
                                     onChange={(value) => handleInputChange('parent', value)}
                                     placeholder="Full name of parent or guardian"
+                                    hasError={hasError('parent')}
+                                    errorMessage={getErrorMessage('parent')}
                                 />
                             )}
 
                             {isFieldVisible('minister') && (
                                 <FormInput
                                     id="minister"
-                                    label="Minister"
+                                    label="Baptized By (Minister)"
                                     maxLength={255}
                                     value={data.minister}
                                     onChange={(value) => handleInputChange('minister', value)}
-                                    placeholder="Name of the minister"
+                                    placeholder="Name of the minister who baptized"
+                                    hasError={hasError('minister')}
+                                    errorMessage={getErrorMessage('minister')}
                                 />
                             )}
 
-                            {isFieldVisible('sponsor') && (
+                            {isFieldVisible('godparent') && (
                                 <FormInput
-                                    id="sponsor"
-                                    label="Sponsor"
+                                    id="godparent"
+                                    label="Godparent"
                                     maxLength={255}
-                                    value={data.sponsor}
-                                    onChange={(value) => handleInputChange('sponsor', value)}
-                                    placeholder="Baptism/Confirmation sponsor"
+                                    value={data.godparent}
+                                    onChange={(value) => handleInputChange('godparent', value)}
+                                    placeholder="Baptism godparent"
+                                    hasError={hasError('godparent')}
+                                    errorMessage={getErrorMessage('godparent')}
                                 />
                             )}
                             
@@ -1132,6 +1290,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     value={data.tribe}
                                     onChange={(value) => handleInputChange('tribe', value)}
                                     placeholder="Ethnic tribe"
+                                    hasError={hasError('tribe')}
+                                    errorMessage={getErrorMessage('tribe')}
                                 />
                             )}
 
@@ -1143,17 +1303,34 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     value={data.clan}
                                     onChange={(value) => handleInputChange('clan', value)}
                                     placeholder="Family clan"
+                                    hasError={hasError('clan')}
+                                    errorMessage={getErrorMessage('clan')}
                                 />
                             )}
                             
                             {isFieldVisible('baptism_date') && (
-                                <FormInput
-                                    id="baptism_date"
-                                    label="Baptism Date"
-                                    type="date"
-                                    value={data.baptism_date}
-                                    onChange={(value) => handleInputChange('baptism_date', value)}
-                                />
+                                <div>
+                                    <FormInput
+                                        id="baptism_date"
+                                        label="Baptism Date"
+                                        type="date"
+                                        value={data.baptism_date}
+                                        onChange={(value) => {
+                                            handleInputChange('baptism_date', value);
+                                            // Auto-populate baptism location with local church if not set
+                                            if (value && !data.baptism_location && data.local_church) {
+                                                setData('baptism_location', data.local_church);
+                                            }
+                                        }}
+                                        hasError={hasError('baptism_date')}
+                                        errorMessage={getErrorMessage('baptism_date')}
+                                    />
+                                    {data.baptism_date && (
+                                        <p className="mt-1 text-sm text-blue-600">
+                                            💡 Complete the baptism record details in the "Baptism Record" tab
+                                        </p>
+                                    )}
+                                </div>
                             )}
 
                             {isFieldVisible('confirmation_date') && (
@@ -1163,138 +1340,689 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     type="date"
                                     value={data.confirmation_date}
                                     onChange={(value) => handleInputChange('confirmation_date', value)}
+                                    hasError={hasError('confirmation_date')}
+                                    errorMessage={getErrorMessage('confirmation_date')}
                                 />
                             )}
-                        </div>
 
-                        {/* Baptism Record Information */}
-                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Baptism Information</h3>
+                            {/* Matrimony Status at the end as requested */}
+                            {isFieldVisible('matrimony_status') && (
+                                <FormInput
+                                    id="matrimony_status"
+                                    label="Matrimony Status"
+                                    type="select"
+                                    required={isFieldRequired('matrimony_status')}
+                                    placeholder="Select Matrimony Status"
+                                    value={data.matrimony_status}
+                                    onChange={(value) => handleInputChange('matrimony_status', value)}
+                                    options={[
+                                        { value: 'single', label: 'Single' },
+                                        { value: 'married', label: 'Married' },
+                                        { value: 'widowed', label: 'Widowed' }
+                                    ]}
+                                    hasError={hasError('matrimony_status')}
+                                    errorMessage={getErrorMessage('matrimony_status')}
+                                />
+                            )}
+
+                            {data.matrimony_status === 'married' && (
+                                <div>
+                                    <FormInput
+                                        id="marriage_type"
+                                        label="Marriage Type"
+                                        type="select"
+                                        required
+                                        placeholder="Select Marriage Type"
+                                        value={data.marriage_type}
+                                        onChange={(value) => handleInputChange('marriage_type', value)}
+                                        options={[
+                                            { value: 'customary', label: 'Customary Marriage' },
+                                            { value: 'church', label: 'Church Marriage' }
+                                        ]}
+                                        hasError={hasError('marriage_type')}
+                                        errorMessage={getErrorMessage('marriage_type')}
+                                    />
+                                    {data.marriage_type === 'church' && (
+                                        <p className="mt-1 text-sm text-blue-600">
+                                            💡 Complete the church marriage record details in the "Marriage Record" tab
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+
+            case 'baptism_details':
+                return (
+                    <div className="space-y-6">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                            <h3 className="text-lg font-semibold text-blue-900 mb-2">Baptism Card Information</h3>
+                            <p className="text-sm text-blue-700">
+                                Complete the comprehensive baptism record as required for the baptism card.
+                                Fields marked with * are required for the official church records.
+                            </p>
+                        </div>
+                        
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Parent Information - Required for baptism card */}
                             <FormInput
                                 id="father_name"
                                 label="Father's Name"
+                                required
                                 maxLength={255}
                                 value={data.father_name}
                                 onChange={(value) => handleInputChange('father_name', value)}
-                                placeholder="Enter father's full name"
+                                placeholder="Full name of father"
+                                hasError={hasError('father_name')}
+                                errorMessage={getErrorMessage('father_name')}
                             />
-                            
+
                             <FormInput
                                 id="mother_name"
                                 label="Mother's Name"
+                                required
                                 maxLength={255}
                                 value={data.mother_name}
                                 onChange={(value) => handleInputChange('mother_name', value)}
-                                placeholder="Enter mother's full name"
+                                placeholder="Full name of mother"
+                                hasError={hasError('mother_name')}
+                                errorMessage={getErrorMessage('mother_name')}
                             />
-                            
+
+                            {/* Birth Information - Required for baptism card */}
                             <FormInput
                                 id="birth_village"
-                                label="Born In (Village)"
+                                label="Birth Village"
+                                required
                                 maxLength={255}
                                 value={data.birth_village}
                                 onChange={(value) => handleInputChange('birth_village', value)}
-                                placeholder="Enter birth village"
+                                placeholder="Village where born"
+                                hasError={hasError('birth_village')}
+                                errorMessage={getErrorMessage('birth_village')}
                             />
-                            
+
                             <FormInput
                                 id="county"
                                 label="County"
+                                required
                                 maxLength={255}
                                 value={data.county}
                                 onChange={(value) => handleInputChange('county', value)}
-                                placeholder="Enter county"
+                                placeholder="County of birth"
+                                hasError={hasError('county')}
+                                errorMessage={getErrorMessage('county')}
                             />
 
+                            {/* Baptism Details - Required */}
                             <FormInput
                                 id="baptism_location"
-                                label="Baptism At"
+                                label="Baptism Location"
+                                required
                                 maxLength={255}
                                 value={data.baptism_location}
                                 onChange={(value) => handleInputChange('baptism_location', value)}
-                                placeholder="Location of baptism"
-                            />
-                            
-                            <FormInput
-                                id="baptism_date"
-                                label="Baptism Date"
-                                type="date"
-                                value={data.baptism_date}
-                                onChange={(value) => handleInputChange('baptism_date', value)}
-                            />
-                            
-                            <FormInput
-                                id="baptized_by"
-                                label="Baptized By"
-                                maxLength={255}
-                                value={data.baptized_by}
-                                onChange={(value) => handleInputChange('baptized_by', value)}
-                                placeholder="Name of officiant"
-                            />
-                            
-                            <FormInput
-                                id="sponsor"
-                                label="Sponsor"
-                                maxLength={255}
-                                value={data.sponsor}
-                                onChange={(value) => handleInputChange('sponsor', value)}
-                                placeholder="Name of sponsor"
-                            />
-                        </div>
-                        
-                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Eucharist & Confirmation Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormInput
-                                id="eucharist_location"
-                                label="Eucharist At"
-                                maxLength={255}
-                                value={data.eucharist_location}
-                                onChange={(value) => handleInputChange('eucharist_location', value)}
-                                placeholder="Location of first communion"
-                            />
-                            
-                            <FormInput
-                                id="eucharist_date"
-                                label="Eucharist Date"
-                                type="date"
-                                value={data.eucharist_date}
-                                onChange={(value) => handleInputChange('eucharist_date', value)}
+                                placeholder="Church where baptized"
+                                hasError={hasError('baptism_location')}
+                                errorMessage={getErrorMessage('baptism_location')}
                             />
 
                             <FormInput
+                                id="baptized_by"
+                                label="Baptized By"
+                                required
+                                maxLength={255}
+                                value={data.baptized_by}
+                                onChange={(value) => handleInputChange('baptized_by', value)}
+                                placeholder="Name of minister who baptized"
+                                hasError={hasError('baptized_by')}
+                                errorMessage={getErrorMessage('baptized_by')}
+                            />
+
+                            <FormInput
+                                id="sponsor"
+                                label="Sponsor (Godparent)"
+                                required
+                                maxLength={255}
+                                value={data.sponsor}
+                                onChange={(value) => handleInputChange('sponsor', value)}
+                                placeholder="Baptism sponsor/godparent"
+                                hasError={hasError('sponsor')}
+                                errorMessage={getErrorMessage('sponsor')}
+                            />
+
+                            {/* Optional Sacrament Information */}
+                            <div className="md:col-span-2">
+                                <h4 className="text-md font-medium text-gray-700 mb-4 border-b border-gray-200 pb-2">
+                                    Other Sacraments (Optional)
+                                </h4>
+                            </div>
+
+                            {/* Eucharist Information */}
+                            <FormInput
+                                id="eucharist_location"
+                                label="First Eucharist Location"
+                                maxLength={255}
+                                value={data.eucharist_location}
+                                onChange={(value) => handleInputChange('eucharist_location', value)}
+                                placeholder="Church where first communion received"
+                                hasError={hasError('eucharist_location')}
+                                errorMessage={getErrorMessage('eucharist_location')}
+                            />
+
+                            <FormInput
+                                id="eucharist_date"
+                                label="First Eucharist Date"
+                                type="date"
+                                value={data.eucharist_date}
+                                onChange={(value) => handleInputChange('eucharist_date', value)}
+                                hasError={hasError('eucharist_date')}
+                                errorMessage={getErrorMessage('eucharist_date')}
+                            />
+
+                            {/* Confirmation Information */}
+                            <FormInput
                                 id="confirmation_location"
-                                label="Confirmation At"
+                                label="Confirmation Location"
                                 maxLength={255}
                                 value={data.confirmation_location}
                                 onChange={(value) => handleInputChange('confirmation_location', value)}
-                                placeholder="Location of confirmation"
+                                placeholder="Church where confirmed"
+                                hasError={hasError('confirmation_location')}
+                                errorMessage={getErrorMessage('confirmation_location')}
                             />
-                            
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormInput
+                                    id="confirmation_register_number"
+                                    label="Confirmation Register #"
+                                    maxLength={50}
+                                    value={data.confirmation_register_number}
+                                    onChange={(value) => handleInputChange('confirmation_register_number', value)}
+                                    placeholder="Register number"
+                                    hasError={hasError('confirmation_register_number')}
+                                    errorMessage={getErrorMessage('confirmation_register_number')}
+                                />
+
+                                <FormInput
+                                    id="confirmation_number"
+                                    label="Confirmation #"
+                                    maxLength={50}
+                                    value={data.confirmation_number}
+                                    onChange={(value) => handleInputChange('confirmation_number', value)}
+                                    placeholder="Certificate number"
+                                    hasError={hasError('confirmation_number')}
+                                    errorMessage={getErrorMessage('confirmation_number')}
+                                />
+                            </div>
+
+                            {/* Marriage Information (for baptism card) */}
+                            {data.matrimony_status === 'married' && (
+                                <>
+                                    <FormInput
+                                        id="marriage_spouse"
+                                        label="Marriage Spouse"
+                                        maxLength={255}
+                                        value={data.marriage_spouse}
+                                        onChange={(value) => handleInputChange('marriage_spouse', value)}
+                                        placeholder="Full name of spouse"
+                                        hasError={hasError('marriage_spouse')}
+                                        errorMessage={getErrorMessage('marriage_spouse')}
+                                    />
+
+                                    <FormInput
+                                        id="marriage_location"
+                                        label="Marriage Location"
+                                        maxLength={255}
+                                        value={data.marriage_location}
+                                        onChange={(value) => handleInputChange('marriage_location', value)}
+                                        placeholder="Church where married"
+                                        hasError={hasError('marriage_location')}
+                                        errorMessage={getErrorMessage('marriage_location')}
+                                    />
+
+                                    <FormInput
+                                        id="marriage_date"
+                                        label="Marriage Date"
+                                        type="date"
+                                        value={data.marriage_date}
+                                        onChange={(value) => handleInputChange('marriage_date', value)}
+                                        hasError={hasError('marriage_date')}
+                                        errorMessage={getErrorMessage('marriage_date')}
+                                    />
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormInput
+                                            id="marriage_register_number"
+                                            label="Marriage Register #"
+                                            maxLength={50}
+                                            value={data.marriage_register_number}
+                                            onChange={(value) => handleInputChange('marriage_register_number', value)}
+                                            placeholder="Register number"
+                                            hasError={hasError('marriage_register_number')}
+                                            errorMessage={getErrorMessage('marriage_register_number')}
+                                        />
+
+                                        <FormInput
+                                            id="marriage_number"
+                                            label="Marriage Certificate #"
+                                            maxLength={50}
+                                            value={data.marriage_number}
+                                            onChange={(value) => handleInputChange('marriage_number', value)}
+                                            placeholder="Certificate number"
+                                            hasError={hasError('marriage_number')}
+                                            errorMessage={getErrorMessage('marriage_number')}
+                                        />
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                );
+
+            case 'marriage_details':
+                return (
+                    <div className="space-y-6">
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                            <h3 className="text-lg font-semibold text-green-900 mb-2">Church Marriage Record</h3>
+                            <p className="text-sm text-green-700">
+                                Complete the comprehensive church marriage record as required for official church documentation.
+                                This follows the Catholic Church marriage record format with all necessary details.
+                            </p>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Spouse Information */}
+                            <div className="md:col-span-2">
+                                <h4 className="text-md font-medium text-gray-700 mb-4 border-b border-gray-200 pb-2">
+                                    Spouse Information
+                                </h4>
+                            </div>
+
                             <FormInput
-                                id="confirmation_date"
-                                label="Confirmation Date"
+                                id="spouse_name"
+                                label="Spouse's Full Name"
+                                required
+                                maxLength={255}
+                                value={data.spouse_name}
+                                onChange={(value) => handleInputChange('spouse_name', value)}
+                                placeholder="Full name of spouse"
+                                hasError={hasError('spouse_name')}
+                                errorMessage={getErrorMessage('spouse_name')}
+                            />
+
+                            <FormInput
+                                id="spouse_father_name"
+                                label="Spouse's Father's Name"
+                                required
+                                maxLength={255}
+                                value={data.spouse_father_name}
+                                onChange={(value) => handleInputChange('spouse_father_name', value)}
+                                placeholder="Father's name of spouse"
+                                hasError={hasError('spouse_father_name')}
+                                errorMessage={getErrorMessage('spouse_father_name')}
+                            />
+
+                            <FormInput
+                                id="spouse_mother_name"
+                                label="Spouse's Mother's Name"
+                                required
+                                maxLength={255}
+                                value={data.spouse_mother_name}
+                                onChange={(value) => handleInputChange('spouse_mother_name', value)}
+                                placeholder="Mother's name of spouse"
+                                hasError={hasError('spouse_mother_name')}
+                                errorMessage={getErrorMessage('spouse_mother_name')}
+                            />
+
+                            <FormInput
+                                id="spouse_tribe"
+                                label="Spouse's Tribe"
+                                required
+                                maxLength={255}
+                                value={data.spouse_tribe}
+                                onChange={(value) => handleInputChange('spouse_tribe', value)}
+                                placeholder="Spouse's tribe"
+                                hasError={hasError('spouse_tribe')}
+                                errorMessage={getErrorMessage('spouse_tribe')}
+                            />
+
+                            <FormInput
+                                id="spouse_clan"
+                                label="Spouse's Clan"
+                                required
+                                maxLength={255}
+                                value={data.spouse_clan}
+                                onChange={(value) => handleInputChange('spouse_clan', value)}
+                                placeholder="Spouse's clan"
+                                hasError={hasError('spouse_clan')}
+                                errorMessage={getErrorMessage('spouse_clan')}
+                            />
+
+                            <FormInput
+                                id="spouse_birth_place"
+                                label="Spouse's Birth Place"
+                                required
+                                maxLength={255}
+                                value={data.spouse_birth_place}
+                                onChange={(value) => handleInputChange('spouse_birth_place', value)}
+                                placeholder="Place where spouse was born"
+                                hasError={hasError('spouse_birth_place')}
+                                errorMessage={getErrorMessage('spouse_birth_place')}
+                            />
+
+                            <FormInput
+                                id="spouse_domicile"
+                                label="Spouse's Domicile"
+                                required
+                                maxLength={255}
+                                value={data.spouse_domicile}
+                                onChange={(value) => handleInputChange('spouse_domicile', value)}
+                                placeholder="Spouse's current residence"
+                                hasError={hasError('spouse_domicile')}
+                                errorMessage={getErrorMessage('spouse_domicile')}
+                            />
+
+                            <FormInput
+                                id="spouse_baptized_at"
+                                label="Spouse Baptized At"
+                                required
+                                maxLength={255}
+                                value={data.spouse_baptized_at}
+                                onChange={(value) => handleInputChange('spouse_baptized_at', value)}
+                                placeholder="Church where spouse was baptized"
+                                hasError={hasError('spouse_baptized_at')}
+                                errorMessage={getErrorMessage('spouse_baptized_at')}
+                            />
+
+                            <FormInput
+                                id="spouse_baptism_date"
+                                label="Spouse's Baptism Date"
                                 type="date"
-                                value={data.confirmation_date}
-                                onChange={(value) => handleInputChange('confirmation_date', value)}
+                                required
+                                value={data.spouse_baptism_date}
+                                onChange={(value) => handleInputChange('spouse_baptism_date', value)}
+                                hasError={hasError('spouse_baptism_date')}
+                                errorMessage={getErrorMessage('spouse_baptism_date')}
                             />
-                            
+
                             <FormInput
-                                id="confirmation_reg_no"
-                                label="Register No."
-                                maxLength={50}
-                                value={data.confirmation_reg_no}
-                                onChange={(value) => handleInputChange('confirmation_reg_no', value)}
-                                placeholder="Register number"
+                                id="spouse_widower_widow_of"
+                                label="Spouse Widower/Widow Of"
+                                maxLength={255}
+                                value={data.spouse_widower_widow_of}
+                                onChange={(value) => handleInputChange('spouse_widower_widow_of', value)}
+                                placeholder="If previously married (optional)"
+                                hasError={hasError('spouse_widower_widow_of')}
+                                errorMessage={getErrorMessage('spouse_widower_widow_of')}
                             />
-                            
+
                             <FormInput
-                                id="confirmation_no"
-                                label="Confirmation No."
-                                maxLength={50}
-                                value={data.confirmation_no}
-                                onChange={(value) => handleInputChange('confirmation_no', value)}
-                                placeholder="Confirmation certificate number"
+                                id="spouse_parent_consent"
+                                label="Spouse Parent Consent"
+                                type="select"
+                                required
+                                placeholder="Select"
+                                value={data.spouse_parent_consent}
+                                onChange={(value) => handleInputChange('spouse_parent_consent', value)}
+                                options={[
+                                    { value: 'Yes', label: 'Yes' },
+                                    { value: 'No', label: 'No' }
+                                ]}
+                                hasError={hasError('spouse_parent_consent')}
+                                errorMessage={getErrorMessage('spouse_parent_consent')}
                             />
+
+                            {/* Banas Information */}
+                            <div className="md:col-span-2 mt-6">
+                                <h4 className="text-md font-medium text-gray-700 mb-4 border-b border-gray-200 pb-2">
+                                    Banas Information
+                                </h4>
+                            </div>
+
+                            <FormInput
+                                id="banas_number"
+                                label="Banas Number"
+                                required
+                                maxLength={255}
+                                value={data.banas_number}
+                                onChange={(value) => handleInputChange('banas_number', value)}
+                                placeholder="Banas proclamation number"
+                                hasError={hasError('banas_number')}
+                                errorMessage={getErrorMessage('banas_number')}
+                            />
+
+                            <FormInput
+                                id="banas_church_1"
+                                label="First Banas Church"
+                                required
+                                maxLength={255}
+                                value={data.banas_church_1}
+                                onChange={(value) => handleInputChange('banas_church_1', value)}
+                                placeholder="First church where banas was proclaimed"
+                                hasError={hasError('banas_church_1')}
+                                errorMessage={getErrorMessage('banas_church_1')}
+                            />
+
+                            <FormInput
+                                id="banas_date_1"
+                                label="First Banas Date"
+                                type="date"
+                                required
+                                value={data.banas_date_1}
+                                onChange={(value) => handleInputChange('banas_date_1', value)}
+                                hasError={hasError('banas_date_1')}
+                                errorMessage={getErrorMessage('banas_date_1')}
+                            />
+
+                            <FormInput
+                                id="banas_church_2"
+                                label="Second Banas Church"
+                                maxLength={255}
+                                value={data.banas_church_2}
+                                onChange={(value) => handleInputChange('banas_church_2', value)}
+                                placeholder="Second church (optional)"
+                                hasError={hasError('banas_church_2')}
+                                errorMessage={getErrorMessage('banas_church_2')}
+                            />
+
+                            <FormInput
+                                id="banas_date_2"
+                                label="Second Banas Date"
+                                type="date"
+                                value={data.banas_date_2}
+                                onChange={(value) => handleInputChange('banas_date_2', value)}
+                                hasError={hasError('banas_date_2')}
+                                errorMessage={getErrorMessage('banas_date_2')}
+                            />
+
+                            {/* Marriage Contract Details */}
+                            <div className="md:col-span-2 mt-6">
+                                <h4 className="text-md font-medium text-gray-700 mb-4 border-b border-gray-200 pb-2">
+                                    Marriage Contract Details
+                                </h4>
+                            </div>
+
+                            <FormInput
+                                id="marriage_church"
+                                label="Marriage Church"
+                                required
+                                maxLength={255}
+                                value={data.marriage_church}
+                                onChange={(value) => handleInputChange('marriage_church', value)}
+                                placeholder="Church where marriage was conducted"
+                                hasError={hasError('marriage_church')}
+                                errorMessage={getErrorMessage('marriage_church')}
+                            />
+
+                            <FormInput
+                                id="district"
+                                label="District"
+                                required
+                                maxLength={255}
+                                value={data.district}
+                                onChange={(value) => handleInputChange('district', value)}
+                                placeholder="District"
+                                hasError={hasError('district')}
+                                errorMessage={getErrorMessage('district')}
+                            />
+
+                            <FormInput
+                                id="province"
+                                label="Province"
+                                required
+                                maxLength={255}
+                                value={data.province}
+                                onChange={(value) => handleInputChange('province', value)}
+                                placeholder="Province"
+                                hasError={hasError('province')}
+                                errorMessage={getErrorMessage('province')}
+                            />
+
+                            <FormInput
+                                id="presence_of"
+                                label="In the Presence Of"
+                                required
+                                maxLength={255}
+                                value={data.presence_of}
+                                onChange={(value) => handleInputChange('presence_of', value)}
+                                placeholder="Officiant name"
+                                hasError={hasError('presence_of')}
+                                errorMessage={getErrorMessage('presence_of')}
+                            />
+
+                            <FormInput
+                                id="delegated_by"
+                                label="Delegated By"
+                                maxLength={255}
+                                value={data.delegated_by}
+                                onChange={(value) => handleInputChange('delegated_by', value)}
+                                placeholder="Authority who delegated (optional)"
+                                hasError={hasError('delegated_by')}
+                                errorMessage={getErrorMessage('delegated_by')}
+                            />
+
+                            <FormInput
+                                id="delegation_date"
+                                label="Delegation Date"
+                                type="date"
+                                value={data.delegation_date}
+                                onChange={(value) => handleInputChange('delegation_date', value)}
+                                hasError={hasError('delegation_date')}
+                                errorMessage={getErrorMessage('delegation_date')}
+                            />
+
+                            {/* Witness Information */}
+                            <div className="md:col-span-2 mt-6">
+                                <h4 className="text-md font-medium text-gray-700 mb-4 border-b border-gray-200 pb-2">
+                                    Witness Information
+                                </h4>
+                            </div>
+
+                            <FormInput
+                                id="male_witness_full_name"
+                                label="Male Witness Full Name"
+                                required
+                                maxLength={255}
+                                value={data.male_witness_full_name}
+                                onChange={(value) => handleInputChange('male_witness_full_name', value)}
+                                placeholder="Full name of male witness"
+                                hasError={hasError('male_witness_full_name')}
+                                errorMessage={getErrorMessage('male_witness_full_name')}
+                            />
+
+                            <FormInput
+                                id="male_witness_father"
+                                label="Male Witness Father"
+                                required
+                                maxLength={255}
+                                value={data.male_witness_father}
+                                onChange={(value) => handleInputChange('male_witness_father', value)}
+                                placeholder="Male witness father's name"
+                                hasError={hasError('male_witness_father')}
+                                errorMessage={getErrorMessage('male_witness_father')}
+                            />
+
+                            <FormInput
+                                id="male_witness_clan"
+                                label="Male Witness Clan"
+                                required
+                                maxLength={255}
+                                value={data.male_witness_clan}
+                                onChange={(value) => handleInputChange('male_witness_clan', value)}
+                                placeholder="Male witness clan"
+                                hasError={hasError('male_witness_clan')}
+                                errorMessage={getErrorMessage('male_witness_clan')}
+                            />
+
+                            <FormInput
+                                id="female_witness_full_name"
+                                label="Female Witness Full Name"
+                                required
+                                maxLength={255}
+                                value={data.female_witness_full_name}
+                                onChange={(value) => handleInputChange('female_witness_full_name', value)}
+                                placeholder="Full name of female witness"
+                                hasError={hasError('female_witness_full_name')}
+                                errorMessage={getErrorMessage('female_witness_full_name')}
+                            />
+
+                            <FormInput
+                                id="female_witness_father"
+                                label="Female Witness Father"
+                                required
+                                maxLength={255}
+                                value={data.female_witness_father}
+                                onChange={(value) => handleInputChange('female_witness_father', value)}
+                                placeholder="Female witness father's name"
+                                hasError={hasError('female_witness_father')}
+                                errorMessage={getErrorMessage('female_witness_father')}
+                            />
+
+                            <FormInput
+                                id="female_witness_clan"
+                                label="Female Witness Clan"
+                                required
+                                maxLength={255}
+                                value={data.female_witness_clan}
+                                onChange={(value) => handleInputChange('female_witness_clan', value)}
+                                placeholder="Female witness clan"
+                                hasError={hasError('female_witness_clan')}
+                                errorMessage={getErrorMessage('female_witness_clan')}
+                            />
+
+                            {/* Additional Documents */}
+                            <div className="md:col-span-2 mt-6">
+                                <h4 className="text-md font-medium text-gray-700 mb-4 border-b border-gray-200 pb-2">
+                                    Additional Documents
+                                </h4>
+                            </div>
+
+                            <FormInput
+                                id="civil_marriage_certificate_number"
+                                label="Civil Marriage Certificate Number"
+                                maxLength={255}
+                                value={data.civil_marriage_certificate_number}
+                                onChange={(value) => handleInputChange('civil_marriage_certificate_number', value)}
+                                placeholder="Civil certificate number (if applicable)"
+                                hasError={hasError('civil_marriage_certificate_number')}
+                                errorMessage={getErrorMessage('civil_marriage_certificate_number')}
+                            />
+
+                            <div className="md:col-span-2">
+                                <FormInput
+                                    id="other_documents"
+                                    label="Other Documents"
+                                    type="textarea"
+                                    rows={3}
+                                    value={data.other_documents}
+                                    onChange={(value) => handleInputChange('other_documents', value)}
+                                    placeholder="Any other relevant documents or notes..."
+                                    hasError={hasError('other_documents')}
+                                    errorMessage={getErrorMessage('other_documents')}
+                                />
+                            </div>
                         </div>
                     </div>
                 );
@@ -1312,6 +2040,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 value={data.phone}
                                 onChange={(value) => handleInputChange('phone', value)}
                                 placeholder="+254 700 000 000"
+                                hasError={hasError('phone')}
+                                errorMessage={getErrorMessage('phone')}
                             />
 
                             <FormInput
@@ -1322,6 +2052,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 value={data.email}
                                 onChange={(value) => handleInputChange('email', value)}
                                 placeholder="member@email.com"
+                                hasError={hasError('email')}
+                                errorMessage={getErrorMessage('email')}
                             />
                             
                             <div className="md:col-span-2">
@@ -1333,6 +2065,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     value={data.residence}
                                     onChange={(value) => handleInputChange('residence', value)}
                                     placeholder="Enter residence address..."
+                                    hasError={hasError('residence')}
+                                    errorMessage={getErrorMessage('residence')}
                                 />
                                 {selectedFamily && selectedFamily.address && (
                                     <p className="mt-1 text-sm text-blue-600">
@@ -1348,6 +2082,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 value={data.emergency_contact}
                                 onChange={(value) => handleInputChange('emergency_contact', value)}
                                 placeholder="Name of emergency contact"
+                                hasError={hasError('emergency_contact')}
+                                errorMessage={getErrorMessage('emergency_contact')}
                             />
 
                             <FormInput
@@ -1358,6 +2094,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 value={data.emergency_phone}
                                 onChange={(value) => handleInputChange('emergency_phone', value)}
                                 placeholder="+254 700 000 000"
+                                hasError={hasError('emergency_phone')}
+                                errorMessage={getErrorMessage('emergency_phone')}
                             />
 
                             <div className="md:col-span-2">
@@ -1369,495 +2107,10 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     value={data.notes}
                                     onChange={(value) => handleInputChange('notes', value)}
                                     placeholder="Any additional information about this member..."
+                                    hasError={hasError('notes')}
+                                    errorMessage={getErrorMessage('notes')}
                                 />
                             </div>
-                        </div>
-                    </div>
-                );
-                
-
-
-            case 'marriage_record':
-                // Only show if matrimony status is 'married'
-                if (data.matrimony_status !== 'married') {
-                    return (
-                        <div className="flex flex-col items-center justify-center py-12">
-                            <div className="text-center">
-                                <h3 className="text-lg font-medium text-gray-900 mb-2">Marriage Record</h3>
-                                <p className="text-gray-600">
-                                    To add marriage record details, first select "Married" as the matrimony status in the Church Details tab.
-                                </p>
-                            </div>
-                        </div>
-                    );
-                }
-                
-                return (
-                    <div className="space-y-6">
-                        <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                            <h3 className="font-medium text-blue-800">Church Marriage Record</h3>
-                            <p className="text-sm text-blue-600">This information will be used for official church marriage records.</p>
-                        </div>
-                        
-                        <FormInput
-                            id="record_number"
-                            label="Record Number"
-                            maxLength={50}
-                            value={data.record_number}
-                            onChange={(value) => handleInputChange('record_number', value)}
-                            placeholder="Official marriage record number"
-                        />
-                        
-                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Husband's Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormInput
-                                id="husband_name"
-                                label="Husband's Name"
-                                required
-                                maxLength={255}
-                                value={data.husband_name}
-                                onChange={(value) => handleInputChange('husband_name', value)}
-                                placeholder="Enter husband's full name"
-                                hasError={hasError('husband_name')}
-                                errorMessage={getErrorMessage('husband_name')}
-                            />
-                            
-                            <FormInput
-                                id="husband_father_name"
-                                label="Son of (Father's Name)"
-                                required
-                                maxLength={255}
-                                value={data.husband_father_name}
-                                onChange={(value) => handleInputChange('husband_father_name', value)}
-                                placeholder="Enter husband's father's name"
-                                hasError={hasError('husband_father_name')}
-                                errorMessage={getErrorMessage('husband_father_name')}
-                            />
-                            
-                            <FormInput
-                                id="husband_mother_name"
-                                label="Mother's Name"
-                                required
-                                maxLength={255}
-                                value={data.husband_mother_name}
-                                onChange={(value) => handleInputChange('husband_mother_name', value)}
-                                placeholder="Enter husband's mother's name"
-                                hasError={hasError('husband_mother_name')}
-                                errorMessage={getErrorMessage('husband_mother_name')}
-                            />
-                            
-                            <FormInput
-                                id="husband_tribe"
-                                label="Tribe"
-                                maxLength={255}
-                                value={data.husband_tribe}
-                                onChange={(value) => handleInputChange('husband_tribe', value)}
-                                placeholder="Enter husband's tribe"
-                            />
-                            
-                            <FormInput
-                                id="husband_clan"
-                                label="Clan"
-                                maxLength={255}
-                                value={data.husband_clan}
-                                onChange={(value) => handleInputChange('husband_clan', value)}
-                                placeholder="Enter husband's clan"
-                            />
-                            
-                            <FormInput
-                                id="husband_birth_place"
-                                label="Born In"
-                                maxLength={255}
-                                value={data.husband_birth_place}
-                                onChange={(value) => handleInputChange('husband_birth_place', value)}
-                                placeholder="Enter husband's birth place"
-                            />
-                            
-                            <FormInput
-                                id="husband_domicile"
-                                label="Domicile"
-                                maxLength={255}
-                                value={data.husband_domicile}
-                                onChange={(value) => handleInputChange('husband_domicile', value)}
-                                placeholder="Enter husband's current residence"
-                            />
-                            
-                            <FormInput
-                                id="husband_baptized_at"
-                                label="Baptized At"
-                                maxLength={255}
-                                value={data.husband_baptized_at}
-                                onChange={(value) => handleInputChange('husband_baptized_at', value)}
-                                placeholder="Location of baptism"
-                            />
-                            
-                            <FormInput
-                                id="husband_baptism_date"
-                                label="Baptism Date"
-                                type="date"
-                                value={data.husband_baptism_date}
-                                onChange={(value) => handleInputChange('husband_baptism_date', value)}
-                            />
-                            
-                            <FormInput
-                                id="husband_widower_of"
-                                label="Widower of"
-                                maxLength={255}
-                                value={data.husband_widower_of}
-                                onChange={(value) => handleInputChange('husband_widower_of', value)}
-                                placeholder="If applicable"
-                            />
-                            
-                            <div className="flex items-center space-x-4 py-2">
-                                <label htmlFor="husband_parent_consent" className="text-sm font-medium text-gray-700">
-                                    Parent Consent Obtained
-                                </label>
-                                <input
-                                    type="checkbox"
-                                    id="husband_parent_consent"
-                                    checked={data.husband_parent_consent}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('husband_parent_consent', e.target.checked)}
-                                    className="rounded text-blue-500 focus:ring-blue-500"
-                                />
-                            </div>
-                        </div>
-                        
-                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Wife's Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormInput
-                                id="wife_name"
-                                label="Wife's Name"
-                                required
-                                maxLength={255}
-                                value={data.wife_name}
-                                onChange={(value) => handleInputChange('wife_name', value)}
-                                placeholder="Enter wife's full name"
-                            />
-                            
-                            <FormInput
-                                id="wife_father_name"
-                                label="Daughter of (Father's Name)"
-                                required
-                                maxLength={255}
-                                value={data.wife_father_name}
-                                onChange={(value) => handleInputChange('wife_father_name', value)}
-                                placeholder="Enter wife's father's name"
-                            />
-                            
-                            <FormInput
-                                id="wife_mother_name"
-                                label="Mother's Name"
-                                required
-                                maxLength={255}
-                                value={data.wife_mother_name}
-                                onChange={(value) => handleInputChange('wife_mother_name', value)}
-                                placeholder="Enter wife's mother's name"
-                            />
-                            
-                            <FormInput
-                                id="wife_tribe"
-                                label="Tribe"
-                                maxLength={255}
-                                value={data.wife_tribe}
-                                onChange={(value) => handleInputChange('wife_tribe', value)}
-                                placeholder="Enter wife's tribe"
-                            />
-                            
-                            <FormInput
-                                id="wife_clan"
-                                label="Clan"
-                                maxLength={255}
-                                value={data.wife_clan}
-                                onChange={(value) => handleInputChange('wife_clan', value)}
-                                placeholder="Enter wife's clan"
-                            />
-                            
-                            <FormInput
-                                id="wife_birth_place"
-                                label="Born In"
-                                maxLength={255}
-                                value={data.wife_birth_place}
-                                onChange={(value) => handleInputChange('wife_birth_place', value)}
-                                placeholder="Enter wife's birth place"
-                            />
-                            
-                            <FormInput
-                                id="wife_domicile"
-                                label="Domicile"
-                                maxLength={255}
-                                value={data.wife_domicile}
-                                onChange={(value) => handleInputChange('wife_domicile', value)}
-                                placeholder="Enter wife's current residence"
-                            />
-                            
-                            <FormInput
-                                id="wife_baptized_at"
-                                label="Baptized At"
-                                maxLength={255}
-                                value={data.wife_baptized_at}
-                                onChange={(value) => handleInputChange('wife_baptized_at', value)}
-                                placeholder="Location of baptism"
-                            />
-                            
-                            <FormInput
-                                id="wife_baptism_date"
-                                label="Baptism Date"
-                                type="date"
-                                value={data.wife_baptism_date}
-                                onChange={(value) => handleInputChange('wife_baptism_date', value)}
-                            />
-                            
-                            <FormInput
-                                id="wife_widow_of"
-                                label="Widow of"
-                                maxLength={255}
-                                value={data.wife_widow_of}
-                                onChange={(value) => handleInputChange('wife_widow_of', value)}
-                                placeholder="If applicable"
-                            />
-                            
-                            <div className="flex items-center space-x-4 py-2">
-                                <label htmlFor="wife_parent_consent" className="text-sm font-medium text-gray-700">
-                                    Parent Consent Obtained
-                                </label>
-                                <input
-                                    type="checkbox"
-                                    id="wife_parent_consent"
-                                    checked={data.wife_parent_consent}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('wife_parent_consent', e.target.checked)}
-                                    className="rounded text-blue-500 focus:ring-blue-500"
-                                />
-                            </div>
-                        </div>
-                        
-                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Banas Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormInput
-                                id="banas_number"
-                                label="Banas Number"
-                                maxLength={50}
-                                value={data.banas_number}
-                                onChange={(value) => handleInputChange('banas_number', value)}
-                                placeholder="Enter banas number"
-                            />
-                            
-                            <FormInput
-                                id="banas_church_1"
-                                label="In the Church of (1)"
-                                maxLength={255}
-                                value={data.banas_church_1}
-                                onChange={(value) => handleInputChange('banas_church_1', value)}
-                                placeholder="Enter church name"
-                            />
-                            
-                            <FormInput
-                                id="banas_date_1"
-                                label="Dates (1)"
-                                type="date"
-                                value={data.banas_date_1}
-                                onChange={(value) => handleInputChange('banas_date_1', value)}
-                            />
-                            
-                            <FormInput
-                                id="banas_church_2"
-                                label="In the Church of (2)"
-                                maxLength={255}
-                                value={data.banas_church_2}
-                                onChange={(value) => handleInputChange('banas_church_2', value)}
-                                placeholder="Enter church name (if applicable)"
-                            />
-                            
-                            <FormInput
-                                id="banas_date_2"
-                                label="Dates (2)"
-                                type="date"
-                                value={data.banas_date_2}
-                                onChange={(value) => handleInputChange('banas_date_2', value)}
-                            />
-                        </div>
-                        
-                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Dispensation Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormInput
-                                id="dispensation_from"
-                                label="Dispensation From"
-                                maxLength={255}
-                                value={data.dispensation_from}
-                                onChange={(value) => handleInputChange('dispensation_from', value)}
-                                placeholder="Enter dispensation source"
-                            />
-                            
-                            <FormInput
-                                id="dispensation_given_by"
-                                label="Given By"
-                                maxLength={255}
-                                value={data.dispensation_given_by}
-                                onChange={(value) => handleInputChange('dispensation_given_by', value)}
-                                placeholder="Enter name"
-                            />
-                            
-                            <FormInput
-                                id="dispensation_impediment"
-                                label="Dispensation from the Impediment(s) of"
-                                maxLength={255}
-                                value={data.dispensation_impediment}
-                                onChange={(value) => handleInputChange('dispensation_impediment', value)}
-                                placeholder="Enter impediments"
-                            />
-                            
-                            <FormInput
-                                id="dispensation_date"
-                                label="Dispensation Date"
-                                type="date"
-                                value={data.dispensation_date}
-                                onChange={(value) => handleInputChange('dispensation_date', value)}
-                            />
-                        </div>
-                        
-                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Marriage Ceremony Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormInput
-                                id="marriage_date"
-                                label="Marriage Date"
-                                type="date"
-                                required
-                                value={data.marriage_date}
-                                onChange={(value) => handleInputChange('marriage_date', value)}
-                            />
-                            
-                            <FormInput
-                                id="marriage_church"
-                                label="In the Church of"
-                                required
-                                maxLength={255}
-                                value={data.marriage_church}
-                                onChange={(value) => handleInputChange('marriage_church', value)}
-                                placeholder="Enter church name"
-                            />
-                            
-                            <FormInput
-                                id="district"
-                                label="District of"
-                                maxLength={255}
-                                value={data.district}
-                                onChange={(value) => handleInputChange('district', value)}
-                                placeholder="Enter district"
-                            />
-                            
-                            <FormInput
-                                id="province"
-                                label="Province of"
-                                maxLength={255}
-                                value={data.province}
-                                onChange={(value) => handleInputChange('province', value)}
-                                placeholder="Enter province"
-                            />
-                            
-                            <FormInput
-                                id="presence_of"
-                                label="In the Presence of"
-                                maxLength={255}
-                                value={data.presence_of}
-                                onChange={(value) => handleInputChange('presence_of', value)}
-                                placeholder="Enter officiating clergy name"
-                            />
-                            
-                            <FormInput
-                                id="delegated_by"
-                                label="Delegated By"
-                                maxLength={255}
-                                value={data.delegated_by}
-                                onChange={(value) => handleInputChange('delegated_by', value)}
-                                placeholder="Enter name if applicable"
-                            />
-                            
-                            <FormInput
-                                id="delegation_date"
-                                label="Delegation Date"
-                                type="date"
-                                value={data.delegation_date}
-                                onChange={(value) => handleInputChange('delegation_date', value)}
-                            />
-                        </div>
-                        
-                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Witness Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormInput
-                                id="male_witness_name"
-                                label="Male Witness Full Name"
-                                required
-                                maxLength={255}
-                                value={data.male_witness_name}
-                                onChange={(value) => handleInputChange('male_witness_name', value)}
-                                placeholder="Enter name"
-                            />
-                            
-                            <FormInput
-                                id="male_witness_father"
-                                label="Son of"
-                                maxLength={255}
-                                value={data.male_witness_father}
-                                onChange={(value) => handleInputChange('male_witness_father', value)}
-                                placeholder="Enter father's name"
-                            />
-                            
-                            <FormInput
-                                id="male_witness_clan"
-                                label="Clan"
-                                maxLength={255}
-                                value={data.male_witness_clan}
-                                onChange={(value) => handleInputChange('male_witness_clan', value)}
-                                placeholder="Enter clan"
-                            />
-                            
-                            <FormInput
-                                id="female_witness_name"
-                                label="Female Witness Full Name"
-                                required
-                                maxLength={255}
-                                value={data.female_witness_name}
-                                onChange={(value) => handleInputChange('female_witness_name', value)}
-                                placeholder="Enter name"
-                            />
-                            
-                            <FormInput
-                                id="female_witness_father"
-                                label="Daughter of"
-                                maxLength={255}
-                                value={data.female_witness_father}
-                                onChange={(value) => handleInputChange('female_witness_father', value)}
-                                placeholder="Enter father's name"
-                            />
-                            
-                            <FormInput
-                                id="female_witness_clan"
-                                label="Clan"
-                                maxLength={255}
-                                value={data.female_witness_clan}
-                                onChange={(value) => handleInputChange('female_witness_clan', value)}
-                                placeholder="Enter clan"
-                            />
-                        </div>
-                        
-                        <h3 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2 mt-8">Additional Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <FormInput
-                                id="civil_marriage_certificate"
-                                label="Civil Marriage Certificate Number"
-                                maxLength={100}
-                                value={data.civil_marriage_certificate}
-                                onChange={(value) => handleInputChange('civil_marriage_certificate', value)}
-                                placeholder="Enter certificate number"
-                            />
-                            
-                            <FormInput
-                                id="other_documents"
-                                label="Other Documents"
-                                maxLength={255}
-                                value={data.other_documents}
-                                onChange={(value) => handleInputChange('other_documents', value)}
-                                placeholder="List any other documents"
-                            />
                         </div>
                     </div>
                 );
@@ -1865,14 +2118,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
             default:
                 return null;
         }
-    }, [activeTab, data, isFieldVisible, isFieldRequired, handleInputChange, FormInput, FamilySearchField, selectedFamily, churchGroups, localChurches]);
-
-    // Progress indicator
-    const progressPercentage = useMemo(() => {
-        const totalTabs = tabs.length;
-        const currentTabIndex = tabs.findIndex(tab => tab.id === activeTab);
-        return ((currentTabIndex + 1) / totalTabs) * 100;
-    }, [activeTab, tabs]);
+    }, [activeTab, data, isFieldVisible, isFieldRequired, handleInputChange, FormInput, SmallChristianCommunitySearchField, FamilySearchField, selectedFamily, churchGroups, localChurches, educationLevels, validateChurchGroupGender, inheritFamilyData, hasError, getErrorMessage, selectedAdditionalGroups, setSelectedAdditionalGroups, setData]);
 
     return (
         <AuthenticatedLayout
@@ -1891,7 +2137,6 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                         <p className="text-sm text-gray-600">
                             Enter member information to add them to the parish database
                         </p>
-                        {/* Progress bar */}
                         <div className="mt-2">
                             <div className="bg-gray-200 rounded-full h-1.5">
                                 <div 

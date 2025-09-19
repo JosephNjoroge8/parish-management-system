@@ -28,7 +28,6 @@ return new class extends Migration
             $table->enum('church_group', [
                 'PMC',
                 'Youth',
-                'Young Parents',
                 'C.W.A',
                 'CMA',
                 'Choir',

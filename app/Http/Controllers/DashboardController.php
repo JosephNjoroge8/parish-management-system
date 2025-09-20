@@ -272,14 +272,35 @@ class DashboardController extends Controller
                 $groupStats = null;
                 $groupMemberCount = 0;
                 if ($hasGroupTables) {
-                    $groupStats = DB::table('community_groups')
-                        ->selectRaw('
-                            COUNT(*) as total_groups,
-                            SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_groups
-                        ')
-                        ->first();
-                    
-                    $groupMemberCount = DB::table('group_members')->count();
+                    try {
+                        // Check if is_active column exists in community_groups table
+                        $columns = Schema::getColumnListing('community_groups');
+                        $hasIsActiveColumn = in_array('is_active', $columns);
+                        
+                        if ($hasIsActiveColumn) {
+                            $groupStats = DB::table('community_groups')
+                                ->selectRaw('
+                                    COUNT(*) as total_groups,
+                                    SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_groups
+                                ')
+                                ->first();
+                        } else {
+                            // Fallback query without is_active column
+                            $groupStats = DB::table('community_groups')
+                                ->selectRaw('
+                                    COUNT(*) as total_groups,
+                                    COUNT(*) as active_groups
+                                ')
+                                ->first();
+                        }
+                        
+                        $groupMemberCount = DB::table('group_members')->count();
+                    } catch (\Exception $e) {
+                        Log::error('Error getting group stats', ['error' => $e->getMessage()]);
+                        // Create empty stats object
+                        $groupStats = (object)['total_groups' => 0, 'active_groups' => 0];
+                        $groupMemberCount = 0;
+                    }
                 }
 
                 // Get distributions in optimized queries

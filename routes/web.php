@@ -65,6 +65,16 @@ Route::middleware('parish')->group(function () {
         }
     })->name('debug.stats');
     
+    // System health check route (admin only)
+    Route::get('/debug/system-health', [App\Http\Controllers\DebugController::class, 'systemHealth'])
+        ->middleware(['auth', 'admin'])
+        ->name('debug.system-health');
+    
+    // Cache clearing route (admin only)
+    Route::post('/debug/clear-caches', [App\Http\Controllers\DebugController::class, 'clearCaches'])
+        ->middleware(['auth', 'admin'])
+        ->name('debug.clear-caches');
+    
     // Profile Routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -775,6 +785,12 @@ Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
 
     // Role Management
     Route::resource('roles', RoleController::class)->parameters(['roles' => 'role']);
+
+    // Performance Dashboard and Monitoring
+    Route::prefix('performance')->name('performance.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\PerformanceDashboardController::class, 'index'])->name('dashboard');
+        Route::post('/clear-cache', [\App\Http\Controllers\PerformanceDashboardController::class, 'clearCache'])->name('clear-cache');
+    });
 
     // Admin Settings
     Route::get('/settings', function () {

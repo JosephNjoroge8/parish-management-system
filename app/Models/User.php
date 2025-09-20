@@ -144,18 +144,23 @@ class User extends Authenticatable implements MustVerifyEmail
         ]);
     }
 
-    // Safe role retrieval
+    // Safe role retrieval without recursion
     public function getRoles()
     {
         try {
-            if (method_exists($this, 'roles')) {
-                return $this->roles;
-            }
+            // Use direct database query to avoid recursion
+            $roles = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_type', 'App\\Models\\User')
+                ->where('model_has_roles.model_id', $this->id)
+                ->select('roles.id', 'roles.name')
+                ->get();
+            
+            return $roles;
         } catch (\Exception $e) {
-            // Return empty collection
+            \Illuminate\Support\Facades\Log::warning('Direct role query failed', ['error' => $e->getMessage()]);
+            return collect([]);
         }
-        
-        return collect([]);
     }
 
     // Accessors
@@ -166,7 +171,21 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function getIsAdminAttribute(): bool
     {
-        return $this->hasAnyRole(['super-admin', 'admin']);
+        try {
+            // Use direct database query to avoid any recursion
+            $hasAdminRole = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_type', 'App\\Models\\User')
+                ->where('model_has_roles.model_id', $this->id)
+                ->whereIn('roles.name', ['admin', 'super-admin'])
+                ->exists();
+            
+            return $hasAdminRole;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Direct admin check failed', ['error' => $e->getMessage()]);
+            // Fallback to email check
+            return $this->email === 'admin@parish.com';
+        }
     }
 
     public function getCanManageUsersAttribute(): bool

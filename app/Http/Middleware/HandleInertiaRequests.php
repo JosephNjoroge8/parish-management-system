@@ -62,20 +62,33 @@ class HandleInertiaRequests extends Middleware
     private function getUserRoles($user): array
     {
         try {
-            if (method_exists($user, 'getRoles')) {
-                return $user->getRoles()->pluck('name')->toArray();
-            }
-            return [];
+            // Use direct database query to avoid recursion
+            $roles = \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_type', 'App\\Models\\User')
+                ->where('model_has_roles.model_id', $user->id)
+                ->pluck('roles.name')
+                ->toArray();
+            
+            return $roles;
         } catch (\Exception $e) {
-            return $user->email === 'admin@parish.com' ? ['super-admin'] : ['viewer'];
+            \Illuminate\Support\Facades\Log::warning('Direct role query failed in HandleInertiaRequests', ['error' => $e->getMessage()]);
+            return $user->email === 'admin@parish.com' ? ['super-admin'] : [];
         }
     }
 
     private function userHasRole($user, $role): bool
     {
         try {
-            return $user->hasRole($role);
+            // Use direct database query to avoid recursion
+            return \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_type', 'App\\Models\\User')
+                ->where('model_has_roles.model_id', $user->id)
+                ->where('roles.name', $role)
+                ->exists();
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Direct role check failed in HandleInertiaRequests', ['error' => $e->getMessage()]);
             return $user->email === 'admin@parish.com' && $role === 'super-admin';
         }
     }
@@ -83,11 +96,24 @@ class HandleInertiaRequests extends Middleware
     private function userHasAnyRole($user, $roles): bool
     {
         try {
-            return $user->hasAnyRole($roles);
+            // Use direct database query to avoid recursion and Array to string conversion
+            $checkRoles = is_array($roles) ? $roles : [$roles];
+            
+            return \Illuminate\Support\Facades\DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_type', 'App\\Models\\User')
+                ->where('model_has_roles.model_id', $user->id)
+                ->whereIn('roles.name', $checkRoles)
+                ->exists();
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Direct role check failed in userHasAnyRole', ['error' => $e->getMessage()]);
+            
+            // Fallback: Check by email for super admin
             if ($user->email === 'admin@parish.com') {
-                return in_array('super-admin', is_array($roles) ? $roles : [$roles]);
+                $checkRoles = is_array($roles) ? $roles : [$roles];
+                return in_array('super-admin', $checkRoles) || in_array('admin', $checkRoles);
             }
+            
             return false;
         }
     }

@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\SecurityHeadersMiddleware::class,
+            \App\Http\Middleware\PerformanceMonitor::class,
         ]);
 
         // API middleware
@@ -48,6 +49,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.rate' => \App\Http\Middleware\ApiRateLimitMiddleware::class,
             'validate.json' => \App\Http\Middleware\ValidateJsonMiddleware::class,
             'security.headers' => \App\Http\Middleware\SecurityHeadersMiddleware::class,
+            'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'performance' => \App\Http\Middleware\PerformanceMonitor::class,
             
         ]);
 
@@ -63,7 +66,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->group('admin', [
             'auth',
             'verified',
-            'custom.role:super-admin',
+            'admin',
             'activity.log',
         ]);
 

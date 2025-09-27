@@ -67,7 +67,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Check if user has specific role with comprehensive fallback
      */
-    public function hasRole($roles, string $guard = null): bool
+    public function hasRole($roles, ?string $guard = null): bool
     {
         // Try Spatie first using parent trait method
         try {
@@ -100,7 +100,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Check if user has specific permission with comprehensive fallback
      */
-    public function hasPermissionTo($permission, $guardName = null): bool
+    public function hasPermissionTo($permission, ?string $guardName = null): bool
     {
         // Try Spatie first using parent trait method
         try {

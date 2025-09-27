@@ -70,7 +70,7 @@ class TitheController extends Controller
         ];
 
         // Get available years for filter
-        $years = Tithe::selectRaw('YEAR(date_given) as year')
+        $years = Tithe::selectRaw('strftime("%Y", date_given) as year')
                      ->distinct()
                      ->orderBy('year', 'desc')
                      ->pluck('year');
@@ -199,9 +199,9 @@ class TitheController extends Controller
             'by_method' => $query->select('payment_method', DB::raw('SUM(amount) as total'), DB::raw('COUNT(*) as count'))
                                 ->groupBy('payment_method')
                                 ->get(),
-            'monthly_totals' => Tithe::whereYear('date_given', $year)
-                                   ->select(DB::raw('MONTH(date_given) as month'), DB::raw('SUM(amount) as total'))
-                                   ->groupBy(DB::raw('MONTH(date_given)'))
+            'monthly_totals' => Tithe::whereRaw('CAST(strftime("%Y", date_given) AS INTEGER) = ?', [$year])
+                                   ->select(DB::raw('CAST(strftime("%m", date_given) AS INTEGER) as month'), DB::raw('SUM(amount) as total'))
+                                   ->groupBy(DB::raw('strftime("%m", date_given)'))
                                    ->orderBy('month')
                                    ->get(),
         ];

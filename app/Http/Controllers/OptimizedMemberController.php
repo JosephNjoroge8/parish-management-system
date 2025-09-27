@@ -77,7 +77,7 @@ class OptimizedMemberController extends Controller
                     SUM(CASE WHEN membership_status = "inactive" THEN 1 ELSE 0 END) as inactive_members,
                     SUM(CASE WHEN membership_status = "transferred" THEN 1 ELSE 0 END) as transferred_members,
                     SUM(CASE WHEN membership_status = "deceased" THEN 1 ELSE 0 END) as deceased_members,
-                    SUM(CASE WHEN MONTH(created_at) = ? AND YEAR(created_at) = ? THEN 1 ELSE 0 END) as new_this_month,
+                    SUM(CASE WHEN CAST(strftime("%m", created_at) AS INTEGER) = ? AND CAST(strftime("%Y", created_at) AS INTEGER) = ? THEN 1 ELSE 0 END) as new_this_month,
                     SUM(CASE WHEN gender IN ("male", "Male") THEN 1 ELSE 0 END) as male_count,
                     SUM(CASE WHEN gender IN ("female", "Female") THEN 1 ELSE 0 END) as female_count
                 ')

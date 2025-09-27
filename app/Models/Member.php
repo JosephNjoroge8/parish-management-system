@@ -35,9 +35,9 @@ class Member extends Model
         'occupation',
         'education_level',
         'family_id',
-        'parent',
-        'godparent',
-        'minister',
+        'parent_id',
+        'godparent_id',
+        'minister_id',
         'tribe',
         'clan',
         'notes',
@@ -103,11 +103,6 @@ class Member extends Model
         return $this->belongsTo(Member::class, 'parent_id');
     }
 
-    public function children()
-    {
-        return $this->hasMany(Member::class, 'parent_id');
-    }
-
     public function godparent()
     {
         return $this->belongsTo(Member::class, 'godparent_id');
@@ -117,6 +112,18 @@ class Member extends Model
     {
         return $this->belongsTo(Member::class, 'minister_id');
     }
+
+    public function children()
+    {
+        return $this->hasMany(Member::class, 'parent_id');
+    }
+
+    public function godchildren()
+    {
+        return $this->hasMany(Member::class, 'godparent_id');
+    }
+
+
     
     public function baptismRecord()
     {

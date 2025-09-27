@@ -25,7 +25,10 @@ import {
     Home,
     Award,
     Crown,
-    ChevronRight
+    ChevronRight,
+    Download,
+    FileText,
+    ScrollText
 } from 'lucide-react';
 
 // Enhanced interfaces to match our new structure
@@ -273,6 +276,72 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
                             <Edit className="w-4 h-4" />
                             <span>Edit Member</span>
                         </Link>
+                        
+                        {/* Certificate Downloads Dropdown */}
+                        <div className="relative group">
+                            <button className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200 shadow-sm hover:shadow-md">
+                                <Download className="w-4 h-4" />
+                                <span>Certificates</span>
+                            </button>
+                            
+                            <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                                <div className="py-1">
+                                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200">
+                                        Available Certificates
+                                    </div>
+                                    
+                                    {member.baptism_date ? (
+                                        <a
+                                            href={safeRoute('members.baptism-certificate', member.id)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-900 flex items-center space-x-2 transition-colors duration-150"
+                                        >
+                                            <ScrollText className="w-4 h-4 text-purple-500" />
+                                            <div>
+                                                <div className="font-medium">Baptism Certificate</div>
+                                                <div className="text-xs text-gray-500">Baptized: {formatDate(member.baptism_date)}</div>
+                                            </div>
+                                        </a>
+                                    ) : (
+                                        <div className="px-3 py-3 text-sm text-gray-400 cursor-not-allowed flex items-center space-x-2">
+                                            <ScrollText className="w-4 h-4 text-gray-300" />
+                                            <div>
+                                                <div>Baptism Certificate</div>
+                                                <div className="text-xs">Not baptized yet</div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {member.matrimony_status === 'married' && member.marriage_type === 'church' ? (
+                                        <a
+                                            href={safeRoute('members.marriage-certificate', member.id)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-900 flex items-center space-x-2 transition-colors duration-150"
+                                        >
+                                            <Heart className="w-4 h-4 text-pink-500" />
+                                            <div>
+                                                <div className="font-medium">Marriage Certificate</div>
+                                                <div className="text-xs text-gray-500">Church Marriage</div>
+                                            </div>
+                                        </a>
+                                    ) : (
+                                        <div className="px-3 py-3 text-sm text-gray-400 cursor-not-allowed flex items-center space-x-2">
+                                            <Heart className="w-4 h-4 text-gray-300" />
+                                            <div>
+                                                <div>Marriage Certificate</div>
+                                                <div className="text-xs">
+                                                    {member.matrimony_status === 'married' && member.marriage_type !== 'church' 
+                                                        ? 'Customary marriage only' 
+                                                        : 'Not married in church'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                         
                         {/* Status Change Dropdown */}
                         <div className="relative group">
@@ -779,6 +848,31 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
                                             >
                                                 <Mail className="w-4 h-4" />
                                                 <span>Send Email</span>
+                                            </a>
+                                        )}
+                                        
+                                        {/* Certificate Downloads */}
+                                        {member.baptism_date && (
+                                            <a
+                                                href={safeRoute('members.baptism-certificate', member.id)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="w-full bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                                            >
+                                                <ScrollText className="w-4 h-4" />
+                                                <span>Download Baptism Certificate</span>
+                                            </a>
+                                        )}
+                                        
+                                        {member.matrimony_status === 'married' && member.marriage_type === 'church' && (
+                                            <a
+                                                href={safeRoute('members.marriage-certificate', member.id)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="w-full bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                                            >
+                                                <Heart className="w-4 h-4" />
+                                                <span>Download Marriage Certificate</span>
                                             </a>
                                         )}
                                     </div>

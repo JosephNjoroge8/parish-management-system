@@ -184,19 +184,80 @@ class BaptismRecordController extends Controller
     }
 
     /**
-     * Generate baptism certificate
+     * Generate baptism certificate PDF
      */
     public function generateCertificate(BaptismRecord $baptismRecord)
     {
-        $baptismRecord->load('member');
-        
-        // This would generate a PDF certificate
-        // For now, return the data needed for certificate generation
-        return response()->json([
-            'baptismRecord' => $baptismRecord,
-            'parish' => config('app.parish_name', 'Our Lady of Consolata Parish'),
-            'generated_at' => now()->format('Y-m-d H:i:s')
-        ]);
+        try {
+            $baptismRecord->load('member');
+            
+            // Prepare data for certificate
+            $data = [
+                'baptismRecord' => $baptismRecord,
+                'member' => $baptismRecord->member,
+                'parish_name' => config('app.parish_name', 'Sacred Heart Kandara Parish'),
+                'generated_at' => now()
+            ];
+            
+            // Generate PDF using Dompdf
+            $pdf = app('dompdf.wrapper');
+            $pdf->loadView('certificates.baptism-card', $data);
+            $pdf->setPaper('A4', 'portrait');
+            
+            $filename = 'baptism-certificate-' . $baptismRecord->member->first_name . '-' . $baptismRecord->member->last_name . '-' . now()->format('Y-m-d') . '.pdf';
+            
+            return $pdf->download($filename);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to generate certificate: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download baptism certificate for a member by ID
+     */
+    public function downloadBaptismCertificate($memberId)
+    {
+        try {
+            $member = Member::findOrFail($memberId);
+            
+            // Get baptism record for this member
+            $baptismRecord = BaptismRecord::where('member_id', $memberId)->first();
+            
+            if (!$baptismRecord) {
+                // Create a basic baptism record from member data if none exists
+                $baptismRecord = new BaptismRecord([
+                    'member_id' => $member->id,
+                    'baptism_date' => $member->baptism_date ?? now(),
+                    'minister' => 'Parish Priest',
+                    'place_of_baptism' => $member->local_church ?? 'Sacred Heart Kandara Parish',
+                ]);
+            }
+            
+            // Prepare comprehensive data for certificate
+            $data = [
+                'baptismRecord' => $baptismRecord,
+                'member' => $member,
+                'parish_name' => config('app.parish_name', 'Sacred Heart Kandara Parish'),
+                'generated_at' => now()
+            ];
+            
+            // Generate PDF using Dompdf
+            $pdf = app('dompdf.wrapper');
+            $pdf->loadView('certificates.baptism-card', $data);
+            $pdf->setPaper('A4', 'portrait');
+            
+            $filename = 'baptism-certificate-' . $member->first_name . '-' . $member->last_name . '-' . now()->format('Y-m-d') . '.pdf';
+            
+            return $pdf->download($filename);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to generate baptism certificate: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -209,7 +270,7 @@ class BaptismRecordController extends Controller
             'this_year' => BaptismRecord::whereYear('baptism_date', now()->year)->count(),
             'this_month' => BaptismRecord::whereYear('baptism_date', now()->year)
                 ->whereMonth('baptism_date', now()->month)->count(),
-            'by_month' => BaptismRecord::selectRaw('MONTH(baptism_date) as month, COUNT(*) as count')
+            'by_month' => BaptismRecord::selectRaw('CAST(strftime("%m", baptism_date) AS INTEGER) as month, COUNT(*) as count')
                 ->whereYear('baptism_date', now()->year)
                 ->groupBy('month')
                 ->orderBy('month')

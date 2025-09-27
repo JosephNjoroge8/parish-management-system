@@ -1,27 +1,286 @@
-*.log
-.DS_Store
+# ============================================================================
+# PARISH MANAGEMENT SYSTEM - COMPREHENSIVE .GITIGNORE
+# ============================================================================
+# This file prevents sensitive and unnecessary files from being committed to Git
+# Ensure this is properly configured before pushing to GitHub
+# ============================================================================
+
+# ============================================================================
+# ENVIRONMENT & CONFIGURATION FILES (CRITICAL - NEVER COMMIT)
+# ============================================================================
 .env
+.env.*
+!.env.example
 .env.backup
-.env.example
 .env.production
-.phpactor.json
-.phpunit.result.cache
-/.fleet
-/.idea
-/.nova
-/.phpunit.cache
-/.vscode
-/.zed
-/auth.json
-/node_modules
-/public/build
+.env.local
+.env.staging
+.env.testing
+
+# Authentication & API Keys
+auth.json
+oauth-private.key
+oauth-public.key
+
+# ============================================================================
+# DATABASE FILES (CRITICAL - CONTAINS SENSITIVE DATA)
+# ============================================================================
+# SQLite databases
+*.sqlite
+*.sqlite3
+*.db
+/database/*.sqlite
+/database/*.sqlite3
+/database/*.db
+/database/database.*
+
+# Database backups and dumps
+*.sql
+*.dump
+/database/backups/
+/storage/database-backups/
+
+# ============================================================================
+# APPLICATION LOGS & TEMPORARY FILES
+# ============================================================================
+# Laravel logs
+/storage/logs/*.log
+/storage/logs/*
+
+# General log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================================================
+# GENERATED & CACHED FILES
+# ============================================================================
+# Laravel optimization files
+/bootstrap/cache/*.php
+/storage/framework/cache/
+/storage/framework/sessions/
+/storage/framework/views/
+/storage/framework/testing/
+
+# Compiled assets
+/public/build/
 /public/hot
 /public/storage
-/storage/*.key
+/public/mix-manifest.json
+/public/js/
+/public/css/
+
+# Cache files
+.phpunit.result.cache
+.phpunit.cache
 /storage/pail
-/vendor
+*.cache
+
+# ============================================================================
+# DEPENDENCIES & PACKAGES
+# ============================================================================
+# PHP dependencies
+/vendor/
+composer.phar
+
+# Node.js dependencies
+/node_modules/
+npm-debug.log
+yarn-error.log
+.npm
+.yarn-integrity
+
+# ============================================================================
+# IDE & EDITOR FILES
+# ============================================================================
+# Visual Studio Code
+/.vscode/
+.vscode/
+*.code-workspace
+
+# PHPStorm / IntelliJ
+/.idea/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Other editors
+/.fleet
+/.nova
+/.zed
+.phpactor.json
+
+# ============================================================================
+# OPERATING SYSTEM FILES
+# ============================================================================
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.fuse_hidden*
+.nfs*
+
+# ============================================================================
+# DEPLOYMENT & SERVER FILES
+# ============================================================================
+# Deployment scripts with sensitive info
+deploy.sh
+deploy-*.sh
+!deploy-production-complete.sh
+!optimize-for-production.sh
+
+# Server configuration files (may contain sensitive paths)
+.htaccess
+.htpasswd
+nginx.conf
+apache.conf
+
+# SSL certificates
+*.pem
+*.crt
+*.key
+*.csr
+*.p12
+
+# ============================================================================
+# BACKUP & EXPORT FILES
+# ============================================================================
+# Member data exports (contains sensitive information)
+/storage/exports/*.xlsx
+/storage/exports/*.csv
+/storage/exports/*.pdf
+/exports/
+member_exports/
+parish_data_*.xlsx
+
+# System backups
+/backups/
+backup_*.tar.gz
+*.backup
+
+# ============================================================================
+# DEVELOPMENT & TESTING FILES
+# ============================================================================
+# Testing
+/coverage/
+.coverage
+.nyc_output
+junit.xml
+
+# Local development
 Homestead.json
 Homestead.yaml
-npm-debug.log
-Thumbs.db
-yarn-error.log
+Vagrantfile
+.vagrant/
+docker-compose.override.yml
+
+# Debug files
+debug_*.php
+test_*.php
+/storage/debugbar/
+
+# ============================================================================
+# PARISH-SPECIFIC SENSITIVE FILES
+# ============================================================================
+# Member photos and documents (if stored locally)
+/storage/member-photos/
+/storage/documents/
+/public/uploads/
+
+# Financial records
+/storage/financial-reports/
+tithe_records_*.xlsx
+financial_summary_*.pdf
+
+# Custom reports with sensitive data
+custom_reports/
+member_directory_*.pdf
+
+# ============================================================================
+# ASSETS & MEDIA
+# ============================================================================
+# Large media files
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+
+# Large images
+*.psd
+*.ai
+*.eps
+
+# ============================================================================
+# TEMPORARY & LOCK FILES
+# ============================================================================
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Lock files
+package-lock.json
+composer.lock
+
+# ============================================================================
+# SECURITY & ANALYSIS TOOLS
+# ============================================================================
+# Security scan results
+/security-scan-results/
+.security/
+
+# Code analysis
+.phpcs.xml
+.phpmd.xml
+.psalm.xml
+
+# ============================================================================
+# CUSTOM APPLICATION FILES
+# ============================================================================
+# Debug and analysis files specific to this project
+debug_member_registration.php
+analyze_performance.php
+MEMBER_REGISTRATION_FIX_REPORT.md
+ASSET_OPTIMIZATION_REPORT.md
+COMPLETE_PERFORMANCE_OPTIMIZATION.md
+PRODUCTION_DEPLOYMENT.md
+
+# Optimization files (keep templates, ignore generated)
+vite.config.optimized.js
+UserControllerOptimized.php
+
+# ============================================================================
+# END OF .GITIGNORE
+# ============================================================================
+
+# NOTE: Always review files before committing to ensure no sensitive data is included
+# Use: git status --ignored to see ignored files
+# Use: git add -f filename to force add an ignored file if needed

@@ -61,7 +61,7 @@ class PerformanceMonitor
             'query_count' => $queryCount,
             'total_query_time' => round($totalQueryTime, 2),
             'slow_queries' => array_filter($queries, function($query) {
-                return $query['time'] > 100; // Queries slower than 100ms
+                return isset($query['time']) && $query['time'] > 100; // Queries slower than 100ms
             }),
             'timestamp' => now(),
         ];
@@ -78,8 +78,8 @@ class PerformanceMonitor
                 'route' => $performanceData['route'],
                 'queries' => array_map(function($query) {
                     return [
-                        'sql' => $query['sql'],
-                        'time' => $query['time']
+                        'sql' => $query['sql'] ?? 'N/A',
+                        'time' => $query['time'] ?? 0
                     ];
                 }, $queries)
             ]);

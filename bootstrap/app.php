@@ -29,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Global middleware for all requests
         $middleware->append([
             \App\Http\Middleware\SecurityHeadersMiddleware::class,
+            \App\Http\Middleware\ProductionSecurityMiddleware::class,
         ]);
 
         // Route middleware aliases

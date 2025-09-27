@@ -147,14 +147,14 @@ class MemberController extends Controller
             'church_group' => 'required|in:PMC,Youth,C.W.A,CMA,Choir,Catholic Action,Pioneer',
             'additional_church_groups' => 'nullable|array',
             'additional_church_groups.*' => 'in:PMC,Youth,C.W.A,CMA,Choir,Catholic Action,Pioneer',
-            'membership_status' => 'required|in:active,inactive,transferred,deceased',
+            'membership_status' => 'nullable|in:active,inactive,transferred,deceased',
             'membership_date' => 'nullable|date',
             'baptism_date' => 'nullable|date',
             'confirmation_date' => 'nullable|date',
-            'matrimony_status' => 'nullable|in:single,married,divorced,widowed',
+            'matrimony_status' => 'required|in:single,married,divorced,widowed,separated',
             'marriage_type' => 'nullable|in:customary,church',
-            'occupation' => 'nullable|in:employed,self_employed,not_employed',
-            'education_level' => 'nullable|in:none,primary,kcpe,secondary,kcse,certificate,diploma,degree,masters,phd',
+            'occupation' => 'required|in:employed,self_employed,not_employed',
+            'education_level' => 'required|in:none,primary,kcpe,secondary,kcse,certificate,diploma,degree,masters,phd',
             'family_id' => 'nullable|exists:families,id',
             'parent' => 'nullable|string|max:255',
             'godparent' => 'nullable|string|max:255',
@@ -235,15 +235,23 @@ class MemberController extends Controller
         ]);
 
         try {
-            // Validate church group gender restrictions
+            // Log warnings for church group gender restrictions but don't block registration
+            $warnings = [];
             if (isset($validated['church_group']) && isset($validated['gender'])) {
                 if ($validated['church_group'] === 'C.W.A' && $validated['gender'] !== 'Female') {
-                    throw new \InvalidArgumentException('C.W.A membership is restricted to female members only.');
+                    $warnings[] = 'C.W.A membership is typically for female members.';
                 }
                 
                 if ($validated['church_group'] === 'CMA' && $validated['gender'] !== 'Male') {
-                    throw new \InvalidArgumentException('CMA membership is restricted to male members only.');
+                    $warnings[] = 'CMA membership is typically for male members.';
                 }
+            }
+            
+            if (!empty($warnings)) {
+                Log::warning('Member registration with gender restriction warnings', [
+                    'warnings' => $warnings,
+                    'member_data' => $validated['first_name'] . ' ' . $validated['last_name']
+                ]);
             }
 
             // Ensure additional church groups don't include the primary group
@@ -254,6 +262,77 @@ class MemberController extends Controller
                         return $group !== $validated['church_group'];
                     }
                 );
+            }
+
+            // Convert text fields to foreign key IDs
+            if (!empty($validated['parent'])) {
+                $parentMember = Member::where('first_name', 'LIKE', '%' . trim($validated['parent']) . '%')
+                    ->orWhere('last_name', 'LIKE', '%' . trim($validated['parent']) . '%')
+                    ->orWhereRaw("(first_name || ' ' || last_name) LIKE ?", ['%' . trim($validated['parent']) . '%'])
+                    ->first();
+                $validated['parent_id'] = $parentMember ? $parentMember->id : null;
+                unset($validated['parent']);
+            }
+
+            if (!empty($validated['godparent'])) {
+                $godparentMember = Member::where('first_name', 'LIKE', '%' . trim($validated['godparent']) . '%')
+                    ->orWhere('last_name', 'LIKE', '%' . trim($validated['godparent']) . '%')
+                    ->orWhereRaw("(first_name || ' ' || last_name) LIKE ?", ['%' . trim($validated['godparent']) . '%'])
+                    ->first();
+                $validated['godparent_id'] = $godparentMember ? $godparentMember->id : null;
+                unset($validated['godparent']);
+            }
+
+            if (!empty($validated['minister'])) {
+                $ministerMember = Member::where('first_name', 'LIKE', '%' . trim($validated['minister']) . '%')
+                    ->orWhere('last_name', 'LIKE', '%' . trim($validated['minister']) . '%')
+                    ->orWhereRaw("(first_name || ' ' || last_name) LIKE ?", ['%' . trim($validated['minister']) . '%'])
+                    ->first();
+                $validated['minister_id'] = $ministerMember ? $ministerMember->id : null;
+                unset($validated['minister']);
+            }
+
+            // Set defaults for missing required fields
+            if (empty($validated['membership_status'])) {
+                $validated['membership_status'] = 'active';
+            }
+            
+            if (empty($validated['local_church'])) {
+                $validated['local_church'] = 'Sacred Heart Kandara';
+            }
+            
+            if (empty($validated['church_group'])) {
+                $validated['church_group'] = 'Catholic Action';
+            }
+
+            // Ensure matrimony_status has a valid default value
+            if (empty($validated['matrimony_status'])) {
+                $validated['matrimony_status'] = 'single';
+            }
+
+            // Ensure occupation has a valid default value
+            if (empty($validated['occupation'])) {
+                $validated['occupation'] = 'not_employed';
+            }
+
+            // Ensure education_level has a valid default value
+            if (empty($validated['education_level'])) {
+                $validated['education_level'] = 'none';
+            }
+
+            // Ensure membership_date has a valid value
+            if (empty($validated['membership_date'])) {
+                $validated['membership_date'] = now()->format('Y-m-d');
+            }
+
+            // Handle empty family_id - set to null if empty string
+            if (isset($validated['family_id']) && empty($validated['family_id'])) {
+                $validated['family_id'] = null;
+            }
+
+            // Handle additional_church_groups - ensure it's an array
+            if (isset($validated['additional_church_groups']) && !is_array($validated['additional_church_groups'])) {
+                $validated['additional_church_groups'] = [];
             }
 
             DB::beginTransaction();
@@ -292,7 +371,8 @@ class MemberController extends Controller
             }
 
             // Create comprehensive marriage record if church marriage
-            if ($validated['matrimony_status'] === 'married' && $validated['marriage_type'] === 'church') {
+            if (isset($validated['matrimony_status']) && $validated['matrimony_status'] === 'married' && 
+                isset($validated['marriage_type']) && $validated['marriage_type'] === 'church') {
                 $this->createComprehensiveMarriageRecord($member, $validated);
             }
             
@@ -312,16 +392,31 @@ class MemberController extends Controller
                 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Failed to create member with comprehensive records: ' . $e->getMessage());
+            Log::error('Failed to create member with comprehensive records: ' . $e->getMessage(), [
+                'member_data' => $validated['first_name'] . ' ' . $validated['last_name'],
+                'error_message' => $e->getMessage(),
+                'validated_data' => $validated
+            ]);
+            
+            // Provide more specific error messages
+            $errorMessage = 'Failed to create member.';
+            if (str_contains($e->getMessage(), 'NOT NULL constraint failed')) {
+                $errorMessage = 'Missing required field. Please ensure all mandatory fields are filled.';
+            } elseif (str_contains($e->getMessage(), 'UNIQUE constraint failed')) {
+                $errorMessage = 'A member with this ID number or email already exists.';
+            } elseif (str_contains($e->getMessage(), 'FOREIGN KEY constraint failed')) {
+                $errorMessage = 'Invalid family reference. Please select a valid family.';
+            }
             
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to create member: ' . $e->getMessage()
+                    'message' => $errorMessage,
+                    'debug_message' => config('app.debug') ? $e->getMessage() : null
                 ], 422);
             }
             
-            return back()->withErrors(['error' => 'Failed to create member.'])->withInput();
+            return back()->withErrors(['error' => $errorMessage])->withInput();
         }
     }
 
@@ -614,13 +709,13 @@ class MemberController extends Controller
             'emergency_phone' => 'nullable|string|max:20',
             'local_church' => 'required|in:St James Kangemi,St Veronica Pembe Tatu,Our Lady of Consolata Cathedral,St Peter Kiawara,Sacred Heart Kandara',
             'church_group' => 'required|in:PMC,Youth,C.W.A,CMA,Choir,Catholic Action,Pioneer',
-            'membership_status' => 'required|in:active,inactive,transferred,deceased',
+            'membership_status' => 'nullable|in:active,inactive,transferred,deceased',
             'membership_date' => 'nullable|date',
             'baptism_date' => 'nullable|date',
             'confirmation_date' => 'nullable|date',
-            'matrimony_status' => 'nullable|in:single,married,divorced,widowed',
-            'occupation' => 'nullable|in:employed,self_employed,not_employed',
-            'education_level' => 'nullable|string|max:255',
+            'matrimony_status' => 'required|in:single,married,divorced,widowed,separated',
+            'occupation' => 'required|in:employed,self_employed,not_employed',
+            'education_level' => 'required|in:none,primary,kcpe,secondary,kcse,certificate,diploma,degree,masters,phd',
             'family_id' => 'nullable|exists:families,id',
             'parent' => 'nullable|string|max:255',
             'sponsor' => 'nullable|string|max:255',
@@ -682,13 +777,14 @@ class MemberController extends Controller
               ->orWhere('last_name', 'like', "%{$query}%")
               ->orWhere('middle_name', 'like', "%{$query}%")
               ->orWhere('phone', 'like', "%{$query}%")
-              ->orWhere('email', 'like', "%{$query}%");
+              ->orWhere('email', 'like', "%{$query}%")
+              ->orWhere('id', 'like', "%{$query}%");
         })
-        ->select('id', 'first_name', 'middle_name', 'last_name', 'phone', 'email', 'church_group', 'local_church')
-        ->limit(10)
+        ->select('id', 'first_name', 'middle_name', 'last_name', 'phone', 'email', 'church_group', 'local_church', 'date_of_birth', 'membership_status')
+        ->limit(20)
         ->get();
 
-        return response()->json($members);
+        return response()->json(['members' => $members]);
     }
 
     /**
@@ -1109,15 +1205,15 @@ class MemberController extends Controller
             'phone' => !empty($row['phone']) ? $this->formatPhoneNumber(trim($row['phone'])) : null,
             'email' => !empty($row['email']) ? strtolower(trim($row['email'])) : null,
             'id_number' => !empty($row['id_number']) ? trim($row['id_number']) : null,
-            'occupation' => !empty($row['occupation']) ? trim($row['occupation']) : null,
+            'occupation' => !empty($row['occupation']) ? trim($row['occupation']) : 'not_employed',
             'residence' => !empty($row['residence']) ? trim($row['residence']) : null,
             'sponsor' => !empty($row['sponsor']) ? trim($row['sponsor']) : null,
             'parent' => !empty($row['parent']) ? trim($row['parent']) : null,
             'minister' => !empty($row['minister']) ? trim($row['minister']) : null,
             'tribe' => !empty($row['tribe']) ? trim($row['tribe']) : null,
             'clan' => !empty($row['clan']) ? trim($row['clan']) : null,
-            'education_level' => !empty($row['education_level']) ? trim($row['education_level']) : null,
-            'matrimony_status' => !empty($row['matrimony_status']) ? trim($row['matrimony_status']) : null,
+            'education_level' => !empty($row['education_level']) ? trim($row['education_level']) : 'none',
+            'matrimony_status' => !empty($row['matrimony_status']) ? trim($row['matrimony_status']) : 'single',
             'baptism_date' => !empty($row['baptism_date']) ? 
                 \Carbon\Carbon::parse($row['baptism_date'])->format('Y-m-d') : null,
             'confirmation_date' => !empty($row['confirmation_date']) ? 

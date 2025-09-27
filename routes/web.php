@@ -25,6 +25,12 @@ use Inertia\Inertia;
 |--------------------------------------------------------------------------
 */
 
+// Health check endpoints (before authentication)
+Route::get('/health', [\App\Http\Controllers\HealthController::class, 'simple']);
+Route::get('/health/detailed', [\App\Http\Controllers\HealthController::class, 'check']);
+Route::get('/health/database', [\App\Http\Controllers\HealthController::class, 'database']);
+Route::get('/health/cache', [\App\Http\Controllers\HealthController::class, 'cache']);
+
 Route::get('/', function () {
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
@@ -33,6 +39,76 @@ Route::get('/', function () {
         'phpVersion' => PHP_VERSION,
     ]);
 });
+
+// Debug route to test active members export
+Route::get('/debug-active-export', function () {
+    try {
+        $activeMembers = \App\Models\Member::where('membership_status', 'active')->get();
+        
+        // Create CSV response
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="active-members-debug.csv"',
+        ];
+
+        $callback = function() use ($activeMembers) {
+            $file = fopen('php://output', 'w');
+            
+            // Write headers
+            fputcsv($file, ['ID', 'First Name', 'Last Name', 'Email', 'Status']);
+
+            // Write data
+            foreach ($activeMembers as $member) {
+                fputcsv($file, [
+                    $member->id,
+                    $member->first_name,
+                    $member->last_name,
+                    $member->email,
+                    $member->membership_status
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+    }
+});
+
+// Debug route to test active members export
+Route::get('/test-active-export', function () {
+    try {
+        $query = \App\Models\Member::where('membership_status', 'active');
+        $count = $query->count();
+        
+        if ($count > 0) {
+            return response()->json([
+                'status' => 'success',
+                'count' => $count,
+                'sample_data' => $query->limit(3)->get(['id', 'first_name', 'last_name', 'membership_status'])->toArray(),
+                'message' => 'Active members found successfully'
+            ]);
+        } else {
+            return response()->json([
+                'status' => 'empty',
+                'count' => 0,
+                'message' => 'No active members found'
+            ]);
+        }
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ]);
+    }
+});
+
+
 
 // Main authenticated routes using the parish middleware group
 Route::middleware('parish')->group(function () {
@@ -75,6 +151,8 @@ Route::middleware('parish')->group(function () {
         ->middleware(['auth', 'admin'])
         ->name('debug.clear-caches');
     
+
+
     // Profile Routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -144,9 +222,13 @@ Route::middleware('parish')->group(function () {
             ->middleware('custom.permission:manage members')
             ->name('toggle-status')
             ->where('member', '[0-9]+');
-        Route::get('/{member}/baptism-certificate', [MemberController::class, 'downloadBaptismCertificate'])
+        Route::get('/{member}/baptism-certificate', [App\Http\Controllers\BaptismRecordController::class, 'downloadBaptismCertificate'])
             ->middleware('custom.permission:manage members')
             ->name('baptism-certificate')
+            ->where('member', '[0-9]+');
+        Route::get('/{member}/marriage-certificate', [App\Http\Controllers\MarriageRecordController::class, 'findMemberMarriageCertificate'])
+            ->middleware('custom.permission:manage members')
+            ->name('marriage-certificate')
             ->where('member', '[0-9]+');
     });
     
@@ -491,7 +573,7 @@ Route::middleware('parish')->group(function () {
             // ========================================
             // MEMBER EXPORT ROUTES - MOVED HERE
             // ========================================
-            Route::get('/export-members-data', [ReportController::class, 'exportMembersData'])->name('export-members-data');
+            Route::get('/export-members-data', [ReportController::class, 'exportMembersDataRoute'])->name('export-members-data');
             Route::get('/export-by-local-church', [ReportController::class, 'exportByLocalChurch'])->name('export-by-local-church');
             Route::get('/export-by-church-group', [ReportController::class, 'exportByChurchGroup'])->name('export-by-church-group');
             Route::get('/export-by-age-group', [ReportController::class, 'exportByAgeGroup'])->name('export-by-age-group');
@@ -870,22 +952,66 @@ Route::middleware(['auth', 'verified'])->prefix('baptism-records')->name('baptis
     // Additional baptism record functionality
     Route::post('/filter', [App\Http\Controllers\BaptismRecordController::class, 'filter'])->name('filter');
     Route::get('/{baptismRecord}/certificate', [App\Http\Controllers\BaptismRecordController::class, 'generateCertificate'])->name('certificate');
+    Route::get('/member/{memberId}/certificate', [App\Http\Controllers\BaptismRecordController::class, 'downloadBaptismCertificate'])->name('member-certificate');
     Route::get('/statistics/overview', [App\Http\Controllers\BaptismRecordController::class, 'statistics'])->name('statistics');
     Route::post('/import', [App\Http\Controllers\BaptismRecordController::class, 'import'])->name('import');
     Route::get('/export/download', [App\Http\Controllers\BaptismRecordController::class, 'export'])->name('export');
+});
+
+// Enhanced Marriage Records Routes
+Route::middleware(['auth', 'verified'])->prefix('marriage-records')->name('marriage-records.')->group(function () {
+    Route::get('/', [App\Http\Controllers\MarriageRecordController::class, 'index'])->name('index');
+    Route::get('/create', [App\Http\Controllers\MarriageRecordController::class, 'create'])->name('create');
+    Route::post('/', [App\Http\Controllers\MarriageRecordController::class, 'store'])->name('store');
+    Route::get('/{marriageRecord}', [App\Http\Controllers\MarriageRecordController::class, 'show'])->name('show');
+    Route::get('/{marriageRecord}/edit', [App\Http\Controllers\MarriageRecordController::class, 'edit'])->name('edit');
+    Route::put('/{marriageRecord}', [App\Http\Controllers\MarriageRecordController::class, 'update'])->name('update');
+    Route::delete('/{marriageRecord}', [App\Http\Controllers\MarriageRecordController::class, 'destroy'])->name('destroy');
+    
+    // Additional marriage record functionality
+    Route::post('/filter', [App\Http\Controllers\MarriageRecordController::class, 'filter'])->name('filter');
+    Route::get('/{marriageRecord}/certificate', [App\Http\Controllers\MarriageRecordController::class, 'generateCertificate'])->name('certificate');
+    Route::get('/download/{marriageRecordId}', [App\Http\Controllers\MarriageRecordController::class, 'downloadMarriageCertificate'])->name('download-certificate');
+    Route::get('/member/{memberId}/certificate', [App\Http\Controllers\MarriageRecordController::class, 'findMemberMarriageCertificate'])->name('member-certificate');
+    Route::get('/statistics/overview', [App\Http\Controllers\MarriageRecordController::class, 'statistics'])->name('statistics');
+    Route::post('/export', [App\Http\Controllers\MarriageRecordController::class, 'export'])->name('export');
 });
 
 // Enhanced Reports Routes with Comprehensive Filtering
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
-        Route::get('/statistics', [ReportController::class, 'getStatistics'])->name('statistics');
+        Route::get('/statistics', [ReportController::class, 'getEnhancedStatistics'])->name('statistics');
         Route::post('/generate', [ReportController::class, 'generateReport'])->name('generate');
         Route::get('/export', [ReportController::class, 'export'])->name('export');
         Route::get('/export/all', [ReportController::class, 'exportAll'])->name('export.all');
         Route::get('/export/members', [ReportController::class, 'exportMembers'])->name('export.members');
         Route::get('/member-statistics', [ReportController::class, 'memberStatistics'])->name('member-statistics');
         Route::get('/financial', [ReportController::class, 'financialReport'])->name('financial');
+        
+        // Enhanced Export Routes with Database-Driven Details
+        Route::post('/export/filtered-members', [ReportController::class, 'exportFilteredMembers'])->name('export.filtered-members');
+        Route::post('/export/by-category', [ReportController::class, 'exportMembersByCategory'])->name('export.by-category');
+        Route::get('/export/by-local-church', [ReportController::class, 'exportByLocalChurch'])->name('export.by-local-church');
+        Route::get('/export/by-church-group', [ReportController::class, 'exportByChurchGroup'])->name('export.by-church-group');
+        Route::get('/export/by-age-group', [ReportController::class, 'exportByAgeGroup'])->name('export.by-age-group');
+        Route::get('/export/by-gender', [ReportController::class, 'exportByGender'])->name('export.by-gender');
+        Route::get('/export/by-membership-status', [ReportController::class, 'exportByMembershipStatus'])->name('export.by-membership-status');
+        Route::get('/export/by-education-level', [ReportController::class, 'exportByEducationLevel'])->name('export.by-education-level');
+        Route::get('/export/by-occupation', [ReportController::class, 'exportByOccupation'])->name('export.by-occupation');
+        
+        // Member Lists Generation Routes
+        Route::get('/members/by-local-church', [ReportController::class, 'getMembersByLocalChurch'])->name('members.by-local-church');
+        Route::get('/members/by-church-group', [ReportController::class, 'getMembersByChurchGroup'])->name('members.by-church-group');
+        Route::get('/members/by-age-group', [ReportController::class, 'getMembersByAgeGroup'])->name('members.by-age-group');
+        Route::get('/members/by-gender', [ReportController::class, 'getMembersByGender'])->name('members.by-gender');
+        Route::get('/members/active', [ReportController::class, 'getActiveMembers'])->name('members.active');
+        Route::get('/members/inactive', [ReportController::class, 'getInactiveMembers'])->name('members.inactive');
+        Route::get('/members/transferred', [ReportController::class, 'getTransferredMembers'])->name('members.transferred');
+        Route::get('/members/deceased', [ReportController::class, 'getDeceasedMembers'])->name('members.deceased');
+        Route::get('/members/all-clear-records', [ReportController::class, 'getAllClearRecords'])->name('members.all-clear-records');
+        Route::get('/members/filtered-list', [ReportController::class, 'getFilteredMembersList'])->name('members.filtered-list');
+        Route::get('/members/directory', [ReportController::class, 'getMemberDirectory'])->name('members.directory');
     });
 });
 

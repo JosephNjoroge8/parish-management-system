@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\MembersExport;
+use App\Exports\OptimizedMembersExport;
 use App\Exports\MarriagesExport;
 use App\Exports\SacramentsExport;
 use App\Exports\TithesExport;
@@ -250,11 +251,14 @@ class ReportController extends Controller
     private function exportQueryToExcel($query, $filename, $filters = [])
     {
         try {
-            // Use a memory-efficient export
-            $export = new \App\Exports\OptimizedMembersExport($query, $filters);
-            return Excel::download($export, $filename . '.xlsx');
+            // For now, redirect Excel exports to CSV to avoid memory issues
+            return $this->exportQueryToCSV($query, $filename, $filters);
         } catch (\Exception $e) {
-            Log::error('Excel export from query failed: ' . $e->getMessage());
+            Log::error('Excel export from query failed: ' . $e->getMessage(), [
+                'filename' => $filename,
+                'filters' => $filters,
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json(['error' => 'Excel export failed: ' . $e->getMessage()], 500);
         }
     }
@@ -265,13 +269,23 @@ class ReportController extends Controller
     private function exportQueryToCSV($query, $filename, $filters = [])
     {
         try {
+            // Log the query details for debugging
+            $count = $query->count();
+            Log::info('CSV Export starting', [
+                'filename' => $filename,
+                'record_count' => $count,
+                'filters' => $filters,
+                'query' => $query->toSql(),
+                'bindings' => $query->getBindings()
+            ]);
+
             // For CSV, we'll use a simpler approach with chunked processing
             $headers = [
                 'Content-Type' => 'text/csv',
                 'Content-Disposition' => 'attachment; filename="' . $filename . '.csv"',
             ];
 
-            $callback = function() use ($query) {
+            $callback = function() use ($query, $filename) {
                 $file = fopen('php://output', 'w');
                 
                 // Write headers
@@ -282,7 +296,8 @@ class ReportController extends Controller
                 ]);
 
                 // Process in chunks to avoid memory issues
-                $query->chunk(1000, function ($members) use ($file) {
+                $totalProcessed = 0;
+                $query->chunk(1000, function ($members) use ($file, &$totalProcessed) {
                     foreach ($members as $member) {
                         fputcsv($file, [
                             $member->id ?? '',
@@ -297,8 +312,11 @@ class ReportController extends Controller
                             $member->membership_status ?? '',
                             $member->membership_date ?? '',
                         ]);
+                        $totalProcessed++;
                     }
                 });
+                
+                Log::info('CSV Export completed', ['records_processed' => $totalProcessed]);
 
                 fclose($file);
             };
@@ -401,17 +419,8 @@ class ReportController extends Controller
     private function exportMembersToExcel($members, $filename, $filters = [])
     {
         try {
-            // Convert to collection if it's not already
-            if (is_array($members)) {
-                $members = collect($members);
-            } elseif (is_object($members) && method_exists($members, 'toArray')) {
-                $members = collect($members->toArray());
-            } elseif (is_object($members) && method_exists($members, 'all')) {
-                $members = collect($members->all());
-            }
-            
-            $export = new MembersExport($filters, [], [], $members);
-            return Excel::download($export, $filename . '.xlsx');
+            // For now, redirect to CSV to avoid memory issues
+            return $this->exportMembersToCSV($members, $filename, $filters);
         } catch (\Exception $e) {
             Log::error('Excel export failed: ' . $e->getMessage(), [
                 'filename' => $filename,
@@ -473,9 +482,70 @@ class ReportController extends Controller
     private function exportMembersToCSV($members, $filename, $filters = [])
     {
         try {
-            $export = new MembersExport($filters, [], [], $members);
-            return Excel::download($export, $filename . '.csv', \Maatwebsite\Excel\Excel::CSV);
+            // Use direct CSV streaming to avoid memory issues
+            $headers = [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '.csv"',
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0'
+            ];
+
+            $callback = function () use ($members) {
+                $file = fopen('php://output', 'w');
+                
+                // Write headers
+                fputcsv($file, [
+                    'ID', 'First Name', 'Last Name', 'Date of Birth', 'Gender',
+                    'Phone', 'Email', 'Local Church', 'Church Group', 
+                    'Membership Status', 'Membership Date'
+                ]);
+
+                // Convert collection to array if needed
+                if (is_object($members) && method_exists($members, 'chunk')) {
+                    // If it's a query builder or model, chunk it
+                    $members->chunk(1000, function ($memberChunk) use ($file) {
+                        foreach ($memberChunk as $member) {
+                            fputcsv($file, [
+                                $member->id ?? '',
+                                $member->first_name ?? '',
+                                $member->last_name ?? '',
+                                $member->date_of_birth ?? '',
+                                $member->gender ?? '',
+                                $this->formatPhoneForExport($member->phone ?? ''),
+                                $member->email ?? '',
+                                $member->local_church ?? '',
+                                $member->church_group ?? '',
+                                $member->membership_status ?? '',
+                                $member->membership_date ?? '',
+                            ]);
+                        }
+                    });
+                } else {
+                    // If it's a collection, process directly
+                    foreach ($members as $member) {
+                        fputcsv($file, [
+                            $member->id ?? '',
+                            $member->first_name ?? '',
+                            $member->last_name ?? '',
+                            $member->date_of_birth ?? '',
+                            $member->gender ?? '',
+                            $this->formatPhoneForExport($member->phone ?? ''),
+                            $member->email ?? '',
+                            $member->local_church ?? '',
+                            $member->church_group ?? '',
+                            $member->membership_status ?? '',
+                            $member->membership_date ?? '',
+                        ]);
+                    }
+                }
+
+                fclose($file);
+            };
+
+            return response()->stream($callback, 200, $headers);
         } catch (\Exception $e) {
+            Log::error('CSV export failed: ' . $e->getMessage());
             return response()->json(['error' => 'CSV export failed: ' . $e->getMessage()], 500);
         }
     }
@@ -508,7 +578,7 @@ class ReportController extends Controller
     }
 
     /**
-     * Export members to PDF format
+     * Export members to PDF format with enhanced database details
      */
     private function exportMembersToPDF(array $filters = [], array $selectedFields = [], array $includeOptions = [], $membersCollection = null)
     {
@@ -516,11 +586,13 @@ class ReportController extends Controller
             // Use Dompdf for PDF generation
             $pdf = app('dompdf.wrapper');
             
-            // Get the data
+            // Get comprehensive member data with all relationships
             if ($membersCollection !== null) {
                 $members = is_array($membersCollection) ? collect($membersCollection) : $membersCollection;
             } else {
-                $query = Member::query();
+                $query = Member::with(['baptismRecord', 'marriageRecord', 'sacraments', 'tithes' => function($query) {
+                    $query->latest()->limit(5);
+                }]);
                 
                 // Apply filters
                 if (!empty($filters['search'])) {
@@ -553,8 +625,8 @@ class ReportController extends Controller
                 $members = $query->limit(500)->get(); // Limit for PDF performance
             }
             
-            // Prepare data for PDF view
-            $title = 'Members Export';
+            // Prepare comprehensive data for PDF view
+            $title = 'Comprehensive Parish Members Report';
             if (!empty($filters['local_church'])) {
                 $title .= ' - ' . $filters['local_church'];
             }
@@ -567,19 +639,28 @@ class ReportController extends Controller
                 'members' => $members,
                 'selectedFields' => $selectedFields,
                 'filters' => $filters,
-                'exportDate' => now()->format('Y-m-d H:i:s')
+                'parish_name' => config('app.parish_name', 'Sacred Heart Kandara Parish'),
+                'exportDate' => now()->format('Y-m-d H:i:s'),
+                'statistics' => [
+                    'total_members' => $members->count(),
+                    'baptized_members' => $members->where('baptism_date', '!=', null)->count(),
+                    'confirmed_members' => $members->where('confirmation_date', '!=', null)->count(),
+                    'married_members' => $members->where('matrimony_status', 'married')->count(),
+                    'male_members' => $members->where('gender', 'Male')->count(),
+                    'female_members' => $members->where('gender', 'Female')->count(),
+                ]
             ];
             
-            // Generate PDF from view
-            $html = view('exports.members-pdf', $data)->render();
-            $pdf->loadHTML($html);
+            // Generate PDF from enhanced view
+            $pdf->loadView('exports.comprehensive-members-pdf', $data);
             $pdf->setPaper('A4', 'landscape');
             
-            $filename = 'members-export-' . now()->format('Y-m-d-H-i-s') . '.pdf';
+            $filename = 'comprehensive-members-report-' . now()->format('Y-m-d-H-i-s') . '.pdf';
             
             return $pdf->download($filename);
             
         } catch (\Exception $e) {
+            Log::error('Comprehensive PDF export failed: ' . $e->getMessage());
             return response()->json(['error' => 'PDF export failed: ' . $e->getMessage()], 500);
         }
     }
@@ -619,16 +700,16 @@ class ReportController extends Controller
     {
         switch ($ageGroup) {
             case 'children':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 0 AND 12');
+                $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 0 AND 12');
                 break;
             case 'youth':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 13 AND 24');
+                $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 13 AND 24');
                 break;
             case 'adults':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 25 AND 59');
+                $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 25 AND 59');
                 break;
             case 'seniors':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) >= 60');
+                $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 >= 60');
                 break;
         }
     }
@@ -685,10 +766,10 @@ class ReportController extends Controller
             ],
             'demographics' => [
                 'age_groups' => [
-                    'children' => Member::whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 0 AND 12')->count(),
-                    'youth' => Member::whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 13 AND 24')->count(),
-                    'adults' => Member::whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 25 AND 59')->count(),
-                    'seniors' => Member::whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) >= 60')->count(),
+                    'children' => Member::whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 0 AND 12')->count(),
+                    'youth' => Member::whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 13 AND 24')->count(),
+                    'adults' => Member::whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 25 AND 59')->count(),
+                    'seniors' => Member::whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 >= 60')->count(),
                 ],
                 'gender_distribution' => [
                     'male' => Member::where('gender', 'Male')->count(),
@@ -773,11 +854,11 @@ class ReportController extends Controller
         }
         
         if (!empty($filters['age_min'])) {
-            $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) >= ?', [$filters['age_min']]);
+            $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 >= ?', [$filters['age_min']]);
         }
         
         if (!empty($filters['age_max'])) {
-            $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) <= ?', [$filters['age_max']]);
+            $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 <= ?', [$filters['age_max']]);
         }
         
         if (isset($filters['has_baptism']) && $filters['has_baptism']) {
@@ -826,10 +907,10 @@ class ReportController extends Controller
         return [
             'monthly_trends' => $monthlyData,
             'age_distribution' => [
-                ['name' => 'Children (0-12)', 'value' => Member::whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 0 AND 12')->count()],
-                ['name' => 'Youth (13-24)', 'value' => Member::whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 13 AND 24')->count()],
-                ['name' => 'Adults (25-59)', 'value' => Member::whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 25 AND 59')->count()],
-                ['name' => 'Seniors (60+)', 'value' => Member::whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) >= 60')->count()],
+                ['name' => 'Children (0-12)', 'value' => Member::whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 0 AND 12')->count()],
+                ['name' => 'Youth (13-24)', 'value' => Member::whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 13 AND 24')->count()],
+                ['name' => 'Adults (25-59)', 'value' => Member::whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 25 AND 59')->count()],
+                ['name' => 'Seniors (60+)', 'value' => Member::whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 >= 60')->count()],
             ],
             'gender_distribution' => [
                 ['name' => 'Male', 'value' => Member::where('gender', 'Male')->count()],
@@ -1291,11 +1372,11 @@ class ReportController extends Controller
 
         // Age range filters
         if ($request->has('age_min')) {
-            $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) >= ?', [$request->input('age_min')]);
+            $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 >= ?', [$request->input('age_min')]);
         }
 
         if ($request->has('age_max')) {
-            $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) <= ?', [$request->input('age_max')]);
+            $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 <= ?', [$request->input('age_max')]);
         }
 
         // Sacrament filters
@@ -1349,11 +1430,11 @@ class ReportController extends Controller
 
         // Apply age filters
         if ($request->has('age_min')) {
-            $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) >= ?', [$request->input('age_min')]);
+            $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 >= ?', [$request->input('age_min')]);
         }
 
         if ($request->has('age_max')) {
-            $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) <= ?', [$request->input('age_max')]);
+            $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 <= ?', [$request->input('age_max')]);
         }
 
         // Apply sacrament filters
@@ -1557,27 +1638,41 @@ class ReportController extends Controller
      */
     public function exportByAgeGroup(Request $request)
     {
-        $ageGroup = $request->input('value', 'all');
-        $format = $request->input('format', 'excel');
+        try {
+            // Increase memory limit and execution time for exports
+            ini_set('memory_limit', '2G');
+            ini_set('max_execution_time', 600);
+            set_time_limit(600);
+            
+            $ageGroup = $request->input('value', 'all');
+            $format = $request->input('format', 'excel');
 
-        $query = Member::query();
+            $query = Member::query();
 
         if ($ageGroup !== 'all') {
             switch ($ageGroup) {
                 case '0-17':
-                    $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) BETWEEN 0 AND 17');
+                case 'children':
+                    $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 0 AND 17');
                     break;
                 case '18-30':
-                    $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) BETWEEN 18 AND 30');
+                case 'youth':
+                    $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 18 AND 30');
                     break;
                 case '31-50':
-                    $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) BETWEEN 31 AND 50');
+                case 'adults':
+                    $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 31 AND 50');
                     break;
                 case '51-70':
-                    $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) BETWEEN 51 AND 70');
+                case 'seniors':
+                    $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 51 AND 70');
                     break;
                 case '70+':
-                    $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE()) > 70');
+                case 'elderly':
+                    $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 > 70');
+                    break;
+                default:
+                    // If no valid age group, return all members
                     break;
             }
         }
@@ -1586,6 +1681,10 @@ class ReportController extends Controller
         $filename = $ageGroup === 'all' ? "all-members-by-age-{$format}" : "members-age-{$ageGroup}-{$format}";
 
         return $this->exportMembersData($members, $format, $filename);
+        } catch (\Exception $e) {
+            Log::error('Export by age group failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Export failed: ' . $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -1593,18 +1692,29 @@ class ReportController extends Controller
      */
     public function exportByGender(Request $request)
     {
-        $gender = $request->input('value', 'all');
-        $format = $request->input('format', 'excel');
+        try {
+            // Increase memory limit and execution time for exports
+            ini_set('memory_limit', '2G');
+            ini_set('max_execution_time', 600);
+            set_time_limit(600);
+            
+            $gender = $request->input('value', 'all');
+            $format = $request->input('format', 'excel');
 
-        if ($gender === 'all') {
-            $members = Member::orderBy('gender')->orderBy('last_name')->get();
-            $filename = "all-members-by-gender-{$format}";
-        } else {
-            $members = Member::where('gender', $gender)->orderBy('last_name')->get();
-            $filename = strtolower($gender) . "-members-{$format}";
+            // Use query builder instead of getting all records
+            $query = Member::query();
+            if ($gender !== 'all') {
+                $query->where('gender', $gender);
+            }
+            $query->orderBy('gender')->orderBy('last_name');
+            
+            $filename = $gender === 'all' ? "all-members-by-gender" : strtolower($gender) . "-members";
+
+            return $this->exportMembersDataFromQuery($query, $format, $filename, ['gender' => $gender]);
+        } catch (\Exception $e) {
+            Log::error('Export by gender failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Export failed: ' . $e->getMessage()], 500);
         }
-
-        return $this->exportMembersData($members, $format, $filename);
     }
 
     /**
@@ -1614,11 +1724,23 @@ class ReportController extends Controller
     {
         try {
             // Increase memory limit and execution time for exports
-            ini_set('memory_limit', '1G');
-            set_time_limit(300);
+            ini_set('memory_limit', '2G');
+            ini_set('max_execution_time', 600);
+            set_time_limit(600);
             
             $status = $request->input('value', 'all');
             $format = $request->input('format', 'excel');
+
+            // Normalize status to lowercase for case-insensitive matching
+            if ($status !== 'all') {
+                $status = strtolower($status);
+            }
+
+            Log::info('Export by membership status requested', [
+                'status' => $status,
+                'format' => $format,
+                'raw_value' => $request->input('value')
+            ]);
 
             // Create query without executing it
             $query = Member::select([
@@ -1772,5 +1894,28 @@ class ReportController extends Controller
         }
         
         return $phone;
+    }
+
+    /**
+     * Handle export members data route (for all members export)
+     */
+    public function exportMembersDataRoute(Request $request)
+    {
+        try {
+            $value = $request->input('value', 'all');
+            $format = $request->input('format', 'excel');
+            
+            if ($value === 'all') {
+                $members = Member::orderBy('last_name')->orderBy('first_name')->get();
+                $filename = "all-members-export-" . now()->format('Y-m-d');
+                
+                return $this->exportMembersData($members, $format, $filename);
+            } else {
+                return response()->json(['error' => 'Invalid value parameter'], 400);
+            }
+        } catch (\Exception $e) {
+            Log::error('Export members data route failed: ' . $e->getMessage());
+            return response()->json(['error' => 'Export failed: ' . $e->getMessage()], 500);
+        }
     }
 }

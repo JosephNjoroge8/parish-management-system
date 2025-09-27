@@ -1485,6 +1485,18 @@ export default function EnhancedReportsIndex({ auth, statistics, charts, filters
                         </div>
                     </div>
 
+                    {/* Member Search Section */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center space-x-3">
+                                <Search className="w-6 h-6 text-blue-600" />
+                                <h3 className="text-xl font-bold text-gray-900">Search Members & Download Certificates</h3>
+                            </div>
+                        </div>
+                        
+                        <MemberSearchSection />
+                    </div>
+
                     {/* Charts Section */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                         {/* Church Groups Distribution */}
@@ -1712,3 +1724,158 @@ export default function EnhancedReportsIndex({ auth, statistics, charts, filters
         </>
     );
 }
+
+// Member Search Section Component
+const MemberSearchSection: React.FC = () => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
+
+    const handleSearch = async () => {
+        if (!searchTerm.trim()) return;
+        
+        setIsSearching(true);
+        setHasSearched(true);
+        
+        try {
+            const response = await fetch(`/api/members/search?q=${encodeURIComponent(searchTerm)}`);
+            const data = await response.json();
+            setSearchResults(data.members || []);
+        } catch (error) {
+            console.error('Search error:', error);
+            setSearchResults([]);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
+    };
+
+    const downloadCertificate = (memberId: number, type: 'baptism' | 'marriage') => {
+        const url = type === 'baptism' 
+            ? `/members/${memberId}/baptism-certificate`
+            : `/members/${memberId}/marriage-certificate`;
+        window.open(url, '_blank');
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Search Input */}
+            <div className="flex space-x-4">
+                <div className="flex-1">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                            type="text"
+                            placeholder="Search by name, phone, email, or member ID..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyPress={handleKeyPress}
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                    </div>
+                </div>
+                <button
+                    onClick={handleSearch}
+                    disabled={!searchTerm.trim() || isSearching}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                    {isSearching ? (
+                        <>
+                            <RefreshCw className="w-5 h-5 animate-spin" />
+                            <span>Searching...</span>
+                        </>
+                    ) : (
+                        <>
+                            <Search className="w-5 h-5" />
+                            <span>Search</span>
+                        </>
+                    )}
+                </button>
+            </div>
+
+            {/* Search Results */}
+            {hasSearched && (
+                <div className="border-t pt-6">
+                    {searchResults.length > 0 ? (
+                        <div className="space-y-4">
+                            <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                                <Users className="w-5 h-5 mr-2 text-blue-600" />
+                                Found {searchResults.length} member{searchResults.length !== 1 ? 's' : ''}
+                            </h4>
+                            
+                            <div className="grid gap-4">
+                                {searchResults.map((member) => (
+                                    <div key={member.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex-1">
+                                                <div className="flex items-center space-x-4">
+                                                    <div className="flex-1">
+                                                        <h5 className="font-semibold text-gray-900">
+                                                            {member.first_name} {member.middle_name ? member.middle_name + ' ' : ''}{member.last_name}
+                                                        </h5>
+                                                        <div className="text-sm text-gray-600 mt-1 space-y-1">
+                                                            {member.email && <div>📧 {member.email}</div>}
+                                                            {member.phone && <div>📱 {member.phone}</div>}
+                                                            <div>🆔 Member ID: {member.id}</div>
+                                                            {member.date_of_birth && (
+                                                                <div>🎂 Born: {new Date(member.date_of_birth).toLocaleDateString()}</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center space-x-2">
+                                                        <Link
+                                                            href={`/members/${member.id}`}
+                                                            className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 flex items-center space-x-1"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                            <span>View</span>
+                                                        </Link>
+                                                        
+                                                        <div className="flex space-x-1">
+                                                            <button
+                                                                onClick={() => downloadCertificate(member.id, 'baptism')}
+                                                                className="px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 flex items-center space-x-1"
+                                                                title="Download Baptism Certificate"
+                                                            >
+                                                                <FileText className="w-4 h-4" />
+                                                                <span>Baptism</span>
+                                                            </button>
+                                                            
+                                                            <button
+                                                                onClick={() => downloadCertificate(member.id, 'marriage')}
+                                                                className="px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 flex items-center space-x-1"
+                                                                title="Download Marriage Certificate"
+                                                            >
+                                                                <Heart className="w-4 h-4" />
+                                                                <span>Marriage</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-8">
+                            <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                            <h4 className="text-lg font-semibold text-gray-900 mb-2">No members found</h4>
+                            <p className="text-gray-600">
+                                Try searching with different keywords like name, phone number, email, or member ID.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};

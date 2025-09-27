@@ -301,9 +301,9 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
     ], []);
     
     const { data, setData, post, processing, errors = {}, clearErrors } = useForm<MemberFormData>({
-        local_church: '',
+        local_church: 'Sacred Heart Kandara',
         small_christian_community: '',
-        church_group: '',
+        church_group: 'Catholic Action',
         additional_church_groups: [],
         first_name: '',
         middle_name: '',
@@ -314,8 +314,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         email: '',
         id_number: '',
         godparent: '',
-        occupation: '',
-        education_level: '',
+        occupation: 'not_employed',
+        education_level: 'none',
         family_id: '',
         parent: '',
         minister: '',
@@ -324,7 +324,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         baptism_date: '',
         residence: '',
         confirmation_date: '',
-        matrimony_status: '',
+        matrimony_status: 'single',
         marriage_type: '',
         membership_date: new Date().toISOString().split('T')[0],
         membership_status: 'active',
@@ -560,7 +560,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         ];
         
         const baseRequired = [
-            'local_church', 'church_group', 'first_name', 'last_name', 'date_of_birth', 'gender'
+            'first_name', 'last_name', 'gender'
         ];
 
         let visible = [...baseFields];
@@ -568,30 +568,30 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
 
         switch (churchGroup) {
             case 'PMC':
-                visible.push('parent', 'family_id');
-                required.push('parent');
+                visible.push('parent', 'family_id', 'date_of_birth', 'education_level');
+                // Don't make parent required - it's optional
                 break;
                 
             case 'C.W.A':
                 visible.push('occupation', 'education_level', 'godparent', 
                            'matrimony_status', 'marriage_type', 'minister', 'tribe', 'clan', 'family_id');
-                required.push('matrimony_status');
+                // Don't require matrimony_status - make it optional
                 break;
                 
             case 'CMA':
                 visible.push('occupation', 'education_level', 'godparent', 
                            'matrimony_status', 'marriage_type', 'minister', 'tribe', 'clan', 'family_id');
-                required.push('matrimony_status');
+                // Don't require matrimony_status - make it optional
                 break;
                 
             case 'Youth':
-                visible.push('education_level', 'parent', 'family_id', 'godparent', 'tribe', 'clan');
-                required.push('education_level');
+                visible.push('education_level', 'parent', 'family_id', 'godparent', 'tribe', 'clan', 'date_of_birth');
+                // Don't require education_level - make it optional
                 break;
                 
             case 'Choir':
-                visible.push('occupation', 'education_level', 'godparent', 'family_id', 'tribe', 'clan');
-                required.push('phone');
+                visible.push('occupation', 'education_level', 'godparent', 'family_id', 'tribe', 'clan', 'phone');
+                // Don't require phone - make it optional
                 break;
                 
             case 'Catholic Action':
@@ -709,20 +709,31 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
             clearErrors();
         }
         
-        // Validate required fields
-        const missingFields = requiredFields.filter((field: string) => {
+        // Validate only truly essential fields - don't block on optional group-specific fields
+        const essentialFields = ['first_name', 'last_name', 'gender'];
+        const missingEssentialFields = essentialFields.filter((field: string) => {
             const value = data[field as keyof MemberFormData];
             return typeof value === 'string' ? !value.trim() : !value;
         });
         
-        if (missingFields.length > 0) {
-            const firstMissingField = missingFields[0];
+        if (missingEssentialFields.length > 0) {
+            const firstMissingField = missingEssentialFields[0];
             const element = document.getElementById(firstMissingField);
             if (element) {
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 element.focus();
             }
             return;
+        }
+        
+        // Log warnings for missing preferred fields but don't block submission
+        const missingPreferredFields = requiredFields.filter((field: string) => {
+            const value = data[field as keyof MemberFormData];
+            return typeof value === 'string' ? !value.trim() : !value;
+        });
+        
+        if (missingPreferredFields.length > 0) {
+            console.warn('Missing preferred fields for ' + data.church_group + ':', missingPreferredFields);
         }
         
         post(route('members.store'), {
@@ -1171,8 +1182,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 onChange={(value) => {
                                     const genderError = validateChurchGroupGender(data.church_group, String(value));
                                     if (genderError && data.church_group) {
-                                        alert(genderError);
-                                        return;
+                                        console.warn(genderError);
+                                        // Allow selection but show warning
                                     }
                                     handleInputChange('gender', value);
                                 }}
@@ -1358,7 +1369,9 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     options={[
                                         { value: 'single', label: 'Single' },
                                         { value: 'married', label: 'Married' },
-                                        { value: 'widowed', label: 'Widowed' }
+                                        { value: 'divorced', label: 'Divorced' },
+                                        { value: 'widowed', label: 'Widowed' },
+                                        { value: 'separated', label: 'Separated' }
                                     ]}
                                     hasError={hasError('matrimony_status')}
                                     errorMessage={getErrorMessage('matrimony_status')}
@@ -2235,7 +2248,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     </Link>
                                     <button
                                         type="submit"
-                                        disabled={processing || !data.church_group}
+                                        disabled={processing}
                                         className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg flex items-center space-x-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {processing ? (

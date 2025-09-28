@@ -5,8 +5,8 @@
 ---
 deployment:
   tasks:
-    # Step 1: Set deployment path for your cPanel account
-    - export DEPLOYPATH=/home/$USER/public_html/
+    # Step 1: Set deployment path for your specific cPanel directory
+    - export DEPLOYPATH=/home2/shemidig/parish_system/
     
     # Step 2: Deploy Laravel application files (excluding sensitive files)
     - /bin/cp -R app $DEPLOYPATH

@@ -87,8 +87,8 @@ mix-manifest.json.backup
 # ============================================================================
 # DEPENDENCIES & PACKAGES
 # ============================================================================
-# PHP dependencies
-/vendor/
+# PHP dependencies (Allow vendor for production deployment)
+# /vendor/ - COMMENTED OUT to allow vendor folder for cPanel deployment
 composer.phar
 
 # Node.js dependencies
@@ -149,16 +149,13 @@ $RECYCLE.BIN/
 # ============================================================================
 # DEPLOYMENT & SERVER FILES
 # ============================================================================
-# Deployment scripts with sensitive info (allow the main deployment files)
-!deploy.php
-!deploy.sh
-!verify-cpanel-setup.sh
-!prepare-deployment.sh
+# Deployment scripts (Allow essential production scripts only)
+!deploy-production.sh
+!migrate-existing-mysql.sh
 deploy-*.sh
 deployment.log
 *.deployment.log
-!deploy-production-complete.sh
-!optimize-for-production.sh
+# Block all other .sh files except the essential production ones above
 
 # Server configuration files (may contain sensitive paths)
 .htaccess
@@ -228,11 +225,13 @@ custom_reports/
 member_directory_*.pdf
 
 # Allow production optimization files (REQUIRED for deployment)
-!PRODUCTION_DEPLOYMENT_GUIDE.md
-!deploy-production-complete.sh
-!optimize-for-production.sh
+!PRODUCTION_DEPLOYMENT_COMPLETE.md
+!CPANEL_DEPLOYMENT_FINAL_GUIDE.md
 !SYSTEM_OPTIMIZATION_COMPLETE.md
 !FRONTEND_BACKEND_SYNC_REPORT.md
+!.env.cpanel.template
+!migrate-existing-mysql.sh
+!deploy-production.sh
 
 # ============================================================================
 # ASSETS & MEDIA
@@ -259,9 +258,9 @@ member_directory_*.pdf
 .tmp/
 .temp/
 
-# Lock files
-package-lock.json
-composer.lock
+# Lock files (Allow for production consistency)
+# package-lock.json - ALLOWED for production deployment consistency
+# composer.lock - ALLOWED for production deployment consistency
 
 # ============================================================================
 # SECURITY & ANALYSIS TOOLS

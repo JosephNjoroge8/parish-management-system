@@ -945,7 +945,7 @@ class ReportController extends Controller
         $totalMembers = $baseQuery->count();
         
         // Apply filters
-        $this->applyAdvancedFilters($baseQuery, $filters);
+        $this->applyComprehensiveFilters($baseQuery, $filters);
         
         $dateFilteredQuery = $this->applyDateFilter(clone $baseQuery, $period, $startDate, $endDate);
         
@@ -1144,7 +1144,7 @@ class ReportController extends Controller
     private function generateEnhancedChartData($filters = [])
     {
         $baseQuery = Member::query();
-        $this->applyAdvancedFilters($baseQuery, $filters);
+        $this->applyComprehensiveFilters($baseQuery, $filters);
         
         $now = Carbon::now();
         $monthlyData = [];
@@ -1694,7 +1694,7 @@ class ReportController extends Controller
         $query = Member::query();
 
         // Apply advanced filters
-        $this->applyAdvancedFilters($query, $filters);
+        $this->applyComprehensiveFilters($query, $filters);
 
         // Apply age filters
         if ($request->has('age_min')) {

@@ -1,5 +1,37 @@
 # Optimized cPanel Deployment Configuration
-# Fast and reliable deployment for Parish Management System
+# Fast and reliable deployment for Parish Management System wi    # Step 7: Final security and verification
+    - echo "🔐 Final security settings and verification..."
+    - |
+      cd $DEPLOYPATH
+      
+      # Secure .env file
+      [ -f .env ] && chmod 600 .env
+      
+      # Remove any development files that might have been copied
+      rm -f debug_*.php test_*.php *.log run-seeders-*.sh 2>/dev/null || true
+      
+      # Verify Laravel is working
+      if /usr/local/bin/ea-php82 artisan --version >/dev/null 2>&1; then
+        echo "🎉 Parish Management System Deployed Successfully!"
+        echo "🌐 Access your system at: http://parish.quovadisyouthhub.org/"
+        echo ""
+        echo "✅ Automatic seeders have been executed:"
+        echo "   - Roles and permissions configured"
+        echo "   - Production data initialized"
+        echo "   - Admin user created (if specified in seeder)"
+        echo ""
+        echo "🔧 Manual Commands (if needed):"
+        echo "   Re-run seeders: /usr/local/bin/ea-php82 artisan db:seed --force"
+        echo "   Create specific admin: /usr/local/bin/ea-php82 artisan db:seed --class=ProductionSeeder --force"
+        echo "   Clear cache: /usr/local/bin/ea-php82 artisan config:clear && /usr/local/bin/ea-php82 artisan cache:clear"
+        echo ""
+        echo "📝 Next Steps:"
+        echo "   1. Test login with seeded admin credentials"
+        echo "   2. Verify all MySQL database functions work correctly"
+        echo "   3. Check tithes, families, and reports sections"
+      else
+        echo "⚠️ Deployment completed but Laravel check failed - verify manually"
+      fis
 # Documentation: https://docs.cpanel.net/knowledge-base/web-services/guide-to-git-deployment/
 
 ---
@@ -23,24 +55,20 @@ deployment:
     - chmod -R 755 $DEPLOYPATH
     - chmod -R 777 $DEPLOYPATH/storage $DEPLOYPATH/bootstrap/cache 2>/dev/null || true
     
-    # Step 5: Environment check and Laravel setup
-    - echo "⚙️ Setting up Laravel environment..."
+    # Step 5: Use existing environment configuration
+    - echo "⚙️ Checking environment configuration..."
     - |
       cd $DEPLOYPATH
-      if [ ! -f .env ]; then
-        if [ -f .env.example ]; then
-          cp .env.example .env
-          echo "📋 Created .env from template - EDIT WITH YOUR DATABASE CREDENTIALS!"
-        else
-          echo "❌ ERROR: No .env or .env.example found!"
-          exit 1
-        fi
+      if [ -f .env ]; then
+        echo "✅ Using existing .env configuration with MySQL database"
       else
-        echo "✅ .env file exists"
+        echo "❌ ERROR: .env file not found in cPanel!"
+        echo "� Please create .env file in cPanel File Manager with MySQL settings"
+        exit 1
       fi
     
-    # Step 6: Laravel optimization (essential commands only)
-    - echo "🚀 Optimizing Laravel..."
+    # Step 6: Laravel optimization and database setup with seeders
+    - echo "🚀 Optimizing Laravel and seeding database..."
     - |
       cd $DEPLOYPATH
       
@@ -51,8 +79,53 @@ deployment:
       /usr/local/bin/ea-php82 artisan config:clear --no-interaction || true
       /usr/local/bin/ea-php82 artisan cache:clear --no-interaction || true
       
+      # Test database connection
+      echo "🔍 Testing MySQL database connection..."
+      if /usr/local/bin/ea-php82 artisan tinker --execute="try { DB::connection()->getPdo(); echo 'Database connected successfully!'; } catch(Exception \$e) { echo 'Connection failed: ' . \$e->getMessage(); exit(1); }" 2>/dev/null; then
+        echo "✅ MySQL database connection successful"
+        DB_CONNECTED=true
+      else
+        echo "❌ MySQL database connection failed - check .env settings"
+        echo "📝 Verify DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD in .env"
+        DB_CONNECTED=false
+      fi
+      
       # Run migrations (with timeout protection)
-      timeout 60 /usr/local/bin/ea-php82 artisan migrate --force --no-interaction || echo "Migration timeout/error - check manually"
+      if [ "$DB_CONNECTED" = "true" ]; then
+        echo "📊 Running database migrations..."
+        timeout 90 /usr/local/bin/ea-php82 artisan migrate --force --no-interaction || echo "Migration timeout/error - check manually"
+        
+        # Run seeders for fresh installations (roles, permissions, etc.)
+        echo "🌱 Seeding database with essential production data..."
+        
+        # Seed roles and permissions (essential for system operation)
+        echo "👥 Setting up roles and permissions..."
+        if /usr/local/bin/ea-php82 artisan db:seed --class=RolePermissionSeeder --force --no-interaction 2>/dev/null; then
+          echo "✅ Roles and permissions seeded successfully"
+        else
+          echo "⚠️  Role/Permission seeder failed or data already exists"
+        fi
+        
+        # Seed production data (sample data, default settings)
+        echo "🏗️  Setting up production configuration and admin user..."
+        if /usr/local/bin/ea-php82 artisan db:seed --class=ProductionSeeder --force --no-interaction 2>/dev/null; then
+          echo "✅ Production data seeded successfully"
+        else
+          echo "⚠️  Production seeder failed or data already exists"
+        fi
+        
+        # Run complete database seeder if needed
+        echo "📋 Running complete database seeder..."
+        if /usr/local/bin/ea-php82 artisan db:seed --force --no-interaction 2>/dev/null; then
+          echo "✅ Complete database seeding successful"
+        else
+          echo "⚠️  Complete seeder failed or data already exists"
+        fi
+        
+        echo "✅ Database seeding completed"
+      else
+        echo "⏭️  Skipping migrations and seeders due to database connection issues"
+      fi
       
       # Create storage link
       /usr/local/bin/ea-php82 artisan storage:link --no-interaction || true

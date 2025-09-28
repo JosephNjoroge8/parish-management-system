@@ -1,0 +1,69 @@
+# cPanel Deployment Configuration
+# This file defines how your Laravel application should be deployed on cPanel
+# Documentation: https://docs.cpanel.net/knowledge-base/web-services/guide-to-git-deployment/
+
+---
+deployment:
+  tasks:
+    # Step 1: Update Composer dependencies (skip if vendor folder is included)
+    # - export COMPOSER_HOME=/home/$USER/.config/composer
+    # - /usr/local/bin/ea-php82 /usr/local/bin/composer install --no-dev --optimize-autoloader
+
+    # Step 2: Verify .env file exists (user-configured)
+    - |
+      if [ -f .env ]; then
+        echo "✅ .env file found and configured"
+      else
+        echo "❌ ERROR: .env file not found! Please ensure your .env file exists in cPanel"
+        exit 1
+      fi
+
+    # Step 3: Generate Laravel application key
+    - /usr/local/bin/ea-php82 artisan key:generate --force
+    - echo "✅ Application key generated"
+
+    # Step 4: Clear and optimize Laravel caches
+    - /usr/local/bin/ea-php82 artisan config:clear
+    - /usr/local/bin/ea-php82 artisan cache:clear
+    - /usr/local/bin/ea-php82 artisan route:clear
+    - /usr/local/bin/ea-php82 artisan view:clear
+    - echo "✅ Caches cleared"
+
+    # Step 5: Run database migrations
+    - /usr/local/bin/ea-php82 artisan migrate --force
+    - echo "✅ Database migrations completed"
+
+    # Step 6: Seed database with initial data
+    - /usr/local/bin/ea-php82 artisan db:seed --force
+    - echo "✅ Database seeding completed"
+
+    # Step 7: Create storage symbolic link
+    - /usr/local/bin/ea-php82 artisan storage:link
+    - echo "✅ Storage link created"
+
+    # Step 8: Optimize application for production
+    - /usr/local/bin/ea-php82 artisan config:cache
+    - /usr/local/bin/ea-php82 artisan route:cache  
+    - /usr/local/bin/ea-php82 artisan view:cache
+    - /usr/local/bin/ea-php82 artisan event:cache
+    - echo "✅ Application optimized for production"
+
+    # Step 9: Set proper file permissions
+    - find $DEPLOYPATH -type d -exec chmod 755 {} \;
+    - find $DEPLOYPATH -type f -exec chmod 644 {} \;
+    - chmod -R 777 $DEPLOYPATH/storage
+    - chmod -R 777 $DEPLOYPATH/bootstrap/cache
+    - chmod 600 $DEPLOYPATH/.env
+    - echo "✅ File permissions set correctly"
+
+    # Step 10: Verify deployment
+    - |
+      echo "🎉 Parish Management System Deployment Completed!"
+      echo "📊 System Information:"
+      /usr/local/bin/ea-php82 artisan --version
+      echo "🌐 Your application is ready at: https://shemidigy.co.ke"
+      echo "📝 Next steps:"
+      echo "   1. Verify your .env database credentials"  
+      echo "   2. Test login functionality"
+      echo "   3. Check reports and member registration"
+      echo "   4. Ensure all exports work properly"

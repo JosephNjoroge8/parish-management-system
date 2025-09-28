@@ -90,12 +90,25 @@ mix-manifest.json.backup
 # /vendor/ - COMMENTED OUT to allow vendor folder for cPanel deployment
 composer.phar
 
-# Node.js dependencies
-/node_modules/
+# Node.js dependencies (Allow node_modules for production deployment)
+# /node_modules/ - COMMENTED OUT to allow node_modules folder for cPanel deployment
 npm-debug.log
 yarn-error.log
 .npm
 .yarn-integrity
+
+# ============================================================================
+# CONFIGURATION FILES (ALLOWED FOR PRODUCTION)
+# ============================================================================
+# NOTE: All config files are ALLOWED and required for production:
+# ✅ tailwind.config.js - Required for CSS compilation
+# ✅ postcss.config.js - Required for CSS processing  
+# ✅ vite.config.js - Required for asset bundling
+# ✅ tsconfig.json - Required for TypeScript compilation
+# ✅ package.json - Required for dependencies
+# ✅ package-lock.json - Required for dependency locking
+# ✅ composer.json - Required for PHP dependencies
+# ✅ composer.lock - Required for PHP dependency locking
 
 # ============================================================================
 # IDE & EDITOR FILES

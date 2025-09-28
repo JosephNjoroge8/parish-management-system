@@ -1,92 +1,84 @@
-# cPanel Deployment Configuration
-# This file defines how your Laravel application should be deployed on cPanel
+# Optimized cPanel Deployment Configuration
+# Fast and reliable deployment for Parish Management System
 # Documentation: https://docs.cpanel.net/knowledge-base/web-services/guide-to-git-deployment/
 
 ---
 deployment:
   tasks:
-    # Step 1: Set deployment path for your specific cPanel directory
+    # Step 1: Initialize deployment path
     - export DEPLOYPATH=/home2/shemidig/parish_system/
+    - echo "🚀 Starting deployment to $DEPLOYPATH"
     
-    # Step 2: Deploy Laravel application files (excluding sensitive files)
-    - /bin/cp -R app $DEPLOYPATH
-    - /bin/cp -R bootstrap $DEPLOYPATH
-    - /bin/cp -R config $DEPLOYPATH
-    - /bin/cp -R database $DEPLOYPATH
-    - /bin/cp -R public/* $DEPLOYPATH
-    - /bin/cp -R resources $DEPLOYPATH
-    - /bin/cp -R routes $DEPLOYPATH
-    - /bin/cp -R storage $DEPLOYPATH
-    - /bin/cp -R vendor $DEPLOYPATH
-    - /bin/cp artisan $DEPLOYPATH
-    - /bin/cp composer.json $DEPLOYPATH
-    - /bin/cp composer.lock $DEPLOYPATH
-    - /bin/cp package.json $DEPLOYPATH
-    - /bin/cp vite.config.js $DEPLOYPATH
-    - /bin/cp tailwind.config.js $DEPLOYPATH
-    - /bin/cp postcss.config.js $DEPLOYPATH
+    # Step 2: Fast bulk copy (much faster than individual file copies)
+    - echo "📁 Copying application files..."
+    - /bin/cp -R . $DEPLOYPATH/ 2>/dev/null || true
     
-    # Step 3: Copy .env.example as reference (your .env should already exist)
-    - /bin/cp .env.example $DEPLOYPATH
+    # Step 3: Remove git files from deployment (security & space)
+    - /bin/rm -rf $DEPLOYPATH/.git
+    - /bin/rm -f $DEPLOYPATH/.gitignore
+    - echo "🗑️ Git files removed from deployment"
     
-    # Step 4: Verify .env file exists on server (user-configured)
+    # Step 4: Essential file permissions (fast approach)
+    - echo "🔒 Setting essential permissions..."
+    - chmod -R 755 $DEPLOYPATH
+    - chmod -R 777 $DEPLOYPATH/storage $DEPLOYPATH/bootstrap/cache 2>/dev/null || true
+    
+    # Step 5: Environment check and Laravel setup
+    - echo "⚙️ Setting up Laravel environment..."
     - |
-      if [ -f $DEPLOYPATH/.env ]; then
-        echo "✅ .env file found and configured"
+      cd $DEPLOYPATH
+      if [ ! -f .env ]; then
+        if [ -f .env.example ]; then
+          cp .env.example .env
+          echo "📋 Created .env from template - EDIT WITH YOUR DATABASE CREDENTIALS!"
+        else
+          echo "❌ ERROR: No .env or .env.example found!"
+          exit 1
+        fi
       else
-        echo "⚠️  WARNING: .env file not found! You may need to create it manually"
-        echo "📝 Use .env.example as a template"
+        echo "✅ .env file exists"
       fi
-
-    # Step 5: Generate Laravel application key (if needed)
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan key:generate --force
-    - echo "✅ Application key generated"
-
-    # Step 6: Clear and optimize Laravel caches
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan config:clear
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan cache:clear
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan route:clear
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan view:clear
-    - echo "✅ Caches cleared"
-
-    # Step 7: Run database migrations
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan migrate --force
-    - echo "✅ Database migrations completed"
-
-    # Step 8: Seed database with initial data (optional - comment out if not needed)
-    # - cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan db:seed --force
-    # - echo "✅ Database seeding completed"
-
-    # Step 9: Create storage symbolic link
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan storage:link
-    - echo "✅ Storage link created"
-
-    # Step 10: Optimize application for production
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan config:cache
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan route:cache  
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan view:cache
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan event:cache
-    - echo "✅ Application optimized for production"
-
-    # Step 11: Set proper file permissions
-    - find $DEPLOYPATH -type d -exec chmod 755 {} \;
-    - find $DEPLOYPATH -type f -exec chmod 644 {} \;
-    - chmod -R 777 $DEPLOYPATH/storage
-    - chmod -R 777 $DEPLOYPATH/bootstrap/cache
+    
+    # Step 6: Laravel optimization (essential commands only)
+    - echo "🚀 Optimizing Laravel..."
     - |
-      if [ -f $DEPLOYPATH/.env ]; then
-        chmod 600 $DEPLOYPATH/.env
+      cd $DEPLOYPATH
+      
+      # Generate app key if needed
+      /usr/local/bin/ea-php82 artisan key:generate --force --no-interaction || echo "Key generation skipped"
+      
+      # Clear caches (fast)
+      /usr/local/bin/ea-php82 artisan config:clear --no-interaction || true
+      /usr/local/bin/ea-php82 artisan cache:clear --no-interaction || true
+      
+      # Run migrations (with timeout protection)
+      timeout 60 /usr/local/bin/ea-php82 artisan migrate --force --no-interaction || echo "Migration timeout/error - check manually"
+      
+      # Create storage link
+      /usr/local/bin/ea-php82 artisan storage:link --no-interaction || true
+      
+      # Production optimization
+      /usr/local/bin/ea-php82 artisan config:cache --no-interaction || true
+      /usr/local/bin/ea-php82 artisan route:cache --no-interaction || true
+      
+      echo "✅ Laravel setup completed"
+
+    # Step 7: Final security and verification
+    - echo "🔐 Final security settings..."
+    - |
+      cd $DEPLOYPATH
+      
+      # Secure .env file
+      [ -f .env ] && chmod 600 .env
+      
+      # Remove any development files that might have been copied
+      rm -f debug_*.php test_*.php *.log 2>/dev/null || true
+      
+      # Verify Laravel is working
+      if /usr/local/bin/ea-php82 artisan --version >/dev/null 2>&1; then
+        echo "� Parish Management System Deployed Successfully!"
+        echo "🌐 Access your system at: http://parish.quovadisyouthhub.org/"
+        echo "📝 Remember to verify your .env database settings!"
+      else
+        echo "⚠️ Deployment completed but Laravel check failed - verify manually"
       fi
-    - echo "✅ File permissions set correctly"
-
-    # Step 12: Verify deployment
-    - |
-      echo "🎉 Parish Management System Deployment Completed!"
-      echo "📊 System Information:"
-      cd $DEPLOYPATH && /usr/local/bin/ea-php82 artisan --version
-      echo "🌐 Your application is ready at: https://shemidigy.co.ke"
-      echo "📝 Next steps:"
-      echo "   1. Verify your .env database credentials"  
-      echo "   2. Test login functionality"
-      echo "   3. Check reports and member registration"
-      echo "   4. Ensure all exports work properly"

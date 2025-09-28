@@ -270,7 +270,7 @@ class BaptismRecordController extends Controller
             'this_year' => BaptismRecord::whereYear('baptism_date', now()->year)->count(),
             'this_month' => BaptismRecord::whereYear('baptism_date', now()->year)
                 ->whereMonth('baptism_date', now()->month)->count(),
-            'by_month' => BaptismRecord::selectRaw('CAST(strftime("%m", baptism_date) AS INTEGER) as month, COUNT(*) as count')
+            'by_month' => BaptismRecord::selectRaw('MONTH(baptism_date) as month, COUNT(*) as count')
                 ->whereYear('baptism_date', now()->year)
                 ->groupBy('month')
                 ->orderBy('month')

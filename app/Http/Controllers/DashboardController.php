@@ -68,7 +68,7 @@ class DashboardController extends Controller
                     ->selectRaw('
                         COUNT(*) as total_members,
                         SUM(CASE WHEN membership_status = "active" THEN 1 ELSE 0 END) as active_members,
-                        SUM(CASE WHEN strftime("%m", created_at) = strftime("%m", "now") AND strftime("%Y", created_at) = strftime("%Y", "now") THEN 1 ELSE 0 END) as new_this_month,
+                        SUM(CASE WHEN MONTH(created_at) = MONTH(NOW()) AND YEAR(created_at) = YEAR(NOW()) THEN 1 ELSE 0 END) as new_this_month,
                         SUM(CASE WHEN gender IN ("male", "Male") THEN 1 ELSE 0 END) as male_count,
                         SUM(CASE WHEN gender IN ("female", "Female") THEN 1 ELSE 0 END) as female_count
                     ')
@@ -315,8 +315,8 @@ class DashboardController extends Controller
                     ->selectRaw('
                         COUNT(*) as total_members,
                         SUM(CASE WHEN membership_status = "active" THEN 1 ELSE 0 END) as active_members,
-                        SUM(CASE WHEN CAST(strftime("%m", created_at) AS INTEGER) = ? AND CAST(strftime("%Y", created_at) AS INTEGER) = ? THEN 1 ELSE 0 END) as new_this_month,
-                        SUM(CASE WHEN CAST(strftime("%m", created_at) AS INTEGER) = ? AND CAST(strftime("%Y", created_at) AS INTEGER) = ? THEN 1 ELSE 0 END) as new_last_month,
+                        SUM(CASE WHEN MONTH(created_at) = ? AND YEAR(created_at) = ? THEN 1 ELSE 0 END) as new_this_month,
+                        SUM(CASE WHEN MONTH(created_at) = ? AND YEAR(created_at) = ? THEN 1 ELSE 0 END) as new_last_month,
                         SUM(CASE WHEN gender IN ("male", "Male") THEN 1 ELSE 0 END) as male_count,
                         SUM(CASE WHEN gender IN ("female", "Female") THEN 1 ELSE 0 END) as female_count,
                         SUM(CASE WHEN family_id IS NULL THEN 1 ELSE 0 END) as without_families,
@@ -330,7 +330,7 @@ class DashboardController extends Controller
                     ->selectRaw('
                         COUNT(*) as total_families,
                         SUM(CASE WHEN EXISTS(SELECT 1 FROM members WHERE family_id = families.id AND membership_status = "active") THEN 1 ELSE 0 END) as active_families,
-                        SUM(CASE WHEN CAST(strftime("%m", created_at) AS INTEGER) = ? AND CAST(strftime("%Y", created_at) AS INTEGER) = ? THEN 1 ELSE 0 END) as new_families_this_month
+                        SUM(CASE WHEN MONTH(created_at) = ? AND YEAR(created_at) = ? THEN 1 ELSE 0 END) as new_families_this_month
                     ')
                     ->addBinding([$currentMonth, $currentYear])
                     ->first();
@@ -338,10 +338,10 @@ class DashboardController extends Controller
                 // Single query for tithe stats
                 $titheStats = DB::table('tithes')
                     ->selectRaw('
-                        SUM(CASE WHEN CAST(strftime("%m", date_given) AS INTEGER) = ? AND CAST(strftime("%Y", date_given) AS INTEGER) = ? THEN amount ELSE 0 END) as total_this_month,
-                        SUM(CASE WHEN CAST(strftime("%Y", date_given) AS INTEGER) = ? THEN amount ELSE 0 END) as total_this_year,
-                        COUNT(DISTINCT CASE WHEN CAST(strftime("%m", date_given) AS INTEGER) = ? AND CAST(strftime("%Y", date_given) AS INTEGER) = ? THEN member_id END) as contributors_this_month,
-                        AVG(CASE WHEN CAST(strftime("%m", date_given) AS INTEGER) = ? AND CAST(strftime("%Y", date_given) AS INTEGER) = ? THEN amount END) as avg_amount
+                        SUM(CASE WHEN MONTH(date_given) = ? AND YEAR(date_given) = ? THEN amount ELSE 0 END) as total_this_month,
+                        SUM(CASE WHEN YEAR(date_given) = ? THEN amount ELSE 0 END) as total_this_year,
+                        COUNT(DISTINCT CASE WHEN MONTH(date_given) = ? AND YEAR(date_given) = ? THEN member_id END) as contributors_this_month,
+                        AVG(CASE WHEN MONTH(date_given) = ? AND YEAR(date_given) = ? THEN amount END) as avg_amount
                     ')
                     ->addBinding([$currentMonth, $currentYear, $currentYear, $currentMonth, $currentYear, $currentMonth, $currentYear])
                     ->first();
@@ -349,11 +349,11 @@ class DashboardController extends Controller
                 // Single query for sacrament stats
                 $sacramentStats = DB::table('sacraments')
                     ->selectRaw('
-                        SUM(CASE WHEN CAST(strftime("%m", sacrament_date) AS INTEGER) = ? AND CAST(strftime("%Y", sacrament_date) AS INTEGER) = ? THEN 1 ELSE 0 END) as this_month,
-                        SUM(CASE WHEN CAST(strftime("%Y", sacrament_date) AS INTEGER) = ? THEN 1 ELSE 0 END) as this_year,
-                        SUM(CASE WHEN sacrament_type = "baptism" AND CAST(strftime("%Y", sacrament_date) AS INTEGER) = ? THEN 1 ELSE 0 END) as baptisms,
-                        SUM(CASE WHEN sacrament_type = "confirmation" AND CAST(strftime("%Y", sacrament_date) AS INTEGER) = ? THEN 1 ELSE 0 END) as confirmations,
-                        SUM(CASE WHEN sacrament_type IN ("marriage", "matrimony") AND CAST(strftime("%Y", sacrament_date) AS INTEGER) = ? THEN 1 ELSE 0 END) as marriages
+                        SUM(CASE WHEN MONTH(sacrament_date) = ? AND YEAR(sacrament_date) = ? THEN 1 ELSE 0 END) as this_month,
+                        SUM(CASE WHEN YEAR(sacrament_date) = ? THEN 1 ELSE 0 END) as this_year,
+                        SUM(CASE WHEN sacrament_type = "baptism" AND YEAR(sacrament_date) = ? THEN 1 ELSE 0 END) as baptisms,
+                        SUM(CASE WHEN sacrament_type = "confirmation" AND YEAR(sacrament_date) = ? THEN 1 ELSE 0 END) as confirmations,
+                        SUM(CASE WHEN sacrament_type IN ("marriage", "matrimony") AND YEAR(sacrament_date) = ? THEN 1 ELSE 0 END) as marriages
                     ')
                     ->addBinding([$currentMonth, $currentYear, $currentYear, $currentYear, $currentYear, $currentYear])
                     ->first();
@@ -728,8 +728,8 @@ class DashboardController extends Controller
                     // Optimized financial alert check
                     $financialAlert = DB::table('tithes')
                         ->selectRaw('
-                            SUM(CASE WHEN strftime("%m", date_given) = strftime("%m", "now") AND strftime("%Y", date_given) = strftime("%Y", "now") THEN amount ELSE 0 END) as this_month,
-                            SUM(CASE WHEN strftime("%m", date_given) = printf("%02d", CAST(strftime("%m", "now") AS INTEGER) - 1) AND strftime("%Y", date_given) = strftime("%Y", "now") THEN amount ELSE 0 END) as last_month
+                            SUM(CASE WHEN MONTH(date_given) = MONTH(NOW()) AND YEAR(date_given) = YEAR(NOW()) THEN amount ELSE 0 END) as this_month,
+                            SUM(CASE WHEN MONTH(date_given) = MONTH(DATE_SUB(NOW(), INTERVAL 1 MONTH)) AND YEAR(date_given) = YEAR(NOW()) THEN amount ELSE 0 END) as last_month
                         ')
                         ->first();
 

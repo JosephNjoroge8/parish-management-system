@@ -206,7 +206,7 @@ class FamilyController extends Controller
                                    ->values()
                                    ->toArray(),
                 // Use created_at for years since registration_date doesn't exist
-                'years' => Family::select(DB::raw('DISTINCT strftime("%Y", created_at) as year'))
+                'years' => Family::select(DB::raw('DISTINCT YEAR(created_at) as year'))
                                 ->whereNotNull('created_at')
                                 ->orderBy('year', 'desc')
                                 ->pluck('year')

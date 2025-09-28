@@ -472,7 +472,7 @@ class MarriageRecordController extends Controller
             'this_year' => MarriageRecord::whereYear('marriage_date', now()->year)->count(),
             'this_month' => MarriageRecord::whereYear('marriage_date', now()->year)
                 ->whereMonth('marriage_date', now()->month)->count(),
-            'by_month' => MarriageRecord::selectRaw('CAST(strftime("%m", marriage_date) AS INTEGER) as month, COUNT(*) as count')
+            'by_month' => MarriageRecord::selectRaw('MONTH(marriage_date) as month, COUNT(*) as count')
                 ->whereYear('marriage_date', now()->year)
                 ->groupBy('month')
                 ->orderBy('month')

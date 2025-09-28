@@ -2,306 +2,395 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Baptism Certificate - {{ $member->full_name }}</title>
+    <title>Baptism Card - {{ $member->full_name }}</title>
     <style>
         @page {
-            size: A4;
-            margin: 15mm;
+            size: A5 landscape;
+            margin: 5mm;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
         }
         
         body {
             font-family: 'Times New Roman', serif;
-            font-size: 12pt;
-            line-height: 1.4;
+            font-size: 8pt;
+            line-height: 1.1;
             color: #000;
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            background-color: #a8c4b8;
+            height: 100%;
+            width: 100%;
         }
         
-        .header {
-            text-align: center;
-            border-bottom: 3px double #000;
-            padding-bottom: 15px;
-            margin-bottom: 25px;
+        .card {
+            background-color: #a8c4b8;
+            width: 100%;
+            height: 185mm;
+            display: table;
+            table-layout: fixed;
+            padding: 8mm;
+            box-sizing: border-box;
         }
         
-        .parish-name {
-            font-size: 18pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 5px;
+        .left-column {
+            display: table-cell;
+            width: 45%;
+            vertical-align: top;
+            padding-right: 5mm;
         }
         
-        .diocese {
-            font-size: 14pt;
-            margin-bottom: 10px;
+        .right-column {
+            display: table-cell;
+            width: 55%;
+            vertical-align: top;
+            padding-left: 5mm;
         }
         
-        .certificate-title {
-            font-size: 16pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 15px;
+        .cell {
+            margin-bottom: 5mm;
+            padding: 3mm;
         }
         
-        .content-section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #ddd;
+        .cell:last-child {
+            margin-bottom: 0;
+        }
+        
+        .left-section {
+            display: block;
+        }
+        
+        .right-section {
+            display: block;
+        }
+        
+        .sacrament-cell {
+            margin-bottom: 4mm;
+            padding: 3mm;
+        }
+        
+        .sacrament-cell:last-child {
+            margin-bottom: 0;
         }
         
         .section-title {
             font-weight: bold;
-            font-size: 14pt;
+            font-size: 9pt;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 3mm;
+            text-align: center;
             border-bottom: 1px solid #000;
-            padding-bottom: 5px;
-            margin-bottom: 15px;
+            padding-bottom: 2mm;
         }
         
-        .info-row {
+        .field {
             display: flex;
-            margin-bottom: 10px;
-            padding: 3px 0;
+            align-items: baseline;
+            margin-bottom: 2mm;
+            font-size: 8pt;
+            line-height: 1.2;
         }
         
-        .info-label {
-            font-weight: bold;
-            width: 35%;
-            display: inline-block;
+        .field-label {
+            font-weight: normal;
+            white-space: nowrap;
+            margin-right: 3mm;
+            min-width: 15mm;
+            font-size: 8pt;
         }
         
-        .info-value {
-            width: 65%;
-            border-bottom: 1px solid #000;
-            display: inline-block;
-            min-height: 20px;
-            padding-left: 5px;
+        .field-value {
+            background-color: #a8c4b8;
+            font-weight: normal;
+            padding: 0 2mm;
+            font-size: 8pt;
+            white-space: nowrap;
+            min-width: 25mm;
         }
         
-        .baptism-details {
-            background-color: #f9f9f9;
+        .dotted-line {
+            border-bottom: 1px dotted #000;
+            flex: 1;
+            height: 1px;
+            margin-left: 3mm;
         }
         
-        .signature-section {
-            margin-top: 40px;
+        /* Special styling for specific sections */
+        .baptism-section {
+            margin-top: 0;
+        }
+        
+        .baptism-section .section-title {
+            text-decoration: underline;
+        }
+        
+        .confirmation-fields {
             display: flex;
-            justify-content: space-between;
+            gap: 5mm;
         }
         
-        .signature-box {
-            width: 45%;
-            text-align: center;
-            border-top: 1px solid #000;
-            padding-top: 10px;
-            margin-top: 50px;
+        .confirmation-fields .field {
+            flex: 1;
         }
         
-        .date-issued {
-            text-align: right;
-            margin-top: 30px;
-            font-style: italic;
+        .confirmation-fields .field-label {
+            min-width: 12mm;
+            font-size: 8pt;
         }
         
-        .seal-area {
-            text-align: center;
-            margin: 30px 0;
-            height: 80px;
-            border: 2px dashed #ccc;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #666;
+        .confirmation-fields .field-value {
+            font-size: 8pt;
         }
         
-        .footer {
-            text-align: center;
-            font-size: 10pt;
-            margin-top: 30px;
-            color: #666;
+        .marriage-section {
+            margin-top: 0;
         }
         
-        .record-number {
-            text-align: right;
-            font-size: 10pt;
-            margin-bottom: 20px;
+        .name-line {
+            border-bottom: 2px solid #000;
+            height: 2px;
+            margin: 2mm 0 4mm 0;
+        }
+        
+        .sacrament-group {
+            margin-bottom: 3mm;
+        }
+        
+        .compact-field {
+            margin-bottom: 2mm;
+        }
+        
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
+            }
+            
+            .card { 
+                page-break-inside: avoid !important;
+                page-break-after: avoid !important;
+                page-break-before: avoid !important;
+                height: auto !important;
+                width: 100% !important;
+            }
+            
+            @page { 
+                margin: 5mm !important;
+                size: A5 landscape !important;
+            }
+        }
+        
+        @media screen and (max-width: 1024px) {
+            html, body { font-size: 6pt; }
+            .field { font-size: 5pt; }
+            .field-label { font-size: 5pt; min-width: 7mm; }
+            .field-value { font-size: 5pt; }
+            .section-title { font-size: 6pt; }
+        }
+        
+        @media screen and (max-width: 768px) {
+            html, body { font-size: 5pt; }
+            .card { padding: 2mm; }
+            .field { font-size: 4pt; margin-bottom: 0.5mm; }
+            .field-label { font-size: 4pt; min-width: 6mm; }
+            .field-value { font-size: 4pt; }
+            .section-title { font-size: 5pt; }
         }
     </style>
 </head>
 <body>
-    <div class="record-number">
-        <strong>Certificate No:</strong> {{ $baptismRecord->record_number ?? 'BAP-' . str_pad($member->id, 6, '0', STR_PAD_LEFT) }}
-    </div>
-
-    <div class="header">
-        <div class="parish-name">{{ $parish_name ?? 'Sacred Heart Kandara Parish' }}</div>
-        <div class="diocese">Catholic Diocese of Murang'a</div>
-        <div class="certificate-title">Certificate of Baptism</div>
-    </div>
-
-    <!-- Personal Information -->
-    <div class="content-section">
-        <div class="section-title">Personal Information</div>
-        
-        <div class="info-row">
-            <span class="info-label">Full Name:</span>
-            <span class="info-value">{{ $member->first_name }} {{ $member->middle_name }} {{ $member->last_name }}</span>
+    <div class="card">
+        <!-- Left Column - 2 Cells -->
+        <div class="left-column">
+            <!-- Cell 1: Personal Details -->
+            <div class="cell">
+                <!-- Member's Name -->
+                <div style="text-align: center; font-weight: bold; font-size: 8pt; margin-bottom: 1mm; text-transform: uppercase; line-height: 1.0;">
+                    {{ $member->full_name }}
+                </div>
+                <!-- Name line -->
+                <div class="name-line"></div>
+                
+                <div class="field compact-field">
+                    <span class="field-label">Father</span>
+                    <span class="field-value">{{ $member->father_name ?? ($member->parent ? $member->parent->first_name . ' ' . $member->parent->last_name : '') }}</span>
+                    <div class="dotted-line"></div>
+                </div>
+                
+                <div class="field compact-field">
+                    <span class="field-label">Mother</span>
+                    <span class="field-value">{{ $member->mother_name ?? '' }}</span>
+                    <div class="dotted-line"></div>
+                </div>
+                
+                <div class="field compact-field">
+                    <span class="field-label">Tribe</span>
+                    <span class="field-value">{{ $member->tribe ?? '' }}</span>
+                    <div class="dotted-line"></div>
+                </div>
+                
+                <div class="field compact-field">
+                    <span class="field-label">Born on</span>
+                    <span class="field-value">{{ $member->birth_village ?? '' }}</span>
+                    <div class="dotted-line"></div>
+                </div>
+                
+                <div class="field compact-field">
+                    <span class="field-label">County</span>
+                    <span class="field-value">{{ $member->county ?? '' }}</span>
+                    <div class="dotted-line"></div>
+                </div>
+                
+                <div class="field compact-field">
+                    <span class="field-label">Date</span>
+                    <span class="field-value">{{ $member->date_of_birth ? $member->date_of_birth->format('d/m/Y') : '' }}</span>
+                    <div class="dotted-line"></div>
+                </div>
+                
+                <div class="field compact-field">
+                    <span class="field-label">Residence</span>
+                    <span class="field-value">{{ $member->residence ?? '' }}</span>
+                    <div class="dotted-line"></div>
+                </div>
+            </div>
+            
+            <!-- Cell 2: Baptism -->
+            <div class="cell">
+                <div class="section-title">BAPTISM</div>
+                
+                <div class="field compact-field">
+                    <span class="field-label">At</span>
+                    <span class="field-value">{{ $member->baptism_location ?? $member->local_church ?? '' }}</span>
+                    <div class="dotted-line"></div>
+                </div>
+                
+                <div class="field compact-field">
+                    <span class="field-label">Date</span>
+                    <span class="field-value">{{ $member->baptism_date ? $member->baptism_date->format('d/m/Y') : '' }}</span>
+                    <div class="dotted-line"></div>
+                </div>
+                
+                <div class="field compact-field">
+                    <span class="field-label">By</span>
+                    <span class="field-value">{{ $member->baptized_by ?? ($member->minister ? $member->minister->first_name . ' ' . $member->minister->last_name : '') }}</span>
+                    <div class="dotted-line"></div>
+                </div>
+                
+                <div class="field compact-field">
+                    <span class="field-label">Sponsor</span>
+                    <span class="field-value">{{ $member->sponsor ?? ($member->godparent ? $member->godparent->first_name . ' ' . $member->godparent->last_name : '') }}</span>
+                    <div class="dotted-line"></div>
+                </div>
+            </div>
         </div>
         
-        <div class="info-row">
-            <span class="info-label">Father's Name:</span>
-            <span class="info-value">{{ $baptismRecord->father_name ?? $member->parent?->first_name . ' ' . $member->parent?->last_name ?? 'N/A' }}</span>
+        <!-- Right Column - 3 Cells -->
+        <div class="right-column">
+            <div class="right-section">
+                <!-- Cell 3: Eucharist -->
+                <div class="sacrament-cell">
+                    <div class="section-title">EUCHARIST</div>
+                    
+                    <div class="field compact-field">
+                        <span class="field-label">At</span>
+                        <span class="field-value">{{ $member->eucharist_location ?? '' }}</span>
+                        <div class="dotted-line"></div>
+                    </div>
+                    
+                    <div class="field compact-field">
+                        <span class="field-label">Date</span>
+                        <span class="field-value">{{ $member->eucharist_date ? $member->eucharist_date->format('d/m/Y') : '' }}</span>
+                        <div class="dotted-line"></div>
+                    </div>
+                </div>
+                
+                <!-- Cell 4: Confirmation -->
+                <div class="sacrament-cell">
+                    <div class="section-title">CONFIRMATION</div>
+                    
+                    <div class="field compact-field">
+                        <span class="field-label">At</span>
+                        <span class="field-value">{{ $member->confirmation_location ?? '' }}</span>
+                        <div class="dotted-line"></div>
+                    </div>
+                    
+                    <div class="field compact-field">
+                        <span class="field-label">Date</span>
+                        <span class="field-value">{{ $member->confirmation_date ? $member->confirmation_date->format('d/m/Y') : '' }}</span>
+                        <div class="dotted-line"></div>
+                    </div>
+                    
+                    <div class="confirmation-fields">
+                        <div class="field">
+                            <span class="field-label">Reg.No.</span>
+                            <span class="field-value">{{ $member->confirmation_register_number ?? '' }}</span>
+                            <div class="dotted-line"></div>
+                        </div>
+                        
+                        <div class="field">
+                            <span class="field-label">Conf.No.</span>
+                            <span class="field-value">{{ $member->confirmation_number ?? '' }}</span>
+                            <div class="dotted-line"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cell 5: Marriage -->
+                <div class="sacrament-cell">
+                    <div class="section-title">MARRIAGE</div>
+                    
+                    <div class="field compact-field">
+                        <span class="field-label">With</span>
+                        <span class="field-value">{{ $member->marriage_spouse ?? '' }}</span>
+                        <div class="dotted-line"></div>
+                    </div>
+                    
+                    <div class="field compact-field">
+                        <span class="field-label">At</span>
+                        <span class="field-value">{{ $member->marriage_location ?? '' }}</span>
+                        <div class="dotted-line"></div>
+                    </div>
+                    
+                    <div class="field compact-field">
+                        <span class="field-label">Date</span>
+                        <span class="field-value">{{ $member->marriage_date ? $member->marriage_date->format('d/m/Y') : '' }}</span>
+                        <div class="dotted-line"></div>
+                    </div>
+                    
+                    <div class="confirmation-fields">
+                        <div class="field">
+                            <span class="field-label">Reg.No.</span>
+                            <span class="field-value">{{ $member->marriage_register_number ?? '' }}</span>
+                            <div class="dotted-line"></div>
+                        </div>
+                        
+                        <div class="field">
+                            <span class="field-label">Mar.No.</span>
+                            <span class="field-value">{{ $member->marriage_number ?? '' }}</span>
+                            <div class="dotted-line"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        
-        <div class="info-row">
-            <span class="info-label">Mother's Name:</span>
-            <span class="info-value">{{ $baptismRecord->mother_name ?? 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Date of Birth:</span>
-            <span class="info-value">{{ $member->date_of_birth ? $member->date_of_birth->format('F j, Y') : 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Place of Birth:</span>
-            <span class="info-value">{{ $baptismRecord->birth_village ?? 'N/A' }}, {{ $baptismRecord->county ?? 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Tribe:</span>
-            <span class="info-value">{{ $member->tribe ?? $baptismRecord->tribe ?? 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Residence:</span>
-            <span class="info-value">{{ $member->residence ?? $baptismRecord->residence ?? 'N/A' }}</span>
-        </div>
-    </div>
-
-    <!-- Baptism Information -->
-    <div class="content-section baptism-details">
-        <div class="section-title">Baptism Details</div>
-        
-        <div class="info-row">
-            <span class="info-label">Baptized At:</span>
-            <span class="info-value">{{ $baptismRecord->baptism_location ?? $member->local_church ?? 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Date of Baptism:</span>
-            <span class="info-value">{{ $member->baptism_date ? $member->baptism_date->format('F j, Y') : 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Baptized By:</span>
-            <span class="info-value">{{ $baptismRecord->baptized_by ?? $member->minister?->first_name . ' ' . $member->minister?->last_name ?? 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Sponsor/Godparent:</span>
-            <span class="info-value">{{ $baptismRecord->sponsor ?? $member->godparent?->first_name . ' ' . $member->godparent?->last_name ?? 'N/A' }}</span>
-        </div>
-    </div>
-
-    <!-- Eucharist Information (if available) -->
-    @if($member->confirmation_date || ($baptismRecord && $baptismRecord->eucharist_date))
-    <div class="content-section">
-        <div class="section-title">First Holy Communion</div>
-        
-        <div class="info-row">
-            <span class="info-label">Location:</span>
-            <span class="info-value">{{ $baptismRecord->eucharist_location ?? 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Date:</span>
-            <span class="info-value">{{ $baptismRecord && $baptismRecord->eucharist_date ? \Carbon\Carbon::parse($baptismRecord->eucharist_date)->format('F j, Y') : 'N/A' }}</span>
-        </div>
-    </div>
-    @endif
-
-    <!-- Confirmation Information (if available) -->
-    @if($member->confirmation_date || ($baptismRecord && $baptismRecord->confirmation_date))
-    <div class="content-section">
-        <div class="section-title">Confirmation</div>
-        
-        <div class="info-row">
-            <span class="info-label">Location:</span>
-            <span class="info-value">{{ $baptismRecord->confirmation_location ?? 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Date:</span>
-            <span class="info-value">{{ $member->confirmation_date ? $member->confirmation_date->format('F j, Y') : ($baptismRecord && $baptismRecord->confirmation_date ? \Carbon\Carbon::parse($baptismRecord->confirmation_date)->format('F j, Y') : 'N/A') }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Register No:</span>
-            <span class="info-value">{{ $baptismRecord->confirmation_register_number ?? 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Confirmation No:</span>
-            <span class="info-value">{{ $baptismRecord->confirmation_number ?? 'N/A' }}</span>
-        </div>
-    </div>
-    @endif
-
-    <!-- Marriage Information (if married) -->
-    @if($member->matrimony_status === 'married' && $member->marriage_type === 'church')
-    <div class="content-section">
-        <div class="section-title">Marriage</div>
-        
-        <div class="info-row">
-            <span class="info-label">Spouse:</span>
-            <span class="info-value">{{ $baptismRecord->marriage_spouse ?? 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Location:</span>
-            <span class="info-value">{{ $baptismRecord->marriage_location ?? 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Date:</span>
-            <span class="info-value">{{ $baptismRecord && $baptismRecord->marriage_date ? \Carbon\Carbon::parse($baptismRecord->marriage_date)->format('F j, Y') : 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Register No:</span>
-            <span class="info-value">{{ $baptismRecord->marriage_register_number ?? 'N/A' }}</span>
-        </div>
-        
-        <div class="info-row">
-            <span class="info-label">Marriage No:</span>
-            <span class="info-value">{{ $baptismRecord->marriage_number ?? 'N/A' }}</span>
-        </div>
-    </div>
-    @endif
-
-    <div class="seal-area">
-        [PARISH SEAL]
-    </div>
-
-    <div class="signature-section">
-        <div class="signature-box">
-            Parish Priest
-        </div>
-        <div class="signature-box">
-            Parish Secretary
-        </div>
-    </div>
-
-    <div class="date-issued">
-        <strong>Date Issued:</strong> {{ now()->format('F j, Y') }}
-    </div>
-
-    <div class="footer">
-        This certificate is issued in accordance with Canon Law and the regulations of the Catholic Church.<br>
-        For verification, contact {{ $parish_name ?? 'Sacred Heart Kandara Parish' }} - Phone: {{ config('app.parish_phone', '+254 XXX XXX XXX') }}
     </div>
 </body>
 </html>

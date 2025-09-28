@@ -313,7 +313,7 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
                                         </div>
                                     )}
                                     
-                                    {member.matrimony_status === 'married' && member.marriage_type === 'church' ? (
+                                    {member.matrimony_status && ['married', 'separated', 'divorced', 'widowed'].includes(member.matrimony_status) ? (
                                         <a
                                             href={safeRoute('members.marriage-certificate', member.id)}
                                             target="_blank"
@@ -864,7 +864,7 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
                                             </a>
                                         )}
                                         
-                                        {member.matrimony_status === 'married' && member.marriage_type === 'church' && (
+                                        {member.matrimony_status && ['married', 'separated', 'divorced', 'widowed'].includes(member.matrimony_status) && (
                                             <a
                                                 href={safeRoute('members.marriage-certificate', member.id)}
                                                 target="_blank"

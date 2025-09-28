@@ -28,25 +28,70 @@ export interface User {
 
 export interface Member {
     id: number;
-    member_number: string;
+    member_number?: string;
     first_name: string;
+    middle_name?: string;
     last_name: string;
     full_name?: string;
-    date_of_birth: string;
-    gender: 'male' | 'female';
+    date_of_birth?: string;
+    gender: 'Male' | 'Female';
+    id_number?: string;
     phone?: string;
     email?: string;
-    address?: string;
-    occupation?: string;
-    marital_status: 'single' | 'married' | 'divorced' | 'widowed';
-    membership_status: 'active' | 'inactive' | 'transferred' | 'deceased';
-    joining_date: string;
+    residence?: string;
+    local_church: string;
+    small_christian_community?: string;
+    church_group: string;
+    additional_church_groups?: string[];
+    membership_status?: 'active' | 'inactive' | 'transferred' | 'deceased';
+    membership_date?: string;
+    baptism_date?: string;
+    confirmation_date?: string;
+    matrimony_status: 'single' | 'married' | 'widowed' | 'separated';
+    marriage_type?: 'customary' | 'church' | 'civil';
+    occupation: 'employed' | 'self_employed' | 'not_employed';
+    education_level: 'none' | 'primary' | 'kcpe' | 'secondary' | 'kcse' | 'certificate' | 'diploma' | 'degree' | 'masters' | 'phd';
     family_id?: number;
     family?: Family;
-    relationship_to_head?: string;
-    emergency_contact?: string;
-    emergency_phone?: string;
+    parent?: string;
+    godparent?: string;
+    minister?: string;
+    tribe?: string;
+    clan?: string;
+    is_differently_abled?: boolean;
+    disability_description?: string;
     notes?: string;
+    
+    // Comprehensive Baptism Record Fields
+    birth_village?: string;
+    county?: string;
+    baptism_location?: string;
+    baptized_by?: string;
+    sponsor?: string;
+    father_name?: string;
+    mother_name?: string;
+    
+    // Optional Sacrament Fields
+    eucharist_location?: string;
+    eucharist_date?: string;
+    confirmation_location?: string;
+    confirmation_register_number?: string;
+    confirmation_number?: string;
+    
+    // Marriage Record Fields
+    marriage_date?: string;
+    marriage_location?: string;
+    married_by?: string;
+    spouse_name?: string;
+    witness_1_name?: string;
+    witness_2_name?: string;
+    marriage_register_number?: string;
+    marriage_certificate_number?: string;
+    
+    // Additional Fields
+    godfather_name?: string;
+    godmother_name?: string;
+    
     created_at: string;
     updated_at: string;
 }
@@ -147,23 +192,66 @@ export interface PaginatedData<T> {
 
 // Form data types
 export interface MemberFormData {
-    member_number?: string;
     first_name: string;
+    middle_name?: string;
     last_name: string;
-    date_of_birth: string;
-    gender: 'male' | 'female';
+    date_of_birth?: string;
+    gender: 'Male' | 'Female';
+    id_number?: string;
     phone?: string;
     email?: string;
-    address?: string;
-    occupation?: string;
-    marital_status: 'single' | 'married' | 'divorced' | 'widowed';
-    membership_status: 'active' | 'inactive' | 'transferred' | 'deceased';
-    joining_date: string;
+    residence?: string;
+    local_church: string;
+    small_christian_community?: string;
+    church_group: string;
+    additional_church_groups?: string[];
+    membership_status?: 'active' | 'inactive' | 'transferred' | 'deceased';
+    membership_date?: string;
+    baptism_date?: string;
+    confirmation_date?: string;
+    matrimony_status: 'single' | 'married' | 'widowed' | 'separated';
+    marriage_type?: 'customary' | 'church' | 'civil';
+    occupation: 'employed' | 'self_employed' | 'not_employed';
+    education_level: 'none' | 'primary' | 'kcpe' | 'secondary' | 'kcse' | 'certificate' | 'diploma' | 'degree' | 'masters' | 'phd';
     family_id?: number;
-    relationship_to_head?: string;
-    emergency_contact?: string;
-    emergency_phone?: string;
+    parent?: string;
+    godparent?: string;
+    minister?: string;
+    tribe?: string;
+    clan?: string;
+    is_differently_abled?: boolean;
+    disability_description?: string;
     notes?: string;
+    
+    // Comprehensive Baptism Record Fields
+    birth_village?: string;
+    county?: string;
+    baptism_location?: string;
+    baptized_by?: string;
+    sponsor?: string;
+    father_name?: string;
+    mother_name?: string;
+    
+    // Optional Sacrament Fields
+    eucharist_location?: string;
+    eucharist_date?: string;
+    confirmation_location?: string;
+    confirmation_register_number?: string;
+    confirmation_number?: string;
+    
+    // Marriage Record Fields
+    marriage_date?: string;
+    marriage_location?: string;
+    married_by?: string;
+    spouse_name?: string;
+    witness_1_name?: string;
+    witness_2_name?: string;
+    marriage_register_number?: string;
+    marriage_certificate_number?: string;
+    
+    // Additional Fields
+    godfather_name?: string;
+    godmother_name?: string;
 }
 
 export interface FamilyFormData {

@@ -53,8 +53,6 @@ class SampleDataSeeder extends Seeder
             'phone' => '+254712345678',
             'email' => 'john.kamau@email.com',
             'residence' => 'Thika Town, Kiambu County',
-            'emergency_contact' => 'Mary Kamau',
-            'emergency_phone' => '+254712345679',
             'local_church' => 'St. Mary\'s Catholic Church',
             'small_christian_community' => 'Tumaini SCC',
             'church_group' => 'CMA',
@@ -64,11 +62,12 @@ class SampleDataSeeder extends Seeder
             'confirmation_date' => '1988-05-15',
             'matrimony_status' => 'married',
             'marriage_type' => 'church',
-            'occupation' => 'Teacher',
+            'occupation' => 'employed',
             'education_level' => 'degree',
             'family_id' => $family1->id,
             'tribe' => 'Kikuyu',
             'clan' => 'Anjiru',
+            'is_differently_abled' => false,
         ]);
 
         $maryKamau = Member::create([
@@ -81,8 +80,6 @@ class SampleDataSeeder extends Seeder
             'phone' => '+254712345679',
             'email' => 'mary.kamau@email.com',
             'residence' => 'Thika Town, Kiambu County',
-            'emergency_contact' => 'John Kamau',
-            'emergency_phone' => '+254712345678',
             'local_church' => 'St. Mary\'s Catholic Church',
             'small_christian_community' => 'Tumaini SCC',
             'church_group' => 'C.W.A',
@@ -92,11 +89,12 @@ class SampleDataSeeder extends Seeder
             'confirmation_date' => '1991-06-10',
             'matrimony_status' => 'married',
             'marriage_type' => 'church',
-            'occupation' => 'Nurse',
+            'occupation' => 'employed',
             'education_level' => 'diploma',
             'family_id' => $family1->id,
             'tribe' => 'Kikuyu',
             'clan' => 'Acheera',
+            'is_differently_abled' => false,
         ]);
 
         $peterKamau = Member::create([
@@ -107,8 +105,6 @@ class SampleDataSeeder extends Seeder
             'gender' => 'Male',
             'phone' => '+254712345680',
             'residence' => 'Thika Town, Kiambu County',
-            'emergency_contact' => 'John Kamau',
-            'emergency_phone' => '+254712345678',
             'local_church' => 'St. Mary\'s Catholic Church',
             'small_christian_community' => 'Tumaini SCC',
             'church_group' => 'Youth',
@@ -117,12 +113,13 @@ class SampleDataSeeder extends Seeder
             'baptism_date' => '2005-10-15',
             'confirmation_date' => '2018-04-22',
             'matrimony_status' => 'single',
-            'occupation' => 'Student',
+            'occupation' => 'not_employed',
             'education_level' => 'secondary',
             'family_id' => $family1->id,
             'parent_id' => $johnKamau->id,
             'tribe' => 'Kikuyu',
             'clan' => 'Anjiru',
+            'is_differently_abled' => false,
         ]);
 
         // Update family head
@@ -339,17 +336,19 @@ class SampleDataSeeder extends Seeder
                 'phone' => '+25470000' . str_pad($i, 4, '0', STR_PAD_LEFT),
                 'email' => 'member' . $i . '@parish.com',
                 'residence' => 'Nairobi County, Area ' . $i,
-                'local_church' => 'St. Mary\'s Catholic Church',
+                'local_church' => 'Sacred Heart Kandara',
                 'small_christian_community' => $i <= 5 ? 'Tumaini SCC' : 'Upendo SCC',
                 'church_group' => $this->getRandomChurchGroup($i % 2 == 0 ? 'Female' : 'Male'),
                 'membership_status' => 'active',
                 'membership_date' => Carbon::now()->subYears(rand(1, 10))->format('Y-m-d'),
                 'baptism_date' => Carbon::now()->subYears(rand(15, 50))->format('Y-m-d'),
                 'matrimony_status' => rand(0, 1) ? 'married' : 'single',
-                'occupation' => $this->getRandomOccupation(),
+                'occupation' => $this->getRandomOccupationEnum(),
                 'education_level' => $this->getRandomEducationLevel(),
                 'tribe' => $this->getRandomTribe(),
                 'clan' => 'Clan' . $i,
+                'is_differently_abled' => rand(0, 10) == 0, // 10% chance
+                'disability_description' => rand(0, 10) == 0 ? 'Sample disability description' : null,
             ]);
 
             // Create some random tithe records for these members
@@ -376,9 +375,9 @@ class SampleDataSeeder extends Seeder
         return $groups[array_rand($groups)];
     }
 
-    private function getRandomOccupation()
+    private function getRandomOccupationEnum()
     {
-        $occupations = ['Teacher', 'Nurse', 'Engineer', 'Doctor', 'Farmer', 'Business Owner', 'Student', 'Accountant', 'Lawyer', 'Driver'];
+        $occupations = ['employed', 'self_employed', 'not_employed'];
         return $occupations[array_rand($occupations)];
     }
 

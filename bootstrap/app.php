@@ -34,7 +34,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Route middleware aliases
         $middleware->alias([
-            // Existing middleware
+            // Core authentication middleware
+            'auth.strict' => \App\Http\Middleware\AuthenticateStrict::class,
+            'ensure.authenticated' => \App\Http\Middleware\EnsureAuthenticated::class,
             'check.user.status' => \App\Http\Middleware\CheckUserStatus::class,
             
             // Spatie Permission middleware (existing)
@@ -57,23 +59,23 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Middleware groups for specific route patterns
         $middleware->group('parish', [
-            'auth',
+            'ensure.authenticated', // Ensures user is authenticated and has valid role
             'verified',
             'church.context',
             'activity.log',
         ]);
 
-        // Admin middleware group
+        // Admin middleware group - highest security
         $middleware->group('admin', [
-            'auth',
+            'ensure.authenticated', // Strict authentication first
             'verified',
-            'admin',
+            'admin', // Admin role verification
             'activity.log',
         ]);
 
         // Member management middleware group
         $middleware->group('member.management', [
-            'auth',
+            'ensure.authenticated',
             'verified',
             'church.context',
             'activity.log',

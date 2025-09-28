@@ -38,6 +38,8 @@ interface Member {
     membership_status?: string;
     emergency_contact?: string;
     emergency_phone?: string;
+    is_differently_abled?: string;
+    disability_description?: string;
     notes?: string;
 }
 
@@ -93,6 +95,8 @@ interface MemberFormData {
     emergency_contact: string;
     emergency_phone: string;
     notes: string;
+    is_differently_abled: string;
+    disability_description: string;
 }
 
 const FormInput = ({
@@ -297,6 +301,8 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
         membership_status: member.membership_status || 'active',
         emergency_contact: member.emergency_contact || '',
         emergency_phone: member.emergency_phone || '',
+        is_differently_abled: member.is_differently_abled || 'no',
+        disability_description: member.disability_description || '',
         notes: member.notes || '',
     });
 
@@ -468,7 +474,7 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
         const baseFields = [
             'local_church', 'small_christian_community', 'church_group', 'first_name', 'middle_name', 'last_name', 
             'date_of_birth', 'gender', 'phone', 'email', 'residence', 'membership_date', 
-            'membership_status', 'baptism_date', 'confirmation_date', 'emergency_contact', 
+            'membership_status', 'baptism_date', 'confirmation_date', 
             'emergency_phone', 'notes'
         ];
         
@@ -543,7 +549,7 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
             setVisibleFields([
                 'local_church', 'church_group', 'first_name', 'middle_name', 'last_name', 
                 'date_of_birth', 'gender', 'phone', 'email', 'residence', 'membership_date', 
-                'membership_status', 'emergency_contact', 'emergency_phone', 'notes'
+                'membership_status', 'notes', 'is_differently_abled', 'disability_description'
             ]);
             setRequiredFields([
                 'local_church', 'church_group', 'first_name', 'last_name', 'date_of_birth', 'gender'
@@ -595,7 +601,7 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
                         setActiveTab('personal');
                     } else if (['family_id', 'parent', 'minister', 'godparent', 'tribe', 'clan', 'baptism_date', 'confirmation_date', 'matrimony_status'].includes(firstErrorField)) {
                         setActiveTab('church_details');
-                    } else if (['phone', 'email', 'residence', 'emergency_contact', 'emergency_phone', 'notes'].includes(firstErrorField)) {
+                    } else if (['phone', 'email', 'residence', 'notes', 'is_differently_abled', 'disability_description'].includes(firstErrorField)) {
                         setActiveTab('contact');
                     }
                 }
@@ -1249,28 +1255,37 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
                                 )}
                             </div>
 
+                            {/* Disability Information */}
                             <FormInput
-                                id="emergency_contact"
-                                label="Emergency Contact Name"
-                                maxLength={255}
-                                value={data.emergency_contact}
-                                onChange={(value) => handleInputChange('emergency_contact', value)}
-                                placeholder="Name of emergency contact"
-                                hasError={hasError('emergency_contact')}
-                                errorMessage={getErrorMessage('emergency_contact')}
+                                id="is_differently_abled"
+                                label="Differently Abled"
+                                type="select"
+                                value={data.is_differently_abled}
+                                onChange={(value: string | boolean) => handleInputChange('is_differently_abled', value)}
+                                hasError={hasError('is_differently_abled')}
+                                errorMessage={getErrorMessage('is_differently_abled')}
+                                options={[
+                                    { value: 'no', label: 'No' },
+                                    { value: 'yes', label: 'Yes' }
+                                ]}
                             />
 
-                            <FormInput
-                                id="emergency_phone"
-                                label="Emergency Contact Phone"
-                                type="tel"
-                                maxLength={20}
-                                value={data.emergency_phone}
-                                onChange={(value) => handleInputChange('emergency_phone', value)}
-                                placeholder="+254 700 000 000"
-                                hasError={hasError('emergency_phone')}
-                                errorMessage={getErrorMessage('emergency_phone')}
-                            />
+                            {data.is_differently_abled === 'yes' && (
+                                <div className="md:col-span-2">
+                                    <FormInput
+                                        id="disability_description"
+                                        label="Disability Description"
+                                        type="textarea"
+                                        rows={3}
+                                        value={data.disability_description}
+                                        onChange={(value) => handleInputChange('disability_description', value)}
+                                        placeholder="Please describe the disability or special needs..."
+                                        hasError={hasError('disability_description')}
+                                        errorMessage={getErrorMessage('disability_description')}
+                                        required={data.is_differently_abled === 'yes'}
+                                    />
+                                </div>
+                            )}
 
                             <div className="md:col-span-2">
                                 <FormInput

@@ -58,6 +58,10 @@ interface MemberFormData {
     emergency_phone: string;
     notes: string;
     
+    // Disability Information
+    is_differently_abled: string;
+    disability_description: string;
+    
     // Comprehensive Baptism Record Fields (shown when baptism_date is filled)
     birth_village: string;
     county: string;
@@ -128,6 +132,43 @@ interface MemberFormData {
     other_documents: string;
     civil_marriage_certificate_number: string;
 }
+
+// Small Christian Community Field - Moved outside to prevent focus loss
+const SmallChristianCommunityField = ({
+    value,
+    onChange,
+    hasError,
+    errorMessage,
+    required
+}: {
+    value: string;
+    onChange: (value: string) => void;
+    hasError: boolean;
+    errorMessage: string;
+    required: boolean;
+}) => {
+    return (
+        <div>
+            <label htmlFor="small_christian_community" className="block text-sm font-medium text-gray-700 mb-2">
+                Small Christian Community {required && <span className="text-red-500">*</span>}
+            </label>
+            <input
+                type="text"
+                id="small_christian_community"
+                name="small_christian_community"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder="Enter small christian community name..."
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                    hasError ? 'border-red-500' : 'border-gray-300'
+                }`}
+            />
+            {hasError && (
+                <p className="mt-1 text-sm text-red-600">{errorMessage}</p>
+            )}
+        </div>
+    );
+};
 
 const FormInput = ({
     id,
@@ -246,7 +287,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
     const [visibleFields, setVisibleFields] = useState<string[]>([]);
     const [requiredFields, setRequiredFields] = useState<string[]>([]);
     
-    // Small Christian Community autocomplete state
+    // Small Christian Community autocomplete state (unused - kept for future enhancement)
     const [communitySearchQuery, setCommunitySearchQuery] = useState<string>('');
     const [communitySearchResults, setCommunitySearchResults] = useState<string[]>([]);
     const [showCommunityDropdown, setShowCommunityDropdown] = useState<boolean>(false);
@@ -331,6 +372,10 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         emergency_contact: '',
         emergency_phone: '',
         notes: '',
+        
+        // Disability Information
+        is_differently_abled: 'no',
+        disability_description: '',
         
         // Comprehensive Baptism Record Fields
         birth_village: '',
@@ -539,9 +584,6 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
             if (familySearchRef.current && !familySearchRef.current.contains(event.target as Node)) {
                 setShowFamilyDropdown(false);
             }
-            if (communitySearchRef.current && !communitySearchRef.current.contains(event.target as Node)) {
-                setShowCommunityDropdown(false);
-            }
         };
 
         document.addEventListener('mousedown', handleClickOutside);
@@ -643,7 +685,6 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                         
                         if (!data.small_christian_community && familyHead.small_christian_community) {
                             setData('small_christian_community', familyHead.small_christian_community);
-                            setCommunitySearchQuery(familyHead.small_christian_community);
                         }
                     }
                     
@@ -659,7 +700,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                         
                         const spouse = familyMembers.find((member: any) => 
                             member.id !== familyHead.id && 
-                            member.matrimony_status === 'married' &&
+                            ['married', 'separated', 'widowed'].includes(member.matrimony_status) &&
                             member.gender !== familyHead.gender
                         );
                         
@@ -693,7 +734,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
             setVisibleFields([
                 'local_church', 'church_group', 'first_name', 'middle_name', 'last_name', 
                 'date_of_birth', 'gender', 'phone', 'email', 'residence', 'membership_date', 
-                'membership_status', 'emergency_contact', 'emergency_phone', 'notes'
+                'membership_status', 'notes', 'is_differently_abled', 'disability_description'
             ]);
             setRequiredFields([
                 'local_church', 'church_group', 'first_name', 'last_name', 'date_of_birth', 'gender'
@@ -756,7 +797,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                         setActiveTab('personal');
                     } else if (['family_id', 'parent', 'minister', 'godparent', 'tribe', 'clan', 'baptism_date', 'confirmation_date', 'matrimony_status'].includes(firstErrorField)) {
                         setActiveTab('church_details');
-                    } else if (['phone', 'email', 'residence', 'emergency_contact', 'emergency_phone', 'notes'].includes(firstErrorField)) {
+                    } else if (['phone', 'email', 'residence', 'notes', 'is_differently_abled', 'disability_description'].includes(firstErrorField)) {
                         setActiveTab('contact');
                     }
                 }
@@ -789,7 +830,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         }
         
         // Add marriage details tab if married and church marriage
-        if (data.matrimony_status === 'married' && data.marriage_type === 'church') {
+        if (['married', 'separated', 'widowed'].includes(data.matrimony_status)) {
             baseTabs.push({ id: 'marriage_details', name: 'Marriage Record', icon: AlertCircle });
         }
         
@@ -815,68 +856,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         return Boolean(errors[fieldName as keyof typeof errors]);
     }, [errors]);
 
-    // Small Christian Community Search Component
-    const SmallChristianCommunitySearchField = useCallback(() => {
-        const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-            handleCommunitySearchChange(e.target.value);
-        };
 
-        return (
-            <div className="relative" ref={communitySearchRef}>
-                <label htmlFor="small_christian_community" className="block text-sm font-medium text-gray-700 mb-2">
-                    Small Christian Community {isFieldRequired('small_christian_community') && <span className="text-red-500">*</span>}
-                </label>
-                <div className="relative">
-                    <input
-                        ref={communityInputRef}
-                        type="text"
-                        id="small_christian_community"
-                        value={communitySearchQuery}
-                        onChange={handleInputChange}
-                        onFocus={() => setShowCommunityDropdown(true)}
-                        className={`w-full px-4 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                            hasError('small_christian_community') ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="Type to search or enter new community name..."
-                        autoComplete="off"
-                    />
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                        {isSearchingCommunities ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                        ) : (
-                            <Search className="w-4 h-4 text-gray-400" />
-                        )}
-                    </div>
-                </div>
-
-                {showCommunityDropdown && communitySearchResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {communitySearchResults.map((community, index) => (
-                            <button
-                                key={index}
-                                type="button"
-                                onClick={() => handleCommunitySelect(community)}
-                                className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-blue-50 focus:outline-none transition-colors"
-                            >
-                                <div className="font-medium text-gray-900">{community}</div>
-                            </button>
-                        ))}
-                    </div>
-                )}
-                
-                {hasError('small_christian_community') && (
-                    <p className="mt-1 text-sm text-red-600">{getErrorMessage('small_christian_community')}</p>
-                )}
-                <p className="mt-1 text-sm text-gray-500">
-                    This will help speed up data entry for future registrations
-                </p>
-            </div>
-        );
-    }, [
-        communitySearchQuery, isSearchingCommunities, communitySearchResults, 
-        showCommunityDropdown, handleCommunitySearchChange, handleCommunitySelect, 
-        hasError, getErrorMessage, isFieldRequired
-    ]);
 
     // Family Search Component
     const FamilySearchField = useCallback(() => {
@@ -993,7 +973,13 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                             />
 
                             <div className="md:col-span-2">
-                                <SmallChristianCommunitySearchField />
+                                <SmallChristianCommunityField 
+                                    value={data.small_christian_community}
+                                    onChange={(value) => setData('small_christian_community', value)}
+                                    hasError={hasError('small_christian_community')}
+                                    errorMessage={getErrorMessage('small_christian_community')}
+                                    required={isFieldRequired('small_christian_community')}
+                                />
                             </div>
 
                             <div>
@@ -1206,6 +1192,44 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 hasError={hasError('id_number')}
                                 errorMessage={getErrorMessage('id_number')}
                             />
+                        </div>
+
+                        {/* Disability Information Section */}
+                        <div className="col-span-full">
+                            <h3 className="text-lg font-medium text-gray-900 mb-4 border-b border-gray-200 pb-2">
+                                Disability Information
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormInput
+                                    id="is_differently_abled"
+                                    label="Differently Abled"
+                                    type="select"
+                                    value={data.is_differently_abled}
+                                    onChange={(value: string | boolean) => handleInputChange('is_differently_abled', value)}
+                                    options={[
+                                        { value: 'no', label: 'No' },
+                                        { value: 'yes', label: 'Yes' }
+                                    ]}
+                                    placeholder="Select if differently abled"
+                                    hasError={hasError('is_differently_abled')}
+                                    errorMessage={getErrorMessage('is_differently_abled')}
+                                />
+
+                                {data.is_differently_abled === 'yes' && (
+                                    <FormInput
+                                        id="disability_description"
+                                        label="Disability Description"
+                                        type="textarea"
+                                        value={data.disability_description}
+                                        onChange={(value) => handleInputChange('disability_description', value)}
+                                        placeholder="Please describe the disability or special needs..."
+                                        rows={3}
+                                        maxLength={1000}
+                                        hasError={hasError('disability_description')}
+                                        errorMessage={getErrorMessage('disability_description')}
+                                    />
+                                )}
+                            </div>
 
                             {isFieldVisible('occupation') && (
                                 <FormInput
@@ -1252,6 +1276,28 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     <FamilySearchField />
                                 </div>
                             )}
+
+                            <FormInput
+                                id="father_name"
+                                label="Father's Name"
+                                maxLength={255}
+                                value={data.father_name}
+                                onChange={(value) => handleInputChange('father_name', value)}
+                                placeholder="Full name of father"
+                                hasError={hasError('father_name')}
+                                errorMessage={getErrorMessage('father_name')}
+                            />
+
+                            <FormInput
+                                id="mother_name"
+                                label="Mother's Name"
+                                maxLength={255}
+                                value={data.mother_name}
+                                onChange={(value) => handleInputChange('mother_name', value)}
+                                placeholder="Full name of mother"
+                                hasError={hasError('mother_name')}
+                                errorMessage={getErrorMessage('mother_name')}
+                            />
 
                             {isFieldVisible('parent') && (
                                 <FormInput
@@ -1369,7 +1415,6 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     options={[
                                         { value: 'single', label: 'Single' },
                                         { value: 'married', label: 'Married' },
-                                        { value: 'divorced', label: 'Divorced' },
                                         { value: 'widowed', label: 'Widowed' },
                                         { value: 'separated', label: 'Separated' }
                                     ]}
@@ -1378,7 +1423,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 />
                             )}
 
-                            {data.matrimony_status === 'married' && (
+                            {['married', 'separated', 'widowed'].includes(data.matrimony_status) && (
                                 <div>
                                     <FormInput
                                         id="marriage_type"
@@ -1389,6 +1434,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                         value={data.marriage_type}
                                         onChange={(value) => handleInputChange('marriage_type', value)}
                                         options={[
+                                            { value: 'civil', label: 'Civil Marriage' },
                                             { value: 'customary', label: 'Customary Marriage' },
                                             { value: 'church', label: 'Church Marriage' }
                                         ]}
@@ -1400,6 +1446,9 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                             💡 Complete the church marriage record details in the "Marriage Record" tab
                                         </p>
                                     )}
+                                    <p className="mt-1 text-sm text-green-600">
+                                        💡 Marriage certificates are available for download after registration
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -2088,29 +2137,6 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 )}
                             </div>
 
-                            <FormInput
-                                id="emergency_contact"
-                                label="Emergency Contact Name"
-                                maxLength={255}
-                                value={data.emergency_contact}
-                                onChange={(value) => handleInputChange('emergency_contact', value)}
-                                placeholder="Name of emergency contact"
-                                hasError={hasError('emergency_contact')}
-                                errorMessage={getErrorMessage('emergency_contact')}
-                            />
-
-                            <FormInput
-                                id="emergency_phone"
-                                label="Emergency Contact Phone"
-                                type="tel"
-                                maxLength={20}
-                                value={data.emergency_phone}
-                                onChange={(value) => handleInputChange('emergency_phone', value)}
-                                placeholder="+254 700 000 000"
-                                hasError={hasError('emergency_phone')}
-                                errorMessage={getErrorMessage('emergency_phone')}
-                            />
-
                             <div className="md:col-span-2">
                                 <FormInput
                                     id="notes"
@@ -2131,7 +2157,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
             default:
                 return null;
         }
-    }, [activeTab, data, isFieldVisible, isFieldRequired, handleInputChange, FormInput, SmallChristianCommunitySearchField, FamilySearchField, selectedFamily, churchGroups, localChurches, educationLevels, validateChurchGroupGender, inheritFamilyData, hasError, getErrorMessage, selectedAdditionalGroups, setSelectedAdditionalGroups, setData]);
+    }, [activeTab, data, isFieldVisible, isFieldRequired, handleInputChange, FormInput, FamilySearchField, selectedFamily, churchGroups, localChurches, educationLevels, validateChurchGroupGender, inheritFamilyData, hasError, getErrorMessage, selectedAdditionalGroups, setSelectedAdditionalGroups, setData]);
 
     return (
         <AuthenticatedLayout

@@ -126,47 +126,119 @@ class DashboardController extends Controller
     {
         try {
             return [
+                // Core user management (Super Admin only)
                 'can_manage_users' => $this->userHasRole($user, 'super-admin'),
+                'can_manage_roles' => $this->userHasRole($user, 'super-admin'),
+                'can_access_admin' => $this->userHasRole($user, ['super-admin', 'admin']),
+                
+                // Member management
                 'can_access_members' => $this->userHasPermission($user, 'access members'),
                 'can_manage_members' => $this->userHasPermission($user, 'manage members'),
-                'can_create_members' => $this->userHasPermission($user, 'create members'),
-                'can_edit_members' => $this->userHasPermission($user, 'edit members'),
                 'can_delete_members' => $this->userHasPermission($user, 'delete members'),
                 'can_export_members' => $this->userHasPermission($user, 'export members'),
+                
+                // Family management
                 'can_access_families' => $this->userHasPermission($user, 'access families'),
                 'can_manage_families' => $this->userHasPermission($user, 'manage families'),
+                'can_delete_families' => $this->userHasPermission($user, 'delete families'),
+                
+                // Sacrament management
                 'can_access_sacraments' => $this->userHasPermission($user, 'access sacraments'),
                 'can_manage_sacraments' => $this->userHasPermission($user, 'manage sacraments'),
+                'can_delete_sacraments' => $this->userHasPermission($user, 'delete sacraments'),
+                
+                // Financial management
                 'can_access_tithes' => $this->userHasPermission($user, 'access tithes'),
                 'can_manage_tithes' => $this->userHasPermission($user, 'manage tithes'),
-                'can_access_reports' => $this->userHasPermission($user, 'access reports'),
+                'can_delete_tithes' => $this->userHasPermission($user, 'delete tithes'),
                 'can_view_financial_reports' => $this->userHasPermission($user, 'view financial reports'),
-                'can_access_community_groups' => $this->userHasPermission($user, 'access community groups'),
-                'can_manage_community_groups' => $this->userHasPermission($user, 'manage community groups'),
+                
+                // Activities
                 'can_access_activities' => $this->userHasPermission($user, 'access activities'),
                 'can_manage_activities' => $this->userHasPermission($user, 'manage activities'),
+                'can_delete_activities' => $this->userHasPermission($user, 'delete activities'),
+                
+                // Reports
+                'can_access_reports' => $this->userHasPermission($user, 'access reports'),
+                'can_export_reports' => $this->userHasPermission($user, 'export reports'),
+                
+                // Settings
+                'can_access_settings' => $this->userHasPermission($user, 'access settings'),
+                'can_manage_settings' => $this->userHasPermission($user, 'manage settings'),
+                
+                // Role information for frontend
+                'is_super_admin' => $this->userHasRole($user, 'super-admin'),
+                'is_admin' => $this->userHasRole($user, ['super-admin', 'admin']),
+                'user_roles' => $this->getUserRoles($user),
             ];
         } catch (\Exception $e) {
+            Log::error('Error getting user permissions', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+            
+            // Fallback permissions for Super Admin by email
+            if ($user->isSuperAdminByEmail()) {
+                return [
+                    'can_manage_users' => true,
+                    'can_manage_roles' => true,
+                    'can_access_admin' => true,
+                    'can_access_members' => true,
+                    'can_manage_members' => true,
+                    'can_delete_members' => true,
+                    'can_export_members' => true,
+                    'can_access_families' => true,
+                    'can_manage_families' => true,
+                    'can_delete_families' => true,
+                    'can_access_sacraments' => true,
+                    'can_manage_sacraments' => true,
+                    'can_delete_sacraments' => true,
+                    'can_access_tithes' => true,
+                    'can_manage_tithes' => true,
+                    'can_delete_tithes' => true,
+                    'can_view_financial_reports' => true,
+                    'can_access_activities' => true,
+                    'can_manage_activities' => true,
+                    'can_delete_activities' => true,
+                    'can_access_reports' => true,
+                    'can_export_reports' => true,
+                    'can_access_settings' => true,
+                    'can_manage_settings' => true,
+                    'is_super_admin' => true,
+                    'is_admin' => true,
+                    'user_roles' => ['super-admin'],
+                ];
+            }
+            
+            // Basic permissions for regular users
             return [
-                'can_manage_users' => $user->email === 'admin@parish.com',
+                'can_manage_users' => false,
+                'can_manage_roles' => false,
+                'can_access_admin' => false,
                 'can_access_members' => true,
-                'can_manage_members' => true,
-                'can_create_members' => true,
-                'can_edit_members' => true,
+                'can_manage_members' => false,
                 'can_delete_members' => false,
-                'can_export_members' => true,
+                'can_export_members' => false,
                 'can_access_families' => true,
-                'can_manage_families' => true,
+                'can_manage_families' => false,
+                'can_delete_families' => false,
                 'can_access_sacraments' => true,
-                'can_manage_sacraments' => true,
-                'can_access_tithes' => true,
-                'can_manage_tithes' => true,
-                'can_access_reports' => true,
-                'can_view_financial_reports' => true,
-                'can_access_community_groups' => true,
-                'can_manage_community_groups' => true,
+                'can_manage_sacraments' => false,
+                'can_delete_sacraments' => false,
+                'can_access_tithes' => false,
+                'can_manage_tithes' => false,
+                'can_delete_tithes' => false,
+                'can_view_financial_reports' => false,
                 'can_access_activities' => true,
-                'can_manage_activities' => true,
+                'can_manage_activities' => false,
+                'can_delete_activities' => false,
+                'can_access_reports' => false,
+                'can_export_reports' => false,
+                'can_access_settings' => false,
+                'can_manage_settings' => false,
+                'is_super_admin' => false,
+                'is_admin' => false,
+                'user_roles' => ['viewer'],
             ];
         }
     }
@@ -199,11 +271,33 @@ class DashboardController extends Controller
     {
         try {
             if (method_exists($user, 'hasRole')) {
+                if (is_array($role)) {
+                    return $user->hasAnyRole($role);
+                }
                 return $user->hasRole($role);
             }
-            return $user->email === 'admin@parish1.com' && $role === 'super-admin';
+            
+            // Fallback to email check for super admin
+            if ($user->isSuperAdminByEmail()) {
+                $checkRoles = is_array($role) ? $role : [$role];
+                return in_array('super-admin', $checkRoles);
+            }
+            
+            return false;
         } catch (\Exception $e) {
-            return $user->email === 'admin@parish1.com' && $role === 'super-admin';
+            Log::warning('Role check failed', [
+                'user_id' => $user->id,
+                'role' => $role,
+                'error' => $e->getMessage()
+            ]);
+            
+            // Emergency fallback
+            if ($user->isSuperAdminByEmail()) {
+                $checkRoles = is_array($role) ? $role : [$role];
+                return in_array('super-admin', $checkRoles);
+            }
+            
+            return false;
         }
     }
 

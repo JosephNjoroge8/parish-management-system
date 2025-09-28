@@ -14,20 +14,21 @@ class DatabaseSeeder extends Seeder
     {
         $this->command->info('🌱 Starting Parish Management System Database Seeding...');
 
-        $this->command->info('Creating initial users...');
-
-        $this->command->info('✅ Created admin and test users');
-
         // Run seeders in the correct order based on dependencies
         $this->call([
-            // 1. Users and permissions
+            // 1. CRITICAL: Roles and permissions MUST be seeded first
+            RolePermissionSeeder::class,
+            
+            // 2. Users (depends on roles and permissions)
             UserSeeder::class,
             
-            // 2. Sample data (depends on users)
+            // 3. Sample data (depends on users and permissions)
             SampleDataSeeder::class,
         ]);
 
         $this->command->info('🎉 Parish Management System Database Seeding Completed Successfully!');
-        $this->command->info('📊 You can now access the dashboard to view your parish data.');
+        $this->command->info('🔐 Authentication and authorization system is now properly configured.');
+        $this->command->info('� Super Admin credentials: admin@parish.com / admin123');
+        $this->command->info('�📊 You can now access the dashboard with proper role-based security.');
     }
 }

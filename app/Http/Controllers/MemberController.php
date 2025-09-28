@@ -140,8 +140,6 @@ class MemberController extends Controller
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255|unique:members',
             'residence' => 'nullable|string|max:255',
-            'emergency_contact' => 'nullable|string|max:255',
-            'emergency_phone' => 'nullable|string|max:20',
             'local_church' => 'required|in:St James Kangemi,St Veronica Pembe Tatu,Our Lady of Consolata Cathedral,St Peter Kiawara,Sacred Heart Kandara',
             'small_christian_community' => 'nullable|string|max:255',
             'church_group' => 'required|in:PMC,Youth,C.W.A,CMA,Choir,Catholic Action,Pioneer',
@@ -151,8 +149,10 @@ class MemberController extends Controller
             'membership_date' => 'nullable|date',
             'baptism_date' => 'nullable|date',
             'confirmation_date' => 'nullable|date',
-            'matrimony_status' => 'required|in:single,married,divorced,widowed,separated',
-            'marriage_type' => 'nullable|in:customary,church',
+            'matrimony_status' => 'required|in:single,married,widowed,separated',
+            'marriage_type' => 'nullable|in:customary,church,civil',
+            'is_differently_abled' => 'nullable|boolean',
+            'disability_description' => 'nullable|string|max:1000',
             'occupation' => 'required|in:employed,self_employed,not_employed',
             'education_level' => 'required|in:none,primary,kcpe,secondary,kcse,certificate,diploma,degree,masters,phd',
             'family_id' => 'nullable|exists:families,id',
@@ -705,15 +705,16 @@ class MemberController extends Controller
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255|unique:members,email,' . $member->id,
             'residence' => 'nullable|string|max:255',
-            'emergency_contact' => 'nullable|string|max:255',
-            'emergency_phone' => 'nullable|string|max:20',
             'local_church' => 'required|in:St James Kangemi,St Veronica Pembe Tatu,Our Lady of Consolata Cathedral,St Peter Kiawara,Sacred Heart Kandara',
             'church_group' => 'required|in:PMC,Youth,C.W.A,CMA,Choir,Catholic Action,Pioneer',
             'membership_status' => 'nullable|in:active,inactive,transferred,deceased',
             'membership_date' => 'nullable|date',
             'baptism_date' => 'nullable|date',
             'confirmation_date' => 'nullable|date',
-            'matrimony_status' => 'required|in:single,married,divorced,widowed,separated',
+            'matrimony_status' => 'required|in:single,married,widowed,separated',
+            'marriage_type' => 'nullable|in:customary,church,civil',
+            'is_differently_abled' => 'nullable|boolean',
+            'disability_description' => 'nullable|string|max:1000',
             'occupation' => 'required|in:employed,self_employed,not_employed',
             'education_level' => 'required|in:none,primary,kcpe,secondary,kcse,certificate,diploma,degree,masters,phd',
             'family_id' => 'nullable|exists:families,id',
@@ -723,6 +724,22 @@ class MemberController extends Controller
             'tribe' => 'nullable|string|max:255',
             'clan' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
+            
+            // Comprehensive Baptism Record Fields
+            'birth_village' => 'nullable|string|max:255',
+            'county' => 'nullable|string|max:255',
+            'baptism_location' => 'nullable|string|max:255',
+            'baptized_by' => 'nullable|string|max:255',
+            'father_name' => 'nullable|string|max:255',
+            'mother_name' => 'nullable|string|max:255',
+            'small_christian_community' => 'nullable|string|max:255',
+            
+            // Optional Sacrament Fields
+            'eucharist_location' => 'nullable|string|max:255',
+            'eucharist_date' => 'nullable|date',
+            'confirmation_location' => 'nullable|string|max:255',
+            'confirmation_register_number' => 'nullable|string|max:50',
+            'confirmation_number' => 'nullable|string|max:50',
         ]);
 
         try {
@@ -1218,9 +1235,10 @@ class MemberController extends Controller
                 \Carbon\Carbon::parse($row['baptism_date'])->format('Y-m-d') : null,
             'confirmation_date' => !empty($row['confirmation_date']) ? 
                 \Carbon\Carbon::parse($row['confirmation_date'])->format('Y-m-d') : null,
-            'emergency_contact' => !empty($row['emergency_contact']) ? trim($row['emergency_contact']) : null,
-            'emergency_phone' => !empty($row['emergency_phone']) ? 
-                $this->formatPhoneNumber(trim($row['emergency_phone'])) : null,
+            'is_differently_abled' => !empty($row['is_differently_abled']) ? 
+                filter_var($row['is_differently_abled'], FILTER_VALIDATE_BOOLEAN) : false,
+            'disability_description' => !empty($row['disability_description']) ? 
+                trim($row['disability_description']) : null,
             'notes' => !empty($row['notes']) ? trim($row['notes']) : null,
         ];
 
@@ -1744,7 +1762,7 @@ class MemberController extends Controller
                 'first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender',
                 'phone', 'email', 'id_number', 'local_church', 'church_group',
                 'membership_status', 'membership_date', 'residence', 'occupation', 
-                'family_name', 'emergency_contact', 'emergency_phone', 'baptism_date',
+                'family_name', 'is_differently_abled', 'disability_description', 'baptism_date',
                 'confirmation_date', 'matrimony_status', 'notes'
             ]);
 
@@ -1753,7 +1771,7 @@ class MemberController extends Controller
                 'John', 'Mwangi', 'Doe', '1990-01-15', 'Male', // Fixed: Use 'Male' instead of 'male'
                 '+254712345678', 'john.doe@email.com', '12345678', 'Kangemi', 'CMA',
                 'active', '2024-01-01', 'Kangemi Estate House 123', 'employed',
-                'Doe Family', 'Jane Doe', '+254798765432', '2010-05-20',
+                'Doe Family', 'false', '', '2010-05-20',
                 '2015-08-15', 'married', 'Sample member record'
             ]);
             
@@ -1761,7 +1779,7 @@ class MemberController extends Controller
                 'Mary', 'Wanjiku', 'Smith', '1985-05-20', 'Female', // Fixed: Use 'Female' instead of 'female'
                 '+254798765432', 'mary.smith@email.com', '87654321', 'Cathedral', 'C.W.A',
                 'active', '2024-01-01', 'Cathedral Area Apt 45', 'self_employed',
-                'Smith Family', 'Peter Smith', '+254723456789', '2005-03-10',
+                'Smith Family', 'true', 'Mobility assistance required', '2005-03-10',
                 '2012-12-08', 'married', 'Another sample record'
             ]);
             

@@ -17,10 +17,12 @@ class RolePermissionSeeder extends Seeder
     public function run(): void
     {
         try {
+            $this->command->info('🔐 Setting up roles and permissions system...');
+            
             // Clear cache to avoid permission issues
             app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-            // Create basic permissions
+            // Create basic permissions (use firstOrCreate to avoid duplicates)
             $permissions = [
                 // User management
                 'access users',
@@ -68,11 +70,14 @@ class RolePermissionSeeder extends Seeder
                 'manage settings',
             ];
 
+            $this->command->info('Creating permissions...');
             foreach ($permissions as $permission) {
                 Permission::firstOrCreate(['name' => $permission]);
             }
+            $this->command->info("✅ Created/verified " . count($permissions) . " permissions");
 
             // Create roles with hierarchical clearance levels
+            $this->command->info('Creating roles...');
             $roles = [
                 [
                     'name' => 'super-admin',
@@ -151,28 +156,49 @@ class RolePermissionSeeder extends Seeder
                 // Assign permissions to role
                 $role->syncPermissions($roleData['permissions']);
                 
+                $this->command->info("✅ Role '{$roleData['name']}' created with " . count($roleData['permissions']) . " permissions");
                 Log::info("Role created/updated: {$roleData['name']} with " . count($roleData['permissions']) . " permissions");
             }
 
             // Create default super admin user if not exists
+            $this->command->info('Creating default super admin user...');
             $superAdminEmail = 'admin@parish.com';
             $superAdmin = User::firstOrCreate(
                 ['email' => $superAdminEmail],
                 [
                     'name' => 'Super Administrator',
-                    'password' => Hash::make('password'),
+                    'password' => Hash::make('admin123'),
                     'is_active' => true,
                     'email_verified_at' => now(),
+                    'date_of_birth' => '1980-01-01',
+                    'gender' => 'Male',
+                    'address' => 'Parish Office',
+                    'occupation' => 'System Administrator',
+                    'phone' => '+254700000001',
                 ]
             );
 
-            // Assign super-admin role
-            if (!$superAdmin->hasRole('super-admin')) {
+            // Assign super-admin role (force assignment)
+            try {
+                // Remove existing roles first to ensure clean assignment
+                $superAdmin->roles()->detach();
+                
+                // Assign super-admin role
                 $superAdmin->assignRole('super-admin');
                 Log::info('Super admin role assigned to default user');
+                $this->command->info('✅ Super-admin role assigned to admin@parish.com');
+                
+                // Verify the assignment
+                $hasRole = $superAdmin->hasRole('super-admin');
+                $this->command->info($hasRole ? '✅ Role assignment verified' : '❌ Role assignment failed');
+                
+            } catch (\Exception $e) {
+                $this->command->error('❌ Failed to assign super-admin role: ' . $e->getMessage());
+                Log::error('Super admin role assignment failed', ['error' => $e->getMessage()]);
             }
 
-            $this->command->info('Roles and permissions seeded successfully!');
+            $this->command->info('🎉 Roles and permissions system setup completed successfully!');
+            $this->command->info('🔑 Super Admin Login: admin@parish.com / admin123');
             
         } catch (\Exception $e) {
             Log::error('Error seeding roles and permissions', [

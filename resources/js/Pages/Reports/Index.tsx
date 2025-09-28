@@ -193,23 +193,50 @@ export default function EnhancedReportsIndex({ auth, statistics, charts, filters
         showToast(`Preparing ${category.replace('_', ' ').toUpperCase()} export in ${format.toUpperCase()} format...`, 'info');
 
         try {
-            // Map frontend categories to backend route names
+            // Map frontend categories to backend route names - Complete synchronization
             const routeMap: Record<string, string> = {
+                // Church and organizational exports
                 'local_church': 'export-by-local-church',
                 'church_group': 'export-by-church-group', 
                 'age_group': 'export-by-age-group',
                 'gender': 'export-by-gender',
+                
+                // Membership status exports
                 'membership_status': 'export-by-membership-status',
                 'marital_status': 'export-by-marital-status',
+                'matrimony_status': 'export-by-marital-status',
+                'marriage_type': 'export-by-marital-status',
+                
+                // Geographic exports
                 'state': 'export-by-state',
                 'lga': 'export-by-lga',
+                
+                // Personal information exports
                 'education_level': 'export-by-education-level',
                 'education': 'export-by-education-level',
                 'occupation': 'export-by-occupation',
+                'tribe': 'export-by-tribe',
+                
+                // Community exports
+                'community': 'export-by-community',
+                'small_christian_community': 'export-by-community',
+                
+                // Time-based exports
                 'year_joined': 'export-by-year-joined',
                 'monthly_trends': 'export-members-data',
-                'marriage_type': 'export-by-marital-status',
-                'all_records': 'export-members-data'
+                
+                // Sacrament-based exports
+                'baptized': 'export-baptized-members',
+                'confirmed': 'export-confirmed-members',
+                'married': 'export-married-members',
+                
+                // Special reports
+                'comprehensive': 'export-comprehensive',
+                'directory': 'export-member-directory',
+                'all_records': 'export-members-data',
+                
+                // Legacy compatibility
+                'all': 'export-members-data'
             };
 
             const routeName = routeMap[category] || 'export-members-data';
@@ -230,32 +257,48 @@ export default function EnhancedReportsIndex({ auth, statistics, charts, filters
             console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
             if (!response.ok) {
-                // Get detailed error information
+                // Get detailed error information with enhanced handling
                 let errorMessage = `Export failed: ${response.status} ${response.statusText}`;
                 try {
                     const errorText = await response.text();
                     if (errorText) {
-                        // Check for permission errors
+                        // Check for specific error types
                         if (response.status === 403 || errorText.includes('permission') || errorText.includes('unauthorized')) {
                             errorMessage = 'You do not have permission to export reports. Please contact your administrator.';
                         } else if (response.status === 404) {
-                            errorMessage = 'Export endpoint not found. Please check your route configuration.';
+                            errorMessage = `Export route not found: /reports/${routeName}. The backend route may be missing or incorrectly configured.`;
+                        } else if (response.status === 422) {
+                            errorMessage = 'Invalid export parameters. Please check your filter settings and try again.';
                         } else if (response.status === 500) {
                             // Extract meaningful error from Laravel error page if possible
                             const match = errorText.match(/<title>(.*?)<\/title>/);
                             if (match) {
-                                errorMessage += ` - ${match[1]}`;
+                                errorMessage = `Server error: ${match[1]}`;
                             } else if (errorText.includes('Exception')) {
                                 const exceptionMatch = errorText.match(/Exception.*?in.*?line \d+/);
                                 if (exceptionMatch) {
-                                    errorMessage += ` - ${exceptionMatch[0]}`;
+                                    errorMessage = `Server error: ${exceptionMatch[0]}`;
                                 }
+                            } else {
+                                errorMessage = 'Internal server error occurred while generating export.';
                             }
+                        } else if (response.status === 413) {
+                            errorMessage = 'Export data too large. Please apply more specific filters to reduce the dataset size.';
+                        } else if (response.status === 408) {
+                            errorMessage = 'Export request timed out. Please try with more specific filters or a smaller date range.';
                         }
-                        console.error('Full error response:', errorText);
+                        console.error('Export error details:', {
+                            status: response.status,
+                            category,
+                            value,
+                            format,
+                            url,
+                            errorText: errorText.substring(0, 500)
+                        });
                     }
                 } catch (e) {
                     console.error('Could not parse error response:', e);
+                    errorMessage = `Network error occurred. Status: ${response.status}`;
                 }
                 throw new Error(errorMessage);
             }
@@ -305,38 +348,89 @@ export default function EnhancedReportsIndex({ auth, statistics, charts, filters
         }
     };
 
-    // Helper function to export filtered members
+    // Helper function to export filtered members with enhanced validation
     const exportFilteredMembers = async (format: string = 'excel') => {
+        if (!canExport) {
+            showToast('You do not have permission to export reports', 'error');
+            return;
+        }
+
+        // Validate filters before sending
+        const filterCount = Object.values(advancedFilters).filter(value => {
+            if (Array.isArray(value)) return value.length > 0;
+            if (typeof value === 'boolean') return value === true;
+            return value !== undefined && value !== '' && value !== null;
+        }).length;
+
+        if (filterCount === 0 && selectedPeriod === 'all') {
+            const confirmed = window.confirm('No filters applied. This will export ALL members. Continue?');
+            if (!confirmed) return;
+        }
+
         try {
             setLoading(true);
+            showToast(`Preparing filtered export with ${filterCount} active filters...`, 'info');
+
+            const exportData = {
+                ...advancedFilters,
+                period: selectedPeriod,
+                start_date: customStartDate,
+                end_date: customEndDate,
+                format,
+                timestamp: new Date().toISOString()
+            };
+
+            console.log('Filtered export request:', exportData);
+
             const response = await fetch('/reports/export/filtered', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/octet-stream',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
-                body: JSON.stringify({
-                    ...advancedFilters,
-                    period: selectedPeriod,
-                    start_date: customStartDate,
-                    end_date: customEndDate,
-                    format
-                })
+                body: JSON.stringify(exportData)
             });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `filtered-members-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'csv'}`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
+            if (!response.ok) {
+                const errorText = await response.text();
+                let errorMessage = `Filtered export failed: ${response.status} ${response.statusText}`;
+                
+                if (response.status === 422) {
+                    errorMessage = 'Invalid filter parameters. Please check your filter settings.';
+                } else if (response.status === 413) {
+                    errorMessage = 'Too much data selected. Please apply more specific filters.';
+                }
+                
+                console.error('Filtered export error:', { status: response.status, errorText });
+                throw new Error(errorMessage);
             }
+
+            const blob = await response.blob();
+            
+            if (blob.size === 0) {
+                showToast('No data found matching your filters', 'info');
+                return;
+            }
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            const timestamp = new Date().toISOString().split('T')[0];
+            const extension = format === 'excel' ? 'xlsx' : (format === 'csv' ? 'csv' : 'pdf');
+            a.download = `filtered-members-${filterCount}filters-${timestamp}.${extension}`;
+            
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            showToast(`Filtered export completed successfully! (${(blob.size / (1024 * 1024)).toFixed(2)} MB)`, 'success');
         } catch (error) {
-            console.error('Export failed:', error);
+            console.error('Filtered export failed:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            showToast(`Filtered export failed: ${errorMessage}`, 'error');
         } finally {
             setLoading(false);
         }

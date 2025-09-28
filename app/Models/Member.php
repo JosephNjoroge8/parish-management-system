@@ -20,8 +20,6 @@ class Member extends Model
         'phone',
         'email',
         'residence',
-        'emergency_contact',
-        'emergency_phone',
         'local_church',
         'small_christian_community',
         'church_group',
@@ -40,7 +38,42 @@ class Member extends Model
         'minister_id',
         'tribe',
         'clan',
+        'is_differently_abled',
+        'disability_description',
         'notes',
+        
+        // Comprehensive Baptism Record Fields
+        'birth_village',
+        'county',
+        'baptism_location',
+        'baptized_by',
+        'sponsor',
+        'father_name',
+        'mother_name',
+        
+        // Optional Sacrament Fields
+        'eucharist_location',
+        'eucharist_date',
+        'confirmation_location',
+        'confirmation_register_number',
+        'confirmation_number',
+        
+        // Marriage Record Fields
+        'marriage_date',
+        'marriage_location',
+        'married_by',
+        'spouse_name',
+        'witness_1_name',
+        'witness_2_name',
+        'marriage_register_number',
+        'marriage_certificate_number',
+        
+        // Additional Fields
+        'godfather_name',
+        'godmother_name',
+        'parent',
+        'godparent',
+        'minister',
     ];
 
     protected $casts = [
@@ -48,7 +81,10 @@ class Member extends Model
         'membership_date' => 'date',
         'baptism_date' => 'date',
         'confirmation_date' => 'date',
+        'eucharist_date' => 'date',
+        'marriage_date' => 'date',
         'additional_church_groups' => 'array',
+        'is_differently_abled' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -63,9 +99,99 @@ class Member extends Model
         'certificate' => 'Certificate',
         'diploma' => 'Diploma',
         'degree' => 'Degree',
-        'masters' => 'Masters',
-        'phd' => 'PhD'
+        'masters' => 'Masters Degree',
+        'phd' => 'PhD/Doctorate'
     ];
+
+    // Marriage types for better categorization
+    const MARRIAGE_TYPES = [
+        'church' => 'Church Wedding',
+        'civil' => 'Civil Marriage',
+        'customary' => 'Customary Marriage',
+        'come_we_stay' => 'Come We Stay'
+    ];
+
+    // Membership status options
+    const MEMBERSHIP_STATUSES = [
+        'active' => 'Active',
+        'inactive' => 'Inactive',
+        'transferred' => 'Transferred',
+        'deceased' => 'Deceased'
+    ];
+
+    /**
+     * Generate comprehensive report data with all necessary information
+     */
+    public static function generateComprehensiveReport(array $filters = [])
+    {
+        $query = self::query()
+            ->select([
+                'id', 'first_name', 'middle_name', 'last_name', 'date_of_birth',
+                'gender', 'phone', 'email', 'residence', 'local_church', 'church_group',
+                'small_christian_community', 'membership_status', 'membership_date',
+                'baptism_date', 'confirmation_date', 'matrimony_status', 'marriage_type',
+                'occupation', 'education_level', 'tribe', 'clan', 'id_number',
+                'additional_church_groups', 'created_at', 'updated_at'
+            ]);
+
+        // Apply filters
+        if (!empty($filters['local_church'])) {
+            $query->where('local_church', $filters['local_church']);
+        }
+
+        if (!empty($filters['church_group'])) {
+            $query->where('church_group', $filters['church_group']);
+        }
+
+        if (!empty($filters['membership_status'])) {
+            $query->where('membership_status', $filters['membership_status']);
+        }
+
+        if (!empty($filters['gender'])) {
+            $query->where('gender', $filters['gender']);
+        }
+
+        // Add calculated fields
+        return $query->get()->map(function ($member) {
+            // Calculate age
+            $member->age = $member->date_of_birth 
+                ? Carbon::parse($member->date_of_birth)->age 
+                : null;
+
+            // Create full name
+            $member->full_name = collect([
+                $member->first_name,
+                $member->middle_name,
+                $member->last_name
+            ])->filter()->implode(' ');
+
+            // Get all church groups (including additional)
+            $allGroups = [$member->church_group];
+            if (!empty($member->additional_church_groups)) {
+                $additional = is_string($member->additional_church_groups) 
+                    ? json_decode($member->additional_church_groups, true) 
+                    : $member->additional_church_groups;
+                if (is_array($additional)) {
+                    $allGroups = array_merge($allGroups, $additional);
+                }
+            }
+            $member->all_church_groups = array_filter($allGroups);
+
+            // Get education level name
+            $member->education_level_name = self::EDUCATION_LEVELS[$member->education_level] ?? $member->education_level;
+
+            // Get marriage type name
+            $member->marriage_type_name = self::MARRIAGE_TYPES[$member->marriage_type] ?? $member->marriage_type;
+
+            // Format dates
+            $member->baptism_date = $member->baptism_date ? Carbon::parse($member->baptism_date) : null;
+            $member->confirmation_date = $member->confirmation_date ? Carbon::parse($member->confirmation_date) : null;
+            $member->membership_date = $member->membership_date ? Carbon::parse($member->membership_date) : null;
+            $member->date_of_birth = $member->date_of_birth ? Carbon::parse($member->date_of_birth) : null;
+
+            return $member;
+        });
+    }
 
     // Constants for church groups (7 groups only - Young Parents removed)
     const CHURCH_GROUPS = [
@@ -78,19 +204,15 @@ class Member extends Model
         'Pioneer' => 'Pioneer'
     ];
 
-    // Constants for marriage types
-    const MARRIAGE_TYPES = [
-        'customary' => 'Customary Marriage',
-        'church' => 'Church Marriage'
+    // Constants for matrimony status
+    const MATRIMONY_STATUSES = [
+        'single' => 'Single',
+        'married' => 'Married',
+        'widowed' => 'Widowed',
+        'separated' => 'Separated'
     ];
 
-    // Constants for membership status
-    const MEMBERSHIP_STATUSES = [
-        'active' => 'Active',
-        'inactive' => 'Inactive',
-        'transferred' => 'Transferred',
-        'deceased' => 'Deceased'
-    ];
+
 
     // Relationships
     public function family()
@@ -470,61 +592,7 @@ class Member extends Model
         return $query->get()->groupBy('tribe');
     }
     
-    // Enhanced comprehensive reporting method
-    public static function generateComprehensiveReport($filters = [])
-    {
-        $query = self::query();
-        
-        // Apply all filters
-        foreach ($filters as $key => $value) {
-            if (empty($value)) continue;
-            
-            switch ($key) {
-                case 'local_church':
-                    $query->where('local_church', $value);
-                    break;
-                case 'church_group':
-                    $query->byGroup($value);
-                    break;
-                case 'membership_status':
-                    $query->where('membership_status', $value);
-                    break;
-                case 'gender':
-                    $query->byGender($value);
-                    break;
-                case 'age_group':
-                    $query->byAgeGroup($value);
-                    break;
-                case 'education_level':
-                    $query->where('education_level', $value);
-                    break;
-                case 'tribe':
-                    $query->where('tribe', $value);
-                    break;
-                case 'small_christian_community':
-                    $query->where('small_christian_community', $value);
-                    break;
-                case 'date_range':
-                    if (isset($value['start'])) {
-                        $query->where('created_at', '>=', $value['start']);
-                    }
-                    if (isset($value['end'])) {
-                        $query->where('created_at', '<=', $value['end']);
-                    }
-                    break;
-                case 'membership_date_range':
-                    if (isset($value['start'])) {
-                        $query->where('membership_date', '>=', $value['start']);
-                    }
-                    if (isset($value['end'])) {
-                        $query->where('membership_date', '<=', $value['end']);
-                    }
-                    break;
-            }
-        }
-        
-        return $query->get();
-    }
+
     
     // Get downloadable baptism certificate data
     public function getBaptismCertificateData()

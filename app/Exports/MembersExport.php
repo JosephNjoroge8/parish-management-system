@@ -15,6 +15,7 @@ use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class MembersExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithStyles, WithTitle, WithColumnFormatting
 {
@@ -50,26 +51,46 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
             return collect($this->membersCollection);
         }
         
-        // Use chunked query for better performance
-        return $this->query()->get();
+        // Use comprehensive query to fetch actual database data
+        $query = $this->buildComprehensiveQuery();
+        
+        // Log query for debugging
+        Log::info('MembersExport query executed', [
+            'sql' => $query->toSql(),
+            'bindings' => $query->getBindings(),
+            'filters' => $this->filters
+        ]);
+        
+        return $query->get();
     }
 
-    private function query()
+    private function buildComprehensiveQuery()
     {
-        $query = Member::query();
+        $query = Member::query()
+            ->select([
+                'id', 'first_name', 'middle_name', 'last_name', 'date_of_birth',
+                'gender', 'phone', 'email', 'residence', 'local_church', 'church_group',
+                'small_christian_community', 'membership_status', 'membership_date',
+                'baptism_date', 'confirmation_date', 'matrimony_status', 'marriage_type',
+                'occupation', 'education_level', 'tribe', 'clan', 'id_number',
+                'created_at', 'updated_at'
+            ]);
 
-        // Apply filters using model scopes
+        // Apply comprehensive filters
         if (!empty($this->filters['search'])) {
-            $query->where(function($q) {
-                $search = $this->filters['search'];
-                $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('middle_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+            $search = trim($this->filters['search']);
+            $query->where(function($q) use ($search) {
+                $q->where('first_name', 'LIKE', "%{$search}%")
+                  ->orWhere('last_name', 'LIKE', "%{$search}%")
+                  ->orWhere('middle_name', 'LIKE', "%{$search}%")
+                  ->orWhere('email', 'LIKE', "%{$search}%")
+                  ->orWhere('phone', 'LIKE', "%{$search}%")
+                  ->orWhere('id_number', 'LIKE', "%{$search}%")
+                  ->orWhereRaw('CONCAT(first_name, " ", COALESCE(middle_name, ""), " ", last_name) LIKE ?', ["%{$search}%"]);
             });
         }
 
+        // Church and community filters
         if (!empty($this->filters['local_church'])) {
             $query->where('local_church', $this->filters['local_church']);
         }
@@ -78,6 +99,11 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
             $query->where('church_group', $this->filters['church_group']);
         }
 
+        if (!empty($this->filters['small_christian_community'])) {
+            $query->where('small_christian_community', $this->filters['small_christian_community']);
+        }
+
+        // Personal information filters
         if (!empty($this->filters['membership_status'])) {
             $query->where('membership_status', $this->filters['membership_status']);
         }
@@ -86,8 +112,58 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
             $query->where('gender', $this->filters['gender']);
         }
 
+        if (!empty($this->filters['education_level'])) {
+            $query->where('education_level', $this->filters['education_level']);
+        }
+
+        if (!empty($this->filters['occupation'])) {
+            $query->where('occupation', 'LIKE', "%{$this->filters['occupation']}%");
+        }
+
+        if (!empty($this->filters['tribe'])) {
+            $query->where('tribe', $this->filters['tribe']);
+        }
+
+        if (!empty($this->filters['matrimony_status'])) {
+            $query->where('matrimony_status', $this->filters['matrimony_status']);
+        }
+
+        if (!empty($this->filters['marriage_type'])) {
+            $query->where('marriage_type', $this->filters['marriage_type']);
+        }
+
+        // Age filters
+        if (!empty($this->filters['age_min'])) {
+            $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 >= ?', [(int)$this->filters['age_min']]);
+        }
+
+        if (!empty($this->filters['age_max'])) {
+            $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 <= ?', [(int)$this->filters['age_max']]);
+        }
+
         if (!empty($this->filters['age_group'])) {
-            $this->applyAgeGroupFilter($query, $this->filters['age_group']);
+            $this->applyEnhancedAgeGroupFilter($query, $this->filters['age_group']);
+        }
+
+        // Sacrament filters
+        if (isset($this->filters['has_baptism'])) {
+            if ($this->filters['has_baptism'] === true || $this->filters['has_baptism'] === 'true') {
+                $query->whereNotNull('baptism_date')->where('baptism_date', '!=', '');
+            } elseif ($this->filters['has_baptism'] === false || $this->filters['has_baptism'] === 'false') {
+                $query->where(function($q) {
+                    $q->whereNull('baptism_date')->orWhere('baptism_date', '');
+                });
+            }
+        }
+
+        if (isset($this->filters['has_confirmation'])) {
+            if ($this->filters['has_confirmation'] === true || $this->filters['has_confirmation'] === 'true') {
+                $query->whereNotNull('confirmation_date')->where('confirmation_date', '!=', '');
+            } elseif ($this->filters['has_confirmation'] === false || $this->filters['has_confirmation'] === 'false') {
+                $query->where(function($q) {
+                    $q->whereNull('confirmation_date')->orWhere('confirmation_date', '');
+                });
+            }
         }
 
         // Apply date range filter
@@ -104,6 +180,11 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
         }
 
         return $query;
+    }
+
+    private function query()
+    {
+        return $this->buildComprehensiveQuery();
     }
 
     public function headings(): array
@@ -245,22 +326,55 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
         }
     }
 
-    private function applyAgeGroupFilter($query, $ageGroup): void
+    private function applyEnhancedAgeGroupFilter($query, $ageGroup): void
     {
         switch ($ageGroup) {
             case 'children':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 0 AND 12');
+            case '0-12':
+                $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 0 AND 12');
                 break;
             case 'youth':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 13 AND 24');
+            case '13-24':
+                $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 13 AND 24');
+                break;
+            case 'young_adults':
+            case '18-30':
+                $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 18 AND 30');
                 break;
             case 'adults':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 25 AND 59');
+            case '25-59':
+            case '31-50':
+                $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 25 AND 59');
+                break;
+            case 'middle_aged':
+            case '51-70':
+                $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN 51 AND 70');
                 break;
             case 'seniors':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) >= 60');
+            case '60+':
+            case '70+':
+                $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 >= 60');
+                break;
+            case 'elderly':
+                $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 >= 70');
+                break;
+            default:
+                // Handle custom age ranges like "25-40"
+                if (preg_match('/^(\\d+)-(\\d+)$/', $ageGroup, $matches)) {
+                    $minAge = (int)$matches[1];
+                    $maxAge = (int)$matches[2];
+                    $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 BETWEEN ? AND ?', [$minAge, $maxAge]);
+                } elseif (preg_match('/^(\\d+)\\+$/', $ageGroup, $matches)) {
+                    $minAge = (int)$matches[1];
+                    $query->whereRaw('(julianday("now") - julianday(date_of_birth)) / 365.25 >= ?', [$minAge]);
+                }
                 break;
         }
+    }
+
+    private function applyAgeGroupFilter($query, $ageGroup): void
+    {
+        $this->applyEnhancedAgeGroupFilter($query, $ageGroup);
     }
 
     private function validateSortField(string $field): string
@@ -299,8 +413,8 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
             'phone' => $member->phone ?? '',
             'email' => $member->email ?? '',
             'residence' => $member->residence ?? '',
-            'emergency_contact' => $member->emergency_contact ?? '',
-            'emergency_phone' => $member->emergency_phone ?? '',
+            'is_differently_abled' => $member->is_differently_abled ? 'Yes' : 'No',
+            'disability_description' => $member->disability_description ?? '',
             'local_church' => $member->local_church ?? '',
             'church_group' => $member->church_group ?? '',
             'membership_status' => $member->membership_status ?? '',
@@ -338,8 +452,8 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
             'phone' => 'Phone',
             'email' => 'Email',
             'residence' => 'Residence',
-            'emergency_contact' => 'Emergency Contact',
-            'emergency_phone' => 'Emergency Phone',
+            'is_differently_abled' => 'Differently Abled',
+            'disability_description' => 'Disability Description',
             'local_church' => 'Local Church',
             'church_group' => 'Church Group',
             'membership_status' => 'Membership Status',

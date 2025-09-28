@@ -102,8 +102,14 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function hasPermissionTo($permission, ?string $guardName = null): bool
     {
-        // Try Spatie first using parent trait method
+        // Super admins have all permissions
+        if ($this->isSuperAdminByEmail()) {
+            return true;
+        }
+
+        // Try Spatie permission system first
         try {
+            // Check direct permissions
             if (method_exists($this, 'permissions') && $this->permissions()->exists()) {
                 $userPermissions = $this->permissions->pluck('name')->toArray();
                 if (in_array($permission, $userPermissions)) {
@@ -119,17 +125,72 @@ class User extends Authenticatable implements MustVerifyEmail
                     }
                 }
             }
+            
+            // Use Spatie's built-in method as final check
+            return parent::hasPermissionTo($permission, $guardName);
+            
         } catch (\Exception $e) {
-            Log::info('Spatie permission check failed, using fallback', ['error' => $e->getMessage()]);
+            Log::warning('Permission check failed', [
+                'user_id' => $this->id,
+                'permission' => $permission,
+                'error' => $e->getMessage()
+            ]);
+            
+            // Fallback: Check by role hierarchy for essential permissions
+            $rolePermissionMap = [
+                'super-admin' => '*', // All permissions
+                'admin' => [
+                    'access members', 'manage members', 'export members',
+                    'access families', 'manage families',
+                    'access sacraments', 'manage sacraments',
+                    'access tithes', 'manage tithes', 'view financial reports',
+                    'access activities', 'manage activities',
+                    'access reports', 'export reports',
+                    'access users', 'manage users',
+                    'access settings'
+                ],
+                'manager' => [
+                    'access members', 'manage members',
+                    'access families', 'manage families',
+                    'access sacraments', 'manage sacraments',
+                    'access activities', 'manage activities',
+                    'access reports'
+                ],
+                'staff' => [
+                    'access members', 'manage members',
+                    'access families',
+                    'access sacraments',
+                    'access activities'
+                ],
+                'secretary' => [
+                    'access members', 'manage members',
+                    'access families', 'manage families',
+                    'access sacraments', 'manage sacraments',
+                    'access reports'
+                ],
+            ];
+            
+            try {
+                $userRoles = $this->getRoles()->pluck('name')->toArray();
+                
+                foreach ($userRoles as $roleName) {
+                    if (isset($rolePermissionMap[$roleName])) {
+                        if ($rolePermissionMap[$roleName] === '*' || 
+                            in_array($permission, $rolePermissionMap[$roleName])) {
+                            return true;
+                        }
+                    }
+                }
+            } catch (\Exception $e2) {
+                Log::error('Fallback permission check also failed', [
+                    'user_id' => $this->id,
+                    'permission' => $permission,
+                    'error' => $e2->getMessage()
+                ]);
+            }
         }
 
-        // Super admins have all permissions
-        if ($this->isSuperAdminByEmail()) {
-            return true;
-        }
-
-        // Default to true for development (remove in production)
-        return true;
+        return false;
     }
 
     /**

@@ -6,11 +6,12 @@
 # ============================================================================
 
 # ============================================================================
-# ENVIRONMENT & CONFIGURATION FILES (CRITICAL - NEVER COMMIT)
+# Environment files (CRITICAL - NEVER COMMIT)
 # ============================================================================
 .env
 .env.*
 !.env.example
+!.env.cpanel
 .env.backup
 .env.production
 .env.local
@@ -69,13 +70,13 @@ pids
 /storage/framework/views/
 /storage/framework/testing/
 
-# Compiled assets
-/public/build/
+# Compiled assets (Allow production builds, ignore development artifacts)
 /public/hot
 /public/storage
-/public/mix-manifest.json
-/public/js/
-/public/css/
+# NOTE: /public/build/ is REQUIRED for production - DO NOT IGNORE
+# NOTE: /public/js/ and /public/css/ may be needed for production
+# Only ignore development mix manifest
+mix-manifest.json.backup
 
 # Cache files
 .phpunit.result.cache
@@ -148,9 +149,14 @@ $RECYCLE.BIN/
 # ============================================================================
 # DEPLOYMENT & SERVER FILES
 # ============================================================================
-# Deployment scripts with sensitive info
-deploy.sh
+# Deployment scripts with sensitive info (allow the main deployment files)
+!deploy.php
+!deploy.sh
+!verify-cpanel-setup.sh
+!prepare-deployment.sh
 deploy-*.sh
+deployment.log
+*.deployment.log
 !deploy-production-complete.sh
 !optimize-for-production.sh
 
@@ -220,6 +226,13 @@ financial_summary_*.pdf
 # Custom reports with sensitive data
 custom_reports/
 member_directory_*.pdf
+
+# Allow production optimization files (REQUIRED for deployment)
+!PRODUCTION_DEPLOYMENT_GUIDE.md
+!deploy-production-complete.sh
+!optimize-for-production.sh
+!SYSTEM_OPTIMIZATION_COMPLETE.md
+!FRONTEND_BACKEND_SYNC_REPORT.md
 
 # ============================================================================
 # ASSETS & MEDIA

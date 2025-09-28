@@ -17,30 +17,34 @@ class SampleDataSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create sample families
-        $family1 = Family::create([
-            'family_name' => 'The Kamau Family',
-            'family_code' => 'FAM001',
-            'address' => 'Kiambu County, Thika Town',
-            'phone' => '+254712345678',
-            'email' => 'kamau.family@email.com',
-            'deanery' => 'Thika Deanery',
-            'parish' => 'St. Mary\'s Parish',
-            'parish_section' => 'Central',
-            'created_by' => 1,
-        ]);
+        // Create sample families using updateOrCreate to handle duplicates
+        $family1 = Family::updateOrCreate(
+            ['family_code' => 'FAM001'],
+            [
+                'family_name' => 'The Kamau Family',
+                'address' => 'Kiambu County, Thika Town',
+                'phone' => '+254712345678',
+                'email' => 'kamau.family@email.com',
+                'deanery' => 'Thika Deanery',
+                'parish' => 'St. Mary\'s Parish',
+                'parish_section' => 'Central',
+                'created_by' => 1,
+            ]
+        );
 
-        $family2 = Family::create([
-            'family_name' => 'The Wanjiku Family',
-            'family_code' => 'FAM002',
-            'address' => 'Nairobi County, Kasarani',
-            'phone' => '+254723456789',
-            'email' => 'wanjiku.family@email.com',
-            'deanery' => 'Nairobi Deanery',
-            'parish' => 'St. Mary\'s Parish',
-            'parish_section' => 'North',
-            'created_by' => 1,
-        ]);
+        $family2 = Family::updateOrCreate(
+            ['family_code' => 'FAM002'],
+            [
+                'family_name' => 'The Wanjiku Family',
+                'address' => 'Nairobi County, Kasarani',
+                'phone' => '+254723456789',
+                'email' => 'wanjiku.family@email.com',
+                'deanery' => 'Nairobi Deanery',
+                'parish' => 'St. Mary\'s Parish',
+                'parish_section' => 'North',
+                'created_by' => 1,
+            ]
+        );
 
         // Create sample members
         $johnKamau = Member::create([

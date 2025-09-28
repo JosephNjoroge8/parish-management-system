@@ -339,12 +339,68 @@ class FamilyController extends Controller
      */
     public function store(Request $request)
     {
+        // Handle duplicate family codes automatically
+        $familyCode = $request->family_code;
+        
+        // If family code exists, either update existing or auto-generate new code
+        if (!empty($familyCode)) {
+            $existingFamily = Family::where('family_code', $familyCode)->first();
+            
+            if ($existingFamily) {
+                // Option 1: Update existing family (overwrite)
+                try {
+                    DB::beginTransaction();
+                    
+                    $existingFamily->update([
+                        'family_name' => $request->family_name,
+                        'address' => $request->address,
+                        'phone' => $request->phone,
+                        'email' => $request->email,
+                        'deanery' => $request->deanery,
+                        'parish' => $request->parish,
+                        'parish_section' => $request->parish_section,
+                        'head_of_family_id' => $request->head_of_family_id,
+                    ]);
+
+                    // Update head of family if selected
+                    if ($request->filled('head_of_family_id')) {
+                        Member::where('id', $request->head_of_family_id)
+                              ->update(['family_id' => $existingFamily->id]);
+                    }
+
+                    DB::commit();
+
+                    return redirect()->route('families.index')
+                                   ->with('success', "Family '{$familyCode}' updated successfully!");
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    return redirect()->back()
+                                   ->with('error', 'Failed to update family: ' . $e->getMessage())
+                                   ->withInput();
+                }
+            }
+        } else {
+            // Auto-generate family code if not provided
+            $lastFamily = Family::whereNotNull('family_code')
+                               ->where('family_code', 'like', 'FAM%')
+                               ->orderBy('family_code', 'desc')
+                               ->first();
+            
+            if ($lastFamily && preg_match('/^FAM(\d+)$/', $lastFamily->family_code, $matches)) {
+                $nextNumber = intval($matches[1]) + 1;
+            } else {
+                $nextNumber = 1;
+            }
+            $familyCode = 'FAM' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+            $request->merge(['family_code' => $familyCode]);
+        }
+
         $rules = [
             'family_name' => 'required|string|max:255',
-            'family_code' => 'nullable|string|max:50|unique:families,family_code',
+            'family_code' => 'nullable|string|max:50',
             'address' => 'nullable|string',
             'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255|unique:families,email',
+            'email' => 'nullable|email|max:255',
             'deanery' => 'nullable|string|max:255',
             'parish' => 'nullable|string|max:255',
             'parish_section' => 'nullable|string|max:255',

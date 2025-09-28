@@ -54,6 +54,21 @@ deployment:
       # Run migrations (with timeout protection)
       timeout 60 /usr/local/bin/ea-php82 artisan migrate --force --no-interaction || echo "Migration timeout/error - check manually"
       
+      # Run seeders to ensure roles and permissions are set up (skip if data exists)
+      /usr/local/bin/ea-php82 artisan db:seed --class=RolePermissionSeeder --force --no-interaction || echo "Seeder execution failed - check manually"
+      
+      # Clear duplicate family codes if they exist
+      /usr/local/bin/ea-php82 artisan tinker --execute="
+        use App\Models\Family;
+        use Illuminate\Support\Facades\DB;
+        
+        // Remove duplicate sample families if they exist
+        Family::where('family_code', 'FAM001')->where('family_name', 'like', '%Kamau%')->delete();
+        Family::where('family_code', 'FAM002')->where('family_name', 'like', '%Wanjiku%')->delete();
+        
+        echo 'Cleared duplicate sample families';
+      " || true
+      
       # Create storage link
       /usr/local/bin/ea-php82 artisan storage:link --no-interaction || true
       

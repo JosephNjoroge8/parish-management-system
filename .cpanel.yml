@@ -1,16 +1,11 @@
-# cPanel Deployment Configuration for Parish Management System
+# Ultra-Fast cPanel Deployment - Parish Management System
 ---
 deployment:
   tasks:
     - export DEPLOYPATH=/home2/shemidig/parish_system/
-    - /bin/cp -R * $DEPLOYPATH
-    - /bin/cp .env $DEPLOYPATH
-    - /bin/cp .htaccess $DEPLOYPATH
-    - /bin/rm -rf $DEPLOYPATH/.git
-    - /bin/rm -f $DEPLOYPATH/.gitignore
+    - rsync -av --exclude='node_modules' --exclude='.git' --exclude='tests' --exclude='storage/logs' --exclude='storage/framework/cache' --exclude='storage/framework/sessions' --exclude='storage/framework/views' . $DEPLOYPATH/
+    - /bin/cp .env $DEPLOYPATH/
     - cd $DEPLOYPATH && php artisan key:generate --force
     - cd $DEPLOYPATH && php artisan migrate --force
     - cd $DEPLOYPATH && php artisan storage:link
-    - cd $DEPLOYPATH && php artisan db:configure-production
     - cd $DEPLOYPATH && chmod -R 755 storage bootstrap/cache
-    - cd $DEPLOYPATH && chmod 644 .env

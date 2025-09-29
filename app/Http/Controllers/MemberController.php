@@ -71,13 +71,13 @@ class MemberController extends Controller
             // Fast pagination with smaller page size
             $members = $query->paginate(10)->withQueryString();
 
+            // Get comprehensive stats using the dedicated method
+            $stats = $this->getStats();
+
             return Inertia::render('Members/Index', [
                 'members' => $members,
                 'filters' => $request->only(['search', 'membership_status', 'local_church']),
-                'stats' => [
-                    'total' => Member::count(),
-                    'active' => Member::where('membership_status', 'active')->count(),
-                ],
+                'stats' => $stats,
             ]);
         } catch (\Exception $e) {
             Log::error('Member index error: ' . $e->getMessage());
@@ -292,7 +292,7 @@ class MemberController extends Controller
                         'church' => $member->local_church,
                         'group' => $member->church_group,
                     ],
-                    'redirect' => route('members.index'),
+                    'redirect' => route('members.show', $member),
                     'stats' => [
                         'total_members' => Member::count(),
                         'active_members' => Member::where('membership_status', 'active')->count(),
@@ -300,7 +300,7 @@ class MemberController extends Controller
                 ]);
             }
 
-            return redirect()->route('members.index')
+            return redirect()->route('members.show', $member)
                 ->with('success', 'Member ' . $member->first_name . ' ' . $member->last_name . ' successfully added! (ID: ' . $member->id . ')');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -1598,13 +1598,13 @@ class MemberController extends Controller
             $totalMembers = Member::count();
             $currentMonth = now();
             
-            // Get detailed status breakdown
-            $statusStats = Member::selectRaw('membership_status, COUNT(*) as count')
+            // Get detailed status breakdown with proper null handling
+            $statusStats = Member::selectRaw('COALESCE(membership_status, "unknown") as membership_status, COUNT(*) as count')
                 ->groupBy('membership_status')
                 ->pluck('count', 'membership_status')
                 ->toArray();
 
-            // Calculate active members percentage
+            // Calculate active members percentage with fallbacks
             $activeMembers = $statusStats['active'] ?? 0;
             $inactiveMembers = $statusStats['inactive'] ?? 0;
             $transferredMembers = $statusStats['transferred'] ?? 0;
@@ -1615,24 +1615,42 @@ class MemberController extends Controller
                 ->whereYear('created_at', $currentMonth->year)
                 ->count();
 
-            // Get gender breakdown
-            $genderStats = Member::selectRaw('gender, COUNT(*) as count')
+            // Get gender breakdown with case-insensitive handling
+            $genderStats = Member::selectRaw('UPPER(COALESCE(gender, "Unknown")) as gender, COUNT(*) as count')
                 ->groupBy('gender')
                 ->pluck('count', 'gender')
                 ->toArray();
+
+            // Get church breakdown with null handling
+            $churchStats = Member::selectRaw('COALESCE(local_church, "Unknown") as local_church, COUNT(*) as count')
+                ->whereNotNull('local_church')
+                ->where('local_church', '!=', '')
+                ->groupBy('local_church')
+                ->pluck('count', 'local_church')
+                ->toArray();
+
+            // Get group breakdown with null handling
+            $groupStats = Member::selectRaw('COALESCE(church_group, "Unknown") as church_group, COUNT(*) as count')
+                ->whereNotNull('church_group')
+                ->where('church_group', '!=', '')
+                ->groupBy('church_group')
+                ->pluck('count', 'church_group')
+                ->toArray();
+
+            // Debug logging
+            Log::info('Stats calculation successful', [
+                'total_members' => $totalMembers,
+                'active_members' => $activeMembers,
+                'church_count' => count($churchStats),
+                'group_count' => count($groupStats),
+            ]);
 
             return [
                 'total_members' => $totalMembers,
                 'active_members' => $activeMembers,
                 'new_this_month' => $newThisMonth,
-                'by_church' => Member::groupBy('local_church')
-                    ->selectRaw('local_church, count(*) as count')
-                    ->pluck('count', 'local_church')
-                    ->toArray(),
-                'by_group' => Member::groupBy('church_group')
-                    ->selectRaw('church_group, count(*) as count')
-                    ->pluck('count', 'church_group')
-                    ->toArray(),
+                'by_church' => $churchStats,
+                'by_group' => $groupStats,
                 'by_status' => [
                     'active' => $activeMembers,
                     'inactive' => $inactiveMembers,
@@ -1648,12 +1666,14 @@ class MemberController extends Controller
                     'deceased_members' => $deceasedMembers,
                     'active_percentage' => $totalMembers > 0 ? round(($activeMembers / $totalMembers) * 100, 1) : 0,
                     'new_this_month' => $newThisMonth,
-                    'male_members' => $genderStats['male'] ?? $genderStats['Male'] ?? 0,
-                    'female_members' => $genderStats['female'] ?? $genderStats['Female'] ?? 0,
+                    'male_members' => $genderStats['MALE'] ?? 0,
+                    'female_members' => $genderStats['FEMALE'] ?? 0,
                 ],
             ];
         } catch (\Exception $e) {
-            Log::error('Failed to get stats: ' . $e->getMessage());
+            Log::error('Failed to get stats: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
             return [
                 'total_members' => 0,
                 'active_members' => 0,
@@ -2117,18 +2137,69 @@ class MemberController extends Controller
         ]);
     }
 
-    /**
-     * Download marriage certificate for a member
-     */
     public function downloadMarriageCertificate(Member $member)
     {
-        if (!$member->marriage_date || $member->matrimony_status !== 'married') {
+        // More flexible validation - check if member has any marriage data
+        $hasMarriageData = $member->matrimony_status === 'married' || 
+                          $member->marriage_date || 
+                          $member->spouse_name || 
+                          $member->husband_name || 
+                          $member->wife_name ||
+                          $member->marriage_certificate_number;
+
+        if (!$hasMarriageData) {
             return back()->with('error', 'Member has no marriage record to generate certificate.');
         }
 
         try {
+            // Debug: Log what data we have
+            Log::info('Marriage certificate data for member ' . $member->id, [
+                'matrimony_status' => $member->matrimony_status,
+                'marriage_date' => $member->marriage_date,
+                'spouse_name' => $member->spouse_name,
+                'husband_name' => $member->husband_name,
+                'wife_name' => $member->wife_name,
+                'marriage_certificate_number' => $member->marriage_certificate_number,
+            ]);
+
+            // Create marriageRecord object from member data
+            $marriageRecord = (object) [
+                'id' => $member->id,
+                'certificate_number' => $member->marriage_certificate_number ?? $member->certificate_number,
+                'marriage_location' => $member->marriage_location ?? 'Sacred Heart Kandara Parish',
+                'sub_county' => $member->sub_county ?? 'Kandara',
+                'county' => $member->county ?? 'Murang\'a',
+                'marriage_date' => $member->marriage_date,
+                'entry_number' => $member->marriage_entry_number,
+                'husband_name' => $member->husband_name ?? $member->full_name,
+                'husband_age' => $member->husband_age ?? $member->age,
+                'husband_residence' => $member->husband_residence ?? $member->address,
+                'husband_marital_status' => 'Single',
+                'husband_county' => $member->husband_county ?? $member->county,
+                'husband_occupation' => $member->husband_occupation ?? $member->occupation,
+                'husband_father_name' => $member->husband_father_name ?? $member->father_name,
+                'husband_mother_name' => $member->husband_mother_name ?? $member->mother_name,
+                'husband_father_occupation' => $member->husband_father_occupation,
+                'husband_mother_occupation' => $member->husband_mother_occupation,
+                'husband_father_residence' => $member->husband_father_residence,
+                'husband_mother_residence' => $member->husband_mother_residence,
+                'wife_name' => $member->wife_name ?? $member->spouse_name,
+                'wife_age' => $member->wife_age,
+                'wife_residence' => $member->wife_residence ?? $member->address,
+                'wife_marital_status' => 'Single',
+                'wife_county' => $member->wife_county ?? $member->county,
+                'wife_occupation' => $member->wife_occupation ?? $member->spouse_occupation,
+                'wife_father_name' => $member->wife_father_name,
+                'wife_mother_name' => $member->wife_mother_name,
+                'wife_father_occupation' => $member->wife_father_occupation,
+                'wife_mother_occupation' => $member->wife_mother_occupation,
+                'wife_father_residence' => $member->wife_father_residence,
+                'wife_mother_residence' => $member->wife_mother_residence,
+            ];
+
             // Prepare data for certificate
             $data = [
+                'marriageRecord' => $marriageRecord,
                 'member' => $member,
                 'parish_name' => config('app.parish_name', 'Sacred Heart Kandara Parish'),
                 'generated_at' => now()
@@ -2172,6 +2243,120 @@ class MemberController extends Controller
 
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to generate baptism card: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update member status with real-time stats refresh
+     */
+    public function updateStatus(Request $request, Member $member)
+    {
+        $validated = $request->validate([
+            'membership_status' => 'required|string|in:active,inactive,transferred,deceased',
+        ]);
+
+        try {
+            $oldStatus = $member->membership_status;
+            $member->update(['membership_status' => $validated['membership_status']]);
+
+            // Clear relevant cache to ensure fresh stats
+            $this->clearMemberCache();
+
+            // Get fresh stats for immediate response
+            $freshStats = $this->getStats();
+
+            // Log the status change
+            Log::info("Member status updated", [
+                'member_id' => $member->id,
+                'member_name' => $member->full_name,
+                'old_status' => $oldStatus,
+                'new_status' => $validated['membership_status'],
+                'updated_by' => auth()->user()->name ?? 'System'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Member status updated to {$validated['membership_status']} successfully!",
+                'member' => [
+                    'id' => $member->id,
+                    'membership_status' => $member->membership_status,
+                    'updated_at' => $member->updated_at->format('Y-m-d H:i:s')
+                ],
+                'stats' => $freshStats // Include fresh stats in response
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to update member status: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update member status. Please try again.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get updated stats for real-time updates (API endpoint)
+     */
+    public function getStatsApi()
+    {
+        try {
+            $stats = $this->getStats();
+            return response()->json([
+                'success' => true, 
+                'stats' => $stats,
+                'timestamp' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to get member stats: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get stats',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Bulk update member statuses
+     */
+    public function bulkUpdateStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'member_ids' => 'required|array|min:1',
+            'member_ids.*' => 'exists:members,id',
+            'membership_status' => 'required|string|in:active,inactive,transferred,deceased',
+        ]);
+
+        try {
+            $updatedCount = Member::whereIn('id', $validated['member_ids'])
+                ->update(['membership_status' => $validated['membership_status']]);
+
+            // Clear cache and get fresh stats
+            $this->clearMemberCache();
+            $freshStats = $this->getStats();
+
+            Log::info('Bulk status update completed', [
+                'updated_count' => $updatedCount,
+                'new_status' => $validated['membership_status'],
+                'updated_by' => auth()->user()->name ?? 'System'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully updated {$updatedCount} members to {$validated['membership_status']} status",
+                'updated_count' => $updatedCount,
+                'stats' => $freshStats
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Bulk status update failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update member statuses. Please try again.',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 }

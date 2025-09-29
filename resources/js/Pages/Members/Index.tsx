@@ -184,33 +184,38 @@ export default function MembersIndex({
     const from = useMemo(() => members?.from || 0, [members?.from]);
     const to = useMemo(() => members?.to || 0, [members?.to]);
 
-    const safeStats = useMemo(() => ({
-        total_members: stats?.total_members || 0,
-        active_members: stats?.active_members || (stats?.by_status?.active || 0),
-        new_this_month: stats?.new_this_month || 0,
-        by_church: stats?.by_church || {},
-        by_group: stats?.by_group || {},
-        by_status: {
-            active: stats?.by_status?.active || 0,
-            inactive: stats?.by_status?.inactive || 0,
-            transferred: stats?.by_status?.transferred || 0,
-            deceased: stats?.by_status?.deceased || 0,
-            ...stats?.by_status,
-        },
-        by_gender: stats?.by_gender || {},
-        statistics: {
-            total_members: stats?.statistics?.total_members || stats?.total_members || 0,
-            active_members: stats?.statistics?.active_members || stats?.active_members || (stats?.by_status?.active || 0),
-            inactive_members: stats?.statistics?.inactive_members || (stats?.by_status?.inactive || 0),
-            transferred_members: stats?.statistics?.transferred_members || (stats?.by_status?.transferred || 0),
-            deceased_members: stats?.statistics?.deceased_members || (stats?.by_status?.deceased || 0),
-            active_percentage: stats?.statistics?.active_percentage || 0,
-            new_this_month: stats?.statistics?.new_this_month || stats?.new_this_month || 0,
-            male_members: stats?.statistics?.male_members || (stats?.by_gender?.male || stats?.by_gender?.Male || 0),
-            female_members: stats?.statistics?.female_members || (stats?.by_gender?.female || stats?.by_gender?.Female || 0),
-            ...stats?.statistics,
-        },
-    }), [stats]);
+    const safeStats = useMemo(() => {
+        // Ensure stats object exists and has proper fallbacks
+        const statsData = stats || {};
+        
+        return {
+            total_members: statsData.total_members || 0,
+            active_members: statsData.active_members || (statsData.by_status?.active || 0),
+            new_this_month: statsData.new_this_month || 0,
+            by_church: statsData.by_church || {},
+            by_group: statsData.by_group || {},
+            by_status: {
+                active: statsData.by_status?.active || 0,
+                inactive: statsData.by_status?.inactive || 0,
+                transferred: statsData.by_status?.transferred || 0,
+                deceased: statsData.by_status?.deceased || 0,
+                ...statsData.by_status,
+            },
+            by_gender: statsData.by_gender || {},
+            statistics: {
+                total_members: statsData.statistics?.total_members || statsData.total_members || 0,
+                active_members: statsData.statistics?.active_members || statsData.active_members || (statsData.by_status?.active || 0),
+                inactive_members: statsData.statistics?.inactive_members || (statsData.by_status?.inactive || 0),
+                transferred_members: statsData.statistics?.transferred_members || (statsData.by_status?.transferred || 0),
+                deceased_members: statsData.statistics?.deceased_members || (statsData.by_status?.deceased || 0),
+                active_percentage: statsData.statistics?.active_percentage || 0,
+                new_this_month: statsData.statistics?.new_this_month || statsData.new_this_month || 0,
+                male_members: statsData.statistics?.male_members || (statsData.by_gender?.MALE || statsData.by_gender?.male || statsData.by_gender?.Male || 0),
+                female_members: statsData.statistics?.female_members || (statsData.by_gender?.FEMALE || statsData.by_gender?.female || statsData.by_gender?.Female || 0),
+                ...statsData.statistics,
+            },
+        };
+    }, [stats]);
 
     const safeFilterOptions = useMemo(() => ({
         local_churches: filterOptions?.local_churches || [],
@@ -226,7 +231,6 @@ export default function MembersIndex({
             setData('search', query);
             setIsLoading(true);
             get(route('members.index'), {
-                preserveState: true,
                 preserveScroll: true,
                 only: ['members', 'stats'],
                 onFinish: () => setIsLoading(false),
@@ -257,7 +261,6 @@ export default function MembersIndex({
         setData(key as keyof typeof data, value);
         setIsLoading(true);
         get(route('members.index'), {
-            preserveState: true,
             preserveScroll: true,
             only: ['members', 'stats'],
             onFinish: () => setIsLoading(false),
@@ -284,7 +287,6 @@ export default function MembersIndex({
         if (page >= 1 && page <= lastPage) {
             setIsLoading(true);
             get(route('members.index', { ...data, page }), {
-                preserveState: true,
                 onFinish: () => setIsLoading(false),
             });
         }
@@ -435,29 +437,92 @@ export default function MembersIndex({
         }
     }, [importFile]);
 
-    // Handle status change
+    // Handle status change with immediate stats update
     const handleStatusChange = useCallback(async (memberId: number, newStatus: string) => {
-        router.post(route('quick.member-status-toggle'), {
-            member_id: memberId,
-            status: newStatus
-        }, {
-            preserveState: true,
-            preserveScroll: true,
-            onSuccess: (page) => {
-                // Refresh the members data
-                router.reload({ only: ['members'] });
-            },
-            onError: (errors) => {
-                const errorMessage = Object.values(errors)[0] || 'Failed to update member status';
+        // Optimistically update UI
+        const updatedMembers = membersData.map(member => 
+            member.id === memberId 
+                ? { ...member, membership_status: newStatus }
+                : member
+        );
+
+        try {
+            const response = await fetch(route('members.update-status', memberId), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({
+                    membership_status: newStatus
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Show success message
                 window.dispatchEvent(new CustomEvent('flash-message', {
                     detail: { 
-                        type: 'error', 
-                        message: errorMessage
+                        type: 'success', 
+                        message: result.message
                     }
                 }));
+
+                // Force immediate refresh of both members and stats data
+                router.reload({ 
+                    only: ['members', 'stats'],
+                    onSuccess: () => {
+                        // Additional stats refresh to ensure accuracy
+                        refreshStats();
+                    }
+                });
+            } else {
+                throw new Error(result.message || 'Failed to update status');
             }
-        });
+        } catch (error) {
+            // Revert optimistic update on error
+            window.dispatchEvent(new CustomEvent('flash-message', {
+                detail: { 
+                    type: 'error', 
+                    message: error instanceof Error ? error.message : 'Failed to update member status'
+                }
+            }));
+            
+            // Force refresh to revert any optimistic changes
+            router.reload({ only: ['members', 'stats'] });
+        }
+    }, [membersData]);
+
+    // Enhanced refresh stats function for real-time updates
+    const refreshStats = useCallback(async () => {
+        try {
+            const response = await fetch(route('members.stats.live'), {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                }
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                // Update stats in the current page props through router reload
+                router.reload({ 
+                    only: ['stats']
+                });
+            }
+        } catch (error) {
+            console.error('Failed to refresh stats:', error);
+        }
     }, []);
+
+    // Auto-refresh stats every 30 seconds for real-time updates
+    useEffect(() => {
+        const interval = setInterval(refreshStats, 30000);
+        return () => clearInterval(interval);
+    }, [refreshStats]);
 
     // Delete member
     const handleDeleteMember = useCallback((member: Member) => {
@@ -574,12 +639,20 @@ export default function MembersIndex({
                     </div>
                     <div className="flex items-center space-x-3">
                         <button
+                            onClick={refreshStats}
+                            className="inline-flex items-center px-3 py-2 border border-green-300 rounded-lg text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 transition-colors"
+                            title="Refresh Statistics"
+                        >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Refresh Stats
+                        </button>
+                        <button
                             onClick={refreshData}
                             disabled={isLoading}
                             className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors"
                         >
                             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                            Refresh
+                            Refresh Data
                         </button>
                         <Link
                             href={route('members.create')}
@@ -700,6 +773,81 @@ export default function MembersIndex({
                                             </dd>
                                         </dl>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Church Groups and Churches Statistics */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        {/* Church Groups Stats */}
+                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+                            <div className="p-6">
+                                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                                    <Calendar className="h-5 w-5 text-orange-600 mr-2" />
+                                    Church Groups ({Object.keys(safeStats.by_group).length})
+                                </h3>
+                                <div className="space-y-3">
+                                    {Object.entries(safeStats.by_group)
+                                        .sort(([,a], [,b]) => (b as number) - (a as number))
+                                        .map(([group, count]) => (
+                                        <div key={group} className="flex items-center justify-between">
+                                            <div className="flex items-center">
+                                                <span className={`inline-flex px-2 py-1 text-xs rounded-full border ${getGroupBadgeColor(group)}`}>
+                                                    {group}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <span className="text-sm font-medium text-gray-900">
+                                                    {(count as number).toLocaleString()}
+                                                </span>
+                                                <div className="w-16 bg-gray-200 rounded-full h-2">
+                                                    <div 
+                                                        className="bg-orange-600 h-2 rounded-full" 
+                                                        style={{ 
+                                                            width: `${safeStats.total_members > 0 ? ((count as number) / safeStats.total_members) * 100 : 0}%` 
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Local Churches Stats */}
+                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+                            <div className="p-6">
+                                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                                    <MapPin className="h-5 w-5 text-indigo-600 mr-2" />
+                                    Local Churches ({Object.keys(safeStats.by_church).length})
+                                </h3>
+                                <div className="space-y-3">
+                                    {Object.entries(safeStats.by_church)
+                                        .sort(([,a], [,b]) => (b as number) - (a as number))
+                                        .map(([church, count]) => (
+                                        <div key={church} className="flex items-center justify-between">
+                                            <div className="flex items-center">
+                                                <span className="text-sm text-gray-700 truncate max-w-[200px]" title={church}>
+                                                    {church}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <span className="text-sm font-medium text-gray-900">
+                                                    {(count as number).toLocaleString()}
+                                                </span>
+                                                <div className="w-16 bg-gray-200 rounded-full h-2">
+                                                    <div 
+                                                        className="bg-indigo-600 h-2 rounded-full" 
+                                                        style={{ 
+                                                            width: `${safeStats.total_members > 0 ? ((count as number) / safeStats.total_members) * 100 : 0}%` 
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
@@ -1142,32 +1290,47 @@ export default function MembersIndex({
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex items-center justify-end space-x-2">
-                                                        {/* Status Change Dropdown */}
+                                                        {/* Enhanced Status Change Dropdown */}
                                                         <div className="relative">
                                                             <select
                                                                 value={member.membership_status}
-                                                                onChange={(e) => handleStatusChange(member.id, e.target.value)}
-                                                                className="text-xs px-2 py-1 rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                                                title="Change Status"
+                                                                onChange={(e) => {
+                                                                    const newStatus = e.target.value;
+                                                                    if (newStatus !== member.membership_status) {
+                                                                        if (confirm(`Change ${member.full_name}'s status to ${newStatus}?`)) {
+                                                                            handleStatusChange(member.id, newStatus);
+                                                                        } else {
+                                                                            // Reset the select to original value
+                                                                            e.target.value = member.membership_status;
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className={`text-xs px-3 py-2 rounded-lg border-2 font-medium transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer hover:shadow-md ${
+                                                                    member.membership_status === 'active' ? 'border-green-300 bg-green-50 text-green-700' :
+                                                                    member.membership_status === 'inactive' ? 'border-yellow-300 bg-yellow-50 text-yellow-700' :
+                                                                    member.membership_status === 'transferred' ? 'border-blue-300 bg-blue-50 text-blue-700' :
+                                                                    'border-gray-300 bg-gray-50 text-gray-700'
+                                                                }`}
+                                                                title={`Current status: ${member.membership_status}. Click to change.`}
                                                             >
-                                                                <option value="active">Active</option>
-                                                                <option value="inactive">Inactive</option>
-                                                                <option value="transferred">Transferred</option>
-                                                                <option value="deceased">Deceased</option>
+                                                                <option value="active">✅ Active</option>
+                                                                <option value="inactive">⏸️ Inactive</option>
+                                                                <option value="transferred">📋 Transferred</option>
+                                                                <option value="deceased">🕊️ Deceased</option>
                                                             </select>
                                                         </div>
                                                         
                                                         <Link
                                                             href={route('members.show', member.id)}
-                                                            className="text-blue-600 hover:text-blue-900 transition-colors p-1"
-                                                            title="View Member"
+                                                            className="text-blue-600 hover:text-blue-900 transition-colors p-2 rounded hover:bg-blue-50"
+                                                            title="View Member Details"
                                                         >
                                                             <Eye className="w-4 h-4" />
                                                         </Link>
                                                         <Link
                                                             href={route('members.edit', member.id)}
-                                                            className="text-indigo-600 hover:text-indigo-900 transition-colors p-1"
-                                                            title="Edit Member"
+                                                            className="text-indigo-600 hover:text-indigo-900 transition-colors p-2 rounded hover:bg-indigo-50"
+                                                            title="Edit Member Information"
                                                         >
                                                             <Edit className="w-4 h-4" />
                                                         </Link>
@@ -1176,7 +1339,7 @@ export default function MembersIndex({
                                                                 setMemberToDelete(member);
                                                                 setShowDeleteModal(true);
                                                             }}
-                                                            className="text-red-600 hover:text-red-900 transition-colors p-1"
+                                                            className="text-red-600 hover:text-red-900 transition-colors p-2 rounded hover:bg-red-50"
                                                             title="Delete Member"
                                                         >
                                                             <Trash2 className="w-4 h-4" />

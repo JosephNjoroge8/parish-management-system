@@ -129,6 +129,10 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         Route::patch('/{member}', [MemberController::class, 'update'])->name('update.patch')->where('member', '[0-9]+');
         Route::delete('/{member}', [MemberController::class, 'destroy'])->name('destroy')->where('member', '[0-9]+');
         Route::post('/{member}/toggle-status', [MemberController::class, 'toggleStatus'])->name('toggle-status')->where('member', '[0-9]+');
+        Route::patch('/{member}/update-status', [MemberController::class, 'updateStatus'])->name('update-status')->where('member', '[0-9]+');
+        Route::post('/bulk-update-status', [MemberController::class, 'bulkUpdateStatus'])->name('bulk-update-status');
+        Route::get('/stats', [MemberController::class, 'getStatsApi'])->name('stats');
+        Route::get('/stats/live', [MemberController::class, 'getStatsApi'])->name('stats.live');
         Route::get('/{member}/baptism-certificate', [MemberController::class, 'downloadBaptismCard'])->name('baptism-certificate')->where('member', '[0-9]+');
         Route::get('/{member}/marriage-certificate', [MemberController::class, 'downloadMarriageCertificate'])->name('marriage-certificate')->where('member', '[0-9]+');
     });
@@ -266,6 +270,49 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         Route::get('/activities/export', [ReportController::class, 'exportActivitiesReport'])->name('activities.export');
         Route::get('/financial/export', [ReportController::class, 'exportFinancialReport'])->name('financial.export');
         Route::post('/custom-export', [ReportController::class, 'customExport'])->name('custom-export');
+        
+        // Enhanced Export Routes - Matching Frontend Expectations
+        Route::get('/export-filtered-members', [ReportController::class, 'exportFilteredMembers'])->name('export-filtered-members');
+        Route::post('/export/filtered', [ReportController::class, 'exportFilteredMembers'])->name('export.filtered');
+        
+        // Category-specific export routes
+        Route::get('/export-by-local-church', [ReportController::class, 'exportByLocalChurch'])->name('export-by-local-church');
+        Route::get('/export-by-church-group', [ReportController::class, 'exportByChurchGroup'])->name('export-by-church-group');
+        Route::get('/export-by-age-group', [ReportController::class, 'exportByAgeGroup'])->name('export-by-age-group');
+        Route::get('/export-by-gender', [ReportController::class, 'exportByGender'])->name('export-by-gender');
+        Route::get('/export-by-membership-status', [ReportController::class, 'exportByMembershipStatus'])->name('export-by-membership-status');
+        Route::get('/export-by-marital-status', [ReportController::class, 'exportByMaritalStatus'])->name('export-by-marital-status');
+        Route::get('/export-by-education-level', [ReportController::class, 'exportByEducationLevel'])->name('export-by-education-level');
+        Route::get('/export-by-occupation', [ReportController::class, 'exportByOccupation'])->name('export-by-occupation');
+        Route::get('/export-by-tribe', [ReportController::class, 'exportByTribe'])->name('export-by-tribe');
+        Route::get('/export-by-community', [ReportController::class, 'exportByCommunity'])->name('export-by-community');
+        Route::get('/export-by-state', [ReportController::class, 'exportByState'])->name('export-by-state');
+        Route::get('/export-by-lga', [ReportController::class, 'exportByLga'])->name('export-by-lga');
+        Route::get('/export-by-year-joined', [ReportController::class, 'exportByYearJoined'])->name('export-by-year-joined');
+        
+        // Sacrament-based exports
+        Route::get('/export-baptized-members', [ReportController::class, 'exportBaptizedMembers'])->name('export-baptized-members');
+        Route::get('/export-confirmed-members', [ReportController::class, 'exportConfirmedMembers'])->name('export-confirmed-members');
+        Route::get('/export-married-members', [ReportController::class, 'exportMarriedMembers'])->name('export-married-members');
+        
+        // Special exports
+        Route::get('/export-members-data', [ReportController::class, 'exportMembersDataRoute'])->name('export-members-data');
+        Route::get('/export-comprehensive', [ReportController::class, 'exportComprehensiveReport'])->name('export-comprehensive');
+        Route::get('/export-member-directory', [ReportController::class, 'exportMemberDirectory'])->name('export-member-directory');
+        
+        // Member list endpoints for viewing before download
+        Route::get('/members-by-church', [ReportController::class, 'getMembersByLocalChurch'])->name('members-by-church');
+        Route::get('/members-by-group', [ReportController::class, 'getMembersByChurchGroup'])->name('members-by-group');
+        Route::get('/members-by-age-group', [ReportController::class, 'getMembersByAgeGroup'])->name('members-by-age-group');
+        Route::get('/members-by-gender', [ReportController::class, 'getMembersByGender'])->name('members-by-gender');
+        Route::get('/active-members', [ReportController::class, 'getActiveMembers'])->name('active-members');
+        Route::get('/inactive-members', [ReportController::class, 'getInactiveMembers'])->name('inactive-members');
+        Route::get('/transferred-members', [ReportController::class, 'getTransferredMembers'])->name('transferred-members');
+        Route::get('/deceased-members', [ReportController::class, 'getDeceasedMembers'])->name('deceased-members');
+        Route::get('/all-clear-records', [ReportController::class, 'getAllClearRecords'])->name('all-clear-records');
+        Route::get('/filtered-members-list', [ReportController::class, 'getFilteredMembersList'])->name('filtered-members-list');
+        Route::get('/member-directory', [ReportController::class, 'getMemberDirectory'])->name('member-directory');
+        
         Route::get('/', [ReportController::class, 'index'])->name('index');
     });
 });

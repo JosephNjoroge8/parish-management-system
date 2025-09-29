@@ -75,7 +75,7 @@ cat > .cpanel.yml << 'EOF'
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/$USER/public_html/
+    - export DEPLOYPATH=/home2/shemidig/parish_system/
     - /bin/cp -R * $DEPLOYPATH
     - /bin/cp .env $DEPLOYPATH
     - /bin/cp .htaccess $DEPLOYPATH

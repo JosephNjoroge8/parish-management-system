@@ -7,8 +7,6 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Traits\HasPermissions;
 
 class ChurchContextMiddleware
 {
@@ -19,11 +17,12 @@ class ChurchContextMiddleware
         }
 
         $user = Auth::user();
-        // Add church context to request
+        
+        // Add church context to request (simplified for single admin system)
         $request->merge([
-            'user_church' => $user->local_church ?? null,
-            'user_permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
-            'user_roles' => $user->roles->pluck('name')->toArray()
+            'user_church' => $user->local_church ?? 'Sacred Heart Kandara',
+            'user_permissions' => $user->is_admin ? ['*'] : [], // Admin has all permissions
+            'user_roles' => $user->is_admin ? ['admin'] : []
         ]);
 
         return $next($request);

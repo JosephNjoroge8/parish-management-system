@@ -8,12 +8,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -26,6 +25,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'phone',
         'password',
         'is_active',
+        'is_admin', // Simple admin flag
         'email_verified_at',
         'last_login_at',
         'profile_photo_path',
@@ -50,6 +50,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'last_login_at' => 'datetime',
         'date_of_birth' => 'date',
         'is_active' => 'boolean',
+        'is_admin' => 'boolean',
         'password' => 'hashed',
     ];
 
@@ -65,193 +66,47 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Check if user has specific role with comprehensive fallback
+     * Check if user has specific role - simplified for single admin system
      */
+    // SIMPLIFIED: No role/permission system - just admin flag
     public function hasRole($roles, ?string $guard = null): bool
     {
-        // Try Spatie first using parent trait method
-        try {
-            if (method_exists($this, 'roles') && $this->roles()->exists()) {
-                $userRoles = $this->roles->pluck('name')->toArray();
-                $checkRoles = is_array($roles) ? $roles : [$roles];
-                if (!empty(array_intersect($userRoles, $checkRoles))) {
-                    return true;
-                }
-            }
-        } catch (\Exception $e) {
-            Log::info('Spatie role check failed, using fallback', ['error' => $e->getMessage()]);
-        }
-
-        // Fallback 1: Check by email
-        if ($this->isSuperAdminByEmail()) {
-            return in_array('super-admin', is_array($roles) ? $roles : [$roles]);
-        }
-
-        // Fallback 2: Check custom role column
-        if (isset($this->role)) {
-            $userRoles = is_array($this->role) ? $this->role : [$this->role];
-            $checkRoles = is_array($roles) ? $roles : [$roles];
-            return !empty(array_intersect($userRoles, $checkRoles));
-        }
-
-        return false;
+        return $this->is_admin;
     }
 
-    /**
-     * Check if user has specific permission with comprehensive fallback
-     */
     public function hasPermissionTo($permission, ?string $guardName = null): bool
     {
-        // Super admins have all permissions
-        if ($this->isSuperAdminByEmail()) {
-            return true;
-        }
-
-        // Try Spatie permission system first
-        try {
-            // Check direct permissions
-            if (method_exists($this, 'permissions') && $this->permissions()->exists()) {
-                $userPermissions = $this->permissions->pluck('name')->toArray();
-                if (in_array($permission, $userPermissions)) {
-                    return true;
-                }
-            }
-            
-            // Check role-based permissions
-            if (method_exists($this, 'roles') && $this->roles()->exists()) {
-                foreach ($this->roles as $role) {
-                    if ($role->permissions && $role->permissions->pluck('name')->contains($permission)) {
-                        return true;
-                    }
-                }
-            }
-            
-            // Use Spatie's built-in method as final check
-            return parent::hasPermissionTo($permission, $guardName);
-            
-        } catch (\Exception $e) {
-            Log::warning('Permission check failed', [
-                'user_id' => $this->id,
-                'permission' => $permission,
-                'error' => $e->getMessage()
-            ]);
-            
-            // Fallback: Check by role hierarchy for essential permissions
-            $rolePermissionMap = [
-                'super-admin' => '*', // All permissions
-                'admin' => [
-                    'access members', 'manage members', 'export members',
-                    'access families', 'manage families',
-                    'access sacraments', 'manage sacraments',
-                    'access tithes', 'manage tithes', 'view financial reports',
-                    'access activities', 'manage activities',
-                    'access reports', 'export reports',
-                    'access users', 'manage users',
-                    'access settings'
-                ],
-                'manager' => [
-                    'access members', 'manage members',
-                    'access families', 'manage families',
-                    'access sacraments', 'manage sacraments',
-                    'access activities', 'manage activities',
-                    'access reports'
-                ],
-                'staff' => [
-                    'access members', 'manage members',
-                    'access families',
-                    'access sacraments',
-                    'access activities'
-                ],
-                'secretary' => [
-                    'access members', 'manage members',
-                    'access families', 'manage families',
-                    'access sacraments', 'manage sacraments',
-                    'access reports'
-                ],
-            ];
-            
-            try {
-                $userRoles = $this->getRoles()->pluck('name')->toArray();
-                
-                foreach ($userRoles as $roleName) {
-                    if (isset($rolePermissionMap[$roleName])) {
-                        if ($rolePermissionMap[$roleName] === '*' || 
-                            in_array($permission, $rolePermissionMap[$roleName])) {
-                            return true;
-                        }
-                    }
-                }
-            } catch (\Exception $e2) {
-                Log::error('Fallback permission check also failed', [
-                    'user_id' => $this->id,
-                    'permission' => $permission,
-                    'error' => $e2->getMessage()
-                ]);
-            }
-        }
-
-        return false;
+        return $this->is_admin;
     }
 
     /**
-     * Check if user is super admin by email
+     * Check if user is admin by database flag
      */
     public function isSuperAdminByEmail(): bool
     {
-        return in_array(strtolower($this->email), [
-            'admin@parish.com',
-            'superadmin@parish.com',
-            'administrator@parish.com',
-        ]);
+        return $this->is_admin;
     }
 
-    // Safe role retrieval without recursion
+    // Simplified role retrieval for single admin system
     public function getRoles()
     {
-        try {
-            // Use direct database query to avoid recursion
-            $roles = \Illuminate\Support\Facades\DB::table('model_has_roles')
-                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
-                ->where('model_has_roles.model_type', 'App\\Models\\User')
-                ->where('model_has_roles.model_id', $this->id)
-                ->select('roles.id', 'roles.name')
-                ->get();
-            
-            return $roles;
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Direct role query failed', ['error' => $e->getMessage()]);
-            return collect([]);
+        // In simplified system, return admin role for admin users
+        if ($this->is_admin) {
+            return collect([(object)['id' => 1, 'name' => 'admin']]);
         }
+        
+        return collect([]);
     }
 
-    // Accessors
+    // SIMPLIFIED: Admin by database flag only  
     public function getIsSuperAdminAttribute(): bool
     {
-        return $this->hasRole('super-admin');
-    }
-
-    public function getIsAdminAttribute(): bool
-    {
-        try {
-            // Use direct database query to avoid any recursion
-            $hasAdminRole = \Illuminate\Support\Facades\DB::table('model_has_roles')
-                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
-                ->where('model_has_roles.model_type', 'App\\Models\\User')
-                ->where('model_has_roles.model_id', $this->id)
-                ->whereIn('roles.name', ['admin', 'super-admin'])
-                ->exists();
-            
-            return $hasAdminRole;
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Direct admin check failed', ['error' => $e->getMessage()]);
-            // Fallback to email check
-            return $this->email === 'admin@parish.com';
-        }
+        return (bool) $this->attributes['is_admin'] ?? false;
     }
 
     public function getCanManageUsersAttribute(): bool
     {
-        return $this->hasPermissionTo('manage users');
+        return (bool) $this->attributes['is_admin'] ?? false;
     }
 
     // Scopes
@@ -262,9 +117,11 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function scopeAdmins($query)
     {
-        return $query->whereHas('roles', function ($q) {
-            $q->whereIn('name', ['super-admin', 'admin']);
-        });
+        return $query->whereIn('email', [
+            'admin@parish.com',
+            'superadmin@parish.com', 
+            'administrator@parish.com'
+        ]);
     }
 
     // Methods

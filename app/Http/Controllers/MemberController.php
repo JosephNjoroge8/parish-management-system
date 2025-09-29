@@ -19,6 +19,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
+use App\Helpers\DatabaseCompatibilityHelper;
 
 class MemberController extends Controller
 {
@@ -30,86 +33,60 @@ class MemberController extends Controller
     ];
 
     /**
-     * Display a listing of the members with enhanced search and filtering.
+     * Display a listing of the members - OPTIMIZED FOR PERFORMANCE
      */
     public function index(Request $request)
     {
-        // Validate and sanitize sort parameters to prevent function injection
-        $sortField = $this->validateSortField($request->get('sort', 'last_name'));
-        $sortDirection = $this->validateSortDirection($request->get('direction', 'asc'));
-
-        $query = Member::query();
-
-        // Enhanced search functionality
-        if ($request->filled('search')) {
-            $search = $request->get('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('middle_name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('id_number', 'like', "%{$search}%")
-                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"])
-                  ->orWhereRaw("CONCAT(first_name, ' ', middle_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
-            });
-        }
-
-        // Apply filters
-        if ($request->filled('local_church')) {
-            $query->where('local_church', $request->get('local_church'));
-        }
-
-        if ($request->filled('church_group')) {
-            $query->where('church_group', $request->get('church_group'));
-        }
-
-        if ($request->filled('membership_status')) {
-            $query->where('membership_status', $request->get('membership_status'));
-        }
-
-        if ($request->filled('gender')) {
-            // Ensure proper capitalization of gender value
-            $gender = ucfirst(strtolower($request->get('gender')));
-            $query->where('gender', $gender);
-        }
-
-        if ($request->filled('age_group')) {
-            $ageGroup = $request->get('age_group');
-            $today = \Carbon\Carbon::today();
+        try {
+            // Simple pagination with basic search only
+            $query = Member::query();
             
-            switch ($ageGroup) {
-                case 'children':
-                    $query->whereDate('date_of_birth', '>', $today->copy()->subYears(18));
-                    break;
-                case 'youth':
-                    $query->whereDate('date_of_birth', '<=', $today->copy()->subYears(18))
-                          ->whereDate('date_of_birth', '>', $today->copy()->subYears(30));
-                    break;
-                case 'adults':
-                    $query->whereDate('date_of_birth', '<=', $today->copy()->subYears(30))
-                          ->whereDate('date_of_birth', '>', $today->copy()->subYears(60));
-                    break;
-                case 'seniors':
-                    $query->whereDate('date_of_birth', '<=', $today->copy()->subYears(60));
-                    break;
+            // Basic search only (remove complex CONCAT operations)
+            if ($request->filled('search')) {
+                $search = $request->get('search');
+                $query->where(function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%");
+                });
             }
+
+            // Simple filters only
+            if ($request->filled('membership_status')) {
+                $query->where('membership_status', $request->get('membership_status'));
+            }
+            
+            if ($request->filled('local_church')) {
+                $query->where('local_church', $request->get('local_church'));
+            }
+
+            // Simple sorting
+            $sortField = in_array($request->get('sort'), ['first_name', 'last_name', 'created_at']) 
+                ? $request->get('sort') 
+                : 'last_name';
+            $sortDirection = $request->get('direction') === 'desc' ? 'desc' : 'asc';
+            
+            $query->orderBy($sortField, $sortDirection);
+
+            // Fast pagination with smaller page size
+            $members = $query->paginate(10)->withQueryString();
+
+            return Inertia::render('Members/Index', [
+                'members' => $members,
+                'filters' => $request->only(['search', 'membership_status', 'local_church']),
+                'stats' => [
+                    'total' => Member::count(),
+                    'active' => Member::where('membership_status', 'active')->count(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Member index error: ' . $e->getMessage());
+            return Inertia::render('Members/Index', [
+                'members' => ['data' => [], 'total' => 0],
+                'filters' => [],
+                'stats' => ['total' => 0, 'active' => 0],
+            ]);
         }
-
-        // Apply validated sorting
-        $query->orderBy($sortField, $sortDirection);
-
-        $members = $query->paginate($request->get('per_page', 15))->withQueryString();
-
-        return Inertia::render('Members/Index', [
-            'members' => $members,
-            'filters' => $request->only([
-                'search', 'local_church', 'church_group', 
-                'membership_status', 'gender', 'age_group', 'sort', 'direction'
-            ]),
-            'stats' => $this->getStats(),
-            'filterOptions' => $this->getFilterOptions(),
-        ]);
     }
 
     /**
@@ -126,297 +103,412 @@ class MemberController extends Controller
     }
 
     /**
-     * Store a newly created member in storage.
+     * Store a newly created member in storage - ENHANCED VERSION WITH BETTER UX
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'date_of_birth' => 'nullable|date|before:today',
-            'gender' => 'required|in:Male,Female',
-            'id_number' => 'nullable|string|max:20|unique:members',
-            'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255|unique:members',
-            'residence' => 'nullable|string|max:255',
-            'local_church' => 'required|in:St James Kangemi,St Veronica Pembe Tatu,Our Lady of Consolata Cathedral,St Peter Kiawara,Sacred Heart Kandara',
-            'small_christian_community' => 'nullable|string|max:255',
-            'church_group' => 'required|in:PMC,Youth,C.W.A,CMA,Choir,Catholic Action,Pioneer',
-            'additional_church_groups' => 'nullable|array',
-            'additional_church_groups.*' => 'in:PMC,Youth,C.W.A,CMA,Choir,Catholic Action,Pioneer',
-            'membership_status' => 'nullable|in:active,inactive,transferred,deceased',
-            'membership_date' => 'nullable|date',
-            'baptism_date' => 'nullable|date',
-            'confirmation_date' => 'nullable|date',
-            'matrimony_status' => 'required|in:single,married,widowed,separated',
-            'marriage_type' => 'nullable|in:customary,church,civil',
-            'is_differently_abled' => 'nullable|boolean',
-            'disability_description' => 'nullable|string|max:1000',
-            'occupation' => 'required|in:employed,self_employed,not_employed',
-            'education_level' => 'required|in:none,primary,kcpe,secondary,kcse,certificate,diploma,degree,masters,phd',
-            'family_id' => 'nullable|exists:families,id',
-            'parent' => 'nullable|string|max:255',
-            'godparent' => 'nullable|string|max:255',
-            'minister' => 'nullable|string|max:255',
-            'tribe' => 'nullable|string|max:255',
-            'clan' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
-            
-            // Comprehensive Baptism Record Fields
-            'birth_village' => 'nullable|string|max:255',
-            'county' => 'nullable|string|max:255',
-            'baptism_location' => 'nullable|string|max:255',
-            'baptized_by' => 'nullable|string|max:255',
-            'sponsor' => 'nullable|string|max:255',
-            'father_name' => 'nullable|string|max:255',
-            'mother_name' => 'nullable|string|max:255',
-            
-            // Optional Sacrament Fields
-            'eucharist_location' => 'nullable|string|max:255',
-            'eucharist_date' => 'nullable|date',
-            'confirmation_location' => 'nullable|string|max:255',
-            'confirmation_register_number' => 'nullable|string|max:50',
-            'confirmation_number' => 'nullable|string|max:50',
-            
-            // Marriage Information
-            'marriage_spouse' => 'nullable|string|max:255',
-            'marriage_location' => 'nullable|string|max:255',
-            'marriage_date' => 'nullable|date',
-            'marriage_register_number' => 'nullable|string|max:50',
-            'marriage_number' => 'nullable|string|max:50',
-            
-            // Comprehensive Church Marriage Record Fields
-            'spouse_name' => 'nullable|string|max:255',
-            'spouse_father_name' => 'nullable|string|max:255',
-            'spouse_mother_name' => 'nullable|string|max:255',
-            'spouse_tribe' => 'nullable|string|max:255',
-            'spouse_clan' => 'nullable|string|max:255',
-            'spouse_birth_place' => 'nullable|string|max:255',
-            'spouse_domicile' => 'nullable|string|max:255',
-            'spouse_baptized_at' => 'nullable|string|max:255',
-            'spouse_baptism_date' => 'nullable|date',
-            'spouse_widower_widow_of' => 'nullable|string|max:255',
-            'spouse_parent_consent' => 'nullable|in:Yes,No',
-            
-            // Banas Information
-            'banas_number' => 'nullable|string|max:255',
-            'banas_church_1' => 'nullable|string|max:255',
-            'banas_date_1' => 'nullable|date',
-            'banas_church_2' => 'nullable|string|max:255',
-            'banas_date_2' => 'nullable|date',
-            'dispensation_from' => 'nullable|string|max:255',
-            'dispensation_given_by' => 'nullable|string|max:255',
-            
-            // Dispensation Information
-            'dispensation_impediment' => 'nullable|string|max:1000',
-            'dispensation_authority' => 'nullable|string|max:255',
-            'dispensation_date' => 'nullable|date',
-            
-            // Marriage Contract Details
-            'marriage_church' => 'nullable|string|max:255',
-            'district' => 'nullable|string|max:255',
-            'province' => 'nullable|string|max:255',
-            'presence_of' => 'nullable|string|max:255',
-            'delegated_by' => 'nullable|string|max:255',
-            'delegation_date' => 'nullable|date',
-            
-            // Witness Information
-            'male_witness_full_name' => 'nullable|string|max:255',
-            'male_witness_father' => 'nullable|string|max:255',
-            'male_witness_clan' => 'nullable|string|max:255',
-            'female_witness_full_name' => 'nullable|string|max:255',
-            'female_witness_father' => 'nullable|string|max:255',
-            'female_witness_clan' => 'nullable|string|max:255',
-            
-            // Additional Documents
-            'other_documents' => 'nullable|string|max:1000',
-            'civil_marriage_certificate_number' => 'nullable|string|max:255',
+        Log::info('Member creation attempt', [
+            'user_id' => Auth::id(),
+            'data_keys' => array_keys($request->all()),
+            'ip' => $request->ip(),
+            'timestamp' => now()
         ]);
 
         try {
-            // Log warnings for church group gender restrictions but don't block registration
-            $warnings = [];
-            if (isset($validated['church_group']) && isset($validated['gender'])) {
-                if ($validated['church_group'] === 'C.W.A' && $validated['gender'] !== 'Female') {
-                    $warnings[] = 'C.W.A membership is typically for female members.';
-                }
+            // Enhanced validation with custom error messages
+            $validated = $request->validate([
+                // Essential fields with custom messages
+                'first_name' => 'required|string|max:255|min:2',
+                'last_name' => 'required|string|max:255|min:2',
+                'gender' => 'required|in:Male,Female',
                 
-                if ($validated['church_group'] === 'CMA' && $validated['gender'] !== 'Male') {
-                    $warnings[] = 'CMA membership is typically for male members.';
+                // Core optional fields with enhanced validation
+                'middle_name' => 'nullable|string|max:255',
+                'date_of_birth' => 'nullable|date|before:today',
+                'phone' => 'nullable|string|max:20',
+                'email' => 'nullable|email:rfc,dns|max:255|unique:members,email',
+                'id_number' => 'nullable|string|max:20|unique:members,id_number',
+                'residence' => 'nullable|string|max:500',
+                
+                // Church fields with specific validation
+                'local_church' => 'required|string|in:St James Kangemi,St Veronica Pembe Tatu,Our Lady of Consolata Cathedral,St Peter Kiawara,Sacred Heart Kandara',
+                'small_christian_community' => 'nullable|string|max:255',
+                'church_group' => 'required|string|in:PMC,Youth,Young Parents,C.W.A,CMA,Choir,Catholic Action,Pioneer',
+                'additional_church_groups' => 'nullable|array',
+                
+                // Membership fields
+                'membership_status' => 'nullable|string|in:active,inactive,transferred,deceased',
+                'membership_date' => 'nullable|date|before_or_equal:today',
+                'matrimony_status' => 'nullable|string|in:single,married,widowed,separated,divorced',
+                'marriage_type' => 'nullable|string|in:customary,church,civil',
+                'occupation' => 'nullable|string|in:employed,self_employed,not_employed,student,retired',
+                'education_level' => 'nullable|string|in:none,primary,kcpe,secondary,kcse,certificate,diploma,degree,masters,phd',
+                
+                // Family and relationships
+                'family_id' => 'nullable|string',
+                'parent' => 'nullable|string|max:255',
+                'mother_name' => 'nullable|string|max:255',
+                'godparent' => 'nullable|string|max:255',
+                'minister' => 'nullable|string|max:255',
+                'tribe' => 'nullable|string|max:255',
+                'clan' => 'nullable|string|max:255',
+                
+                // Disability
+                'is_differently_abled' => 'nullable|string|in:yes,no',
+                'disability_description' => 'nullable|string|max:1000',
+                
+                // Sacraments with date validation
+                'baptism_date' => 'nullable|date|before_or_equal:today',
+                'baptism_location' => 'nullable|string|max:255',
+                'baptized_by' => 'nullable|string|max:255',
+                'confirmation_date' => 'nullable|date|before_or_equal:today|after:baptism_date',
+                'confirmation_location' => 'nullable|string|max:255',
+                'confirmation_register_number' => 'nullable|string|max:50',
+                'confirmation_number' => 'nullable|string|max:50',
+                'eucharist_date' => 'nullable|date|before_or_equal:today',
+                'eucharist_location' => 'nullable|string|max:255',
+                
+                // Marriage Certificate Fields with conditional validation
+                'marriage_date' => 'nullable|date|before_or_equal:today',
+                'marriage_location' => 'nullable|string|max:255',
+                'marriage_sub_county' => 'nullable|string|max:255',
+                'marriage_county' => 'nullable|string|max:255',
+                'marriage_entry_number' => 'nullable|string|max:50',
+                'marriage_certificate_number' => 'nullable|string|max:50',
+                'marriage_religion' => 'nullable|string|max:255',
+                'marriage_license_number' => 'nullable|string|max:255',
+                'marriage_officiant_name' => 'nullable|string|max:255',
+                'marriage_witness1_name' => 'nullable|string|max:255',
+                'marriage_witness2_name' => 'nullable|string|max:255',
+                
+                // Spouse Information with conditional validation
+                'spouse_name' => 'nullable|string|max:255',
+                'spouse_age' => 'nullable|integer|min:1|max:120',
+                'spouse_residence' => 'nullable|string|max:255',
+                'spouse_county' => 'nullable|string|max:255',
+                'spouse_marital_status' => 'nullable|string|max:255',
+                'spouse_occupation' => 'nullable|string|max:255',
+                'spouse_father_name' => 'nullable|string|max:255',
+                'spouse_father_occupation' => 'nullable|string|max:255',
+                'spouse_father_residence' => 'nullable|string|max:255',
+                'spouse_mother_name' => 'nullable|string|max:255',
+                'spouse_mother_occupation' => 'nullable|string|max:255',
+                'spouse_mother_residence' => 'nullable|string|max:255',
+                
+                // Contact
+                'emergency_contact' => 'nullable|string|max:255',
+                'emergency_phone' => 'nullable|string|max:20',
+                
+                // Notes
+                'notes' => 'nullable|string|max:2000',
+                
+                // Accept all other fields as nullable
+                '*' => 'nullable'
+            ], [
+                // Custom error messages for better UX
+                'first_name.required' => 'First name is required',
+                'first_name.min' => 'First name must be at least 2 characters',
+                'last_name.required' => 'Last name is required',
+                'last_name.min' => 'Last name must be at least 2 characters',
+                'gender.required' => 'Please select a gender',
+                'gender.in' => 'Gender must be either Male or Female',
+                'local_church.required' => 'Please select a local church',
+                'local_church.in' => 'Please select a valid local church from the list',
+                'church_group.required' => 'Please select a church group',
+                'church_group.in' => 'Please select a valid church group from the list',
+                'email.email' => 'Please enter a valid email address',
+                'email.unique' => 'This email address is already registered',
+                'id_number.unique' => 'This ID number is already registered',
+                'date_of_birth.before' => 'Date of birth must be in the past',
+                'confirmation_date.after' => 'Confirmation date must be after baptism date',
+                'marriage_date.before_or_equal' => 'Marriage date cannot be in the future',
+                'membership_date.before_or_equal' => 'Membership date cannot be in the future',
+                'spouse_age.min' => 'Spouse age must be at least 1',
+                'spouse_age.max' => 'Spouse age cannot exceed 120',
+                'notes.max' => 'Notes cannot exceed 2000 characters',
+            ]);
+
+            // Conditional validation for married members
+            if ($validated['matrimony_status'] === 'married') {
+                $conditionalRules = [
+                    'spouse_name' => 'required|string|max:255',
+                    'marriage_date' => 'required|date|before_or_equal:today',
+                ];
+                
+                $request->validate($conditionalRules, [
+                    'spouse_name.required' => 'Spouse name is required for married members',
+                    'marriage_date.required' => 'Marriage date is required for married members',
+                ]);
+            }
+
+            // Check for potential duplicate member
+            $duplicateCheck = Member::where(function($query) use ($validated) {
+                $query->where('first_name', $validated['first_name'])
+                      ->where('last_name', $validated['last_name']);
+                
+                if (!empty($validated['date_of_birth'])) {
+                    $query->where('date_of_birth', $validated['date_of_birth']);
                 }
-            }
-            
-            if (!empty($warnings)) {
-                Log::warning('Member registration with gender restriction warnings', [
-                    'warnings' => $warnings,
-                    'member_data' => $validated['first_name'] . ' ' . $validated['last_name']
-                ]);
+            })->first();
+
+            if ($duplicateCheck) {
+                return back()->withErrors([
+                    'first_name' => 'A member with similar details already exists. Please check the member list.',
+                ])->withInput();
             }
 
-            // Ensure additional church groups don't include the primary group
-            if (isset($validated['additional_church_groups']) && isset($validated['church_group'])) {
-                $validated['additional_church_groups'] = array_filter(
-                    $validated['additional_church_groups'],
-                    function($group) use ($validated) {
-                        return $group !== $validated['church_group'];
-                    }
-                );
-            }
+            // Process and clean the data
+            $memberData = $this->processValidatedMemberData($validated);
 
-            // Convert text fields to foreign key IDs
-            if (!empty($validated['parent'])) {
-                $parentMember = Member::where('first_name', 'LIKE', '%' . trim($validated['parent']) . '%')
-                    ->orWhere('last_name', 'LIKE', '%' . trim($validated['parent']) . '%')
-                    ->orWhereRaw("(first_name || ' ' || last_name) LIKE ?", ['%' . trim($validated['parent']) . '%'])
-                    ->first();
-                $validated['parent_id'] = $parentMember ? $parentMember->id : null;
-                unset($validated['parent']);
-            }
-
-            if (!empty($validated['godparent'])) {
-                $godparentMember = Member::where('first_name', 'LIKE', '%' . trim($validated['godparent']) . '%')
-                    ->orWhere('last_name', 'LIKE', '%' . trim($validated['godparent']) . '%')
-                    ->orWhereRaw("(first_name || ' ' || last_name) LIKE ?", ['%' . trim($validated['godparent']) . '%'])
-                    ->first();
-                $validated['godparent_id'] = $godparentMember ? $godparentMember->id : null;
-                unset($validated['godparent']);
-            }
-
-            if (!empty($validated['minister'])) {
-                $ministerMember = Member::where('first_name', 'LIKE', '%' . trim($validated['minister']) . '%')
-                    ->orWhere('last_name', 'LIKE', '%' . trim($validated['minister']) . '%')
-                    ->orWhereRaw("(first_name || ' ' || last_name) LIKE ?", ['%' . trim($validated['minister']) . '%'])
-                    ->first();
-                $validated['minister_id'] = $ministerMember ? $ministerMember->id : null;
-                unset($validated['minister']);
-            }
-
-            // Set defaults for missing required fields
-            if (empty($validated['membership_status'])) {
-                $validated['membership_status'] = 'active';
-            }
-            
-            if (empty($validated['local_church'])) {
-                $validated['local_church'] = 'Sacred Heart Kandara';
-            }
-            
-            if (empty($validated['church_group'])) {
-                $validated['church_group'] = 'Catholic Action';
-            }
-
-            // Ensure matrimony_status has a valid default value
-            if (empty($validated['matrimony_status'])) {
-                $validated['matrimony_status'] = 'single';
-            }
-
-            // Ensure occupation has a valid default value
-            if (empty($validated['occupation'])) {
-                $validated['occupation'] = 'not_employed';
-            }
-
-            // Ensure education_level has a valid default value
-            if (empty($validated['education_level'])) {
-                $validated['education_level'] = 'none';
-            }
-
-            // Ensure membership_date has a valid value
-            if (empty($validated['membership_date'])) {
-                $validated['membership_date'] = now()->format('Y-m-d');
-            }
-
-            // Handle empty family_id - set to null if empty string
-            if (isset($validated['family_id']) && empty($validated['family_id'])) {
-                $validated['family_id'] = null;
-            }
-
-            // Handle additional_church_groups - ensure it's an array
-            if (isset($validated['additional_church_groups']) && !is_array($validated['additional_church_groups'])) {
-                $validated['additional_church_groups'] = [];
-            }
-
+            // Create the member in a transaction
             DB::beginTransaction();
-
-            // Create the member with basic information
-            $memberData = array_filter($validated, function($key) {
-                return !in_array($key, [
-                    // Exclude comprehensive record fields from member table
-                    'birth_village', 'county', 'baptism_location', 'baptized_by', 'sponsor', 
-                    'father_name', 'mother_name', 'eucharist_location', 'eucharist_date',
-                    'confirmation_location', 'confirmation_register_number', 'confirmation_number',
-                    'marriage_spouse', 'marriage_location', 'marriage_date', 'marriage_register_number', 'marriage_number',
-                    'spouse_name', 'spouse_father_name', 'spouse_mother_name', 'spouse_tribe', 'spouse_clan',
-                    'spouse_birth_place', 'spouse_domicile', 'spouse_baptized_at', 'spouse_baptism_date',
-                    'spouse_widower_widow_of', 'spouse_parent_consent', 'banas_number', 'banas_church_1',
-                    'banas_date_1', 'banas_church_2', 'banas_date_2', 'dispensation_from', 'dispensation_given_by',
-                    'dispensation_impediment', 'dispensation_authority', 'dispensation_date', 'marriage_church',
-                    'district', 'province', 'presence_of', 'delegated_by', 'delegation_date',
-                    'male_witness_full_name', 'male_witness_father', 'male_witness_clan',
-                    'female_witness_full_name', 'female_witness_father', 'female_witness_clan',
-                    'other_documents', 'civil_marriage_certificate_number'
-                ]);
-            }, ARRAY_FILTER_USE_KEY);
-
+            
             $member = Member::create($memberData);
-            
-            // Inherit family data if applicable
-            if ($member->family_id) {
-                $member->inheritFamilyData();
-                $member->save();
-            }
 
-            // Create comprehensive baptism record if baptism date is provided
-            if (!empty($validated['baptism_date'])) {
-                $this->createComprehensiveBaptismRecord($member, $validated);
-            }
+            // Create related records if needed
+            $this->createRelatedRecords($member, $validated);
 
-            // Create comprehensive marriage record if church marriage
-            if (isset($validated['matrimony_status']) && $validated['matrimony_status'] === 'married' && 
-                isset($validated['marriage_type']) && $validated['marriage_type'] === 'church') {
-                $this->createComprehensiveMarriageRecord($member, $validated);
-            }
-            
             DB::commit();
-            
+
+            // Clear relevant cache
+            $this->clearMemberCache();
+
+            Log::info('Member created successfully', [
+                'member_id' => $member->id,
+                'name' => $member->first_name . ' ' . $member->last_name,
+                'church' => $member->local_church,
+                'group' => $member->church_group,
+                'created_by' => Auth::id()
+            ]);
+
+            // Return appropriate response based on request type
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Member created successfully with comprehensive church records!',
-                    'member' => $member->load(['baptismRecord', 'marriageRecord'])
+                    'message' => 'Member successfully added to the parish database!',
+                    'member' => [
+                        'id' => $member->id,
+                        'name' => $member->first_name . ' ' . $member->last_name,
+                        'church' => $member->local_church,
+                        'group' => $member->church_group,
+                    ],
+                    'redirect' => route('members.index'),
+                    'stats' => [
+                        'total_members' => Member::count(),
+                        'active_members' => Member::where('membership_status', 'active')->count(),
+                    ]
                 ]);
             }
-            
-            return redirect()->route('members.show', $member->id)
-                ->with('success', 'Member created successfully with comprehensive church records! Member ID: ' . $member->id)
-                ->with('member', $member);
-                
+
+            return redirect()->route('members.index')
+                ->with('success', 'Member ' . $member->first_name . ' ' . $member->last_name . ' successfully added! (ID: ' . $member->id . ')');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Member creation validation failed', [
+                'user_id' => Auth::id(),
+                'errors' => $e->errors(),
+                'input' => $request->except(['password', 'password_confirmation'])
+            ]);
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please correct the errors below',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+
+            return back()->withErrors($e->errors())->withInput();
+
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Failed to create member with comprehensive records: ' . $e->getMessage(), [
-                'member_data' => $validated['first_name'] . ' ' . $validated['last_name'],
-                'error_message' => $e->getMessage(),
-                'validated_data' => $validated
-            ]);
             
-            // Provide more specific error messages
-            $errorMessage = 'Failed to create member.';
-            if (str_contains($e->getMessage(), 'NOT NULL constraint failed')) {
-                $errorMessage = 'Missing required field. Please ensure all mandatory fields are filled.';
-            } elseif (str_contains($e->getMessage(), 'UNIQUE constraint failed')) {
-                $errorMessage = 'A member with this ID number or email already exists.';
-            } elseif (str_contains($e->getMessage(), 'FOREIGN KEY constraint failed')) {
-                $errorMessage = 'Invalid family reference. Please select a valid family.';
+            Log::error('Member creation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id(),
+                'input' => $request->except(['password', 'password_confirmation']),
+                'validated_data' => isset($memberData) ? $memberData : null,
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+
+            $message = 'Failed to create member. Please try again. If the problem persists, contact support.';
+            
+            // Add specific error details for debugging
+            if (app()->environment('local')) {
+                $message .= ' Error: ' . $e->getMessage();
             }
             
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => $errorMessage,
-                    'debug_message' => config('app.debug') ? $e->getMessage() : null
-                ], 422);
+                    'message' => $message,
+                    'error_code' => 'MEMBER_CREATE_FAILED',
+                    'debug_info' => app()->environment('local') ? [
+                        'error' => $e->getMessage(),
+                        'line' => $e->getLine(),
+                        'file' => basename($e->getFile())
+                    ] : null
+                ], 500);
             }
+
+            return back()->withErrors(['error' => $message])->withInput();
+        }
+    }
+
+    /**
+     * Process validated member data for storage
+     */
+    private function processValidatedMemberData(array $validated): array
+    {
+        $memberData = [];
+        
+        // Essential fields
+        $memberData['first_name'] = $validated['first_name'];
+        $memberData['last_name'] = $validated['last_name'];
+        $memberData['gender'] = $validated['gender'];
+        
+        // Optional fields with defaults and type conversion
+        $memberData['middle_name'] = $validated['middle_name'] ?? null;
+        $memberData['date_of_birth'] = !empty($validated['date_of_birth']) ? $validated['date_of_birth'] : null;
+        $memberData['phone'] = $validated['phone'] ?? null;
+        $memberData['email'] = $validated['email'] ?? null;
+        $memberData['id_number'] = $validated['id_number'] ?? null;
+        $memberData['residence'] = $validated['residence'] ?? null;
+        
+        // Church information
+        $memberData['local_church'] = $validated['local_church'];
+        $memberData['small_christian_community'] = $validated['small_christian_community'] ?? null;
+        $memberData['church_group'] = $validated['church_group'];
+        $memberData['additional_church_groups'] = $validated['additional_church_groups'] ?? null;
+        
+        // Membership
+        $memberData['membership_status'] = $validated['membership_status'] ?? 'active';
+        $memberData['membership_date'] = !empty($validated['membership_date']) ? $validated['membership_date'] : now()->format('Y-m-d');
+        $memberData['matrimony_status'] = $validated['matrimony_status'] ?? 'single';
+        $memberData['marriage_type'] = $validated['marriage_type'] ?? null;
+        $memberData['occupation'] = $validated['occupation'] ?? 'not_employed';
+        $memberData['education_level'] = $validated['education_level'] ?? 'none';
+        
+        // Family relationships
+        $memberData['family_id'] = (!empty($validated['family_id']) && $validated['family_id'] !== '' && is_numeric($validated['family_id'])) ? (int)$validated['family_id'] : null;
+        $memberData['parent'] = $validated['parent'] ?? null;
+        $memberData['mother_name'] = $validated['mother_name'] ?? null;
+        $memberData['godparent'] = $validated['godparent'] ?? null;
+        $memberData['minister'] = $validated['minister'] ?? null;
+        
+        // Auto-sync fields for sacramental records
+        $memberData['father_name'] = $memberData['parent'];
+        $memberData['baptized_by'] = $memberData['minister'];
+        $memberData['sponsor'] = $memberData['godparent'];
+        
+        $memberData['tribe'] = $validated['tribe'] ?? null;
+        $memberData['clan'] = $validated['clan'] ?? null;
+        
+        // Disability
+        $memberData['is_differently_abled'] = ($validated['is_differently_abled'] ?? 'no') === 'yes';
+        $memberData['disability_description'] = $memberData['is_differently_abled'] ? ($validated['disability_description'] ?? null) : null;
+        
+        // Sacraments
+        $memberData['baptism_date'] = !empty($validated['baptism_date']) ? $validated['baptism_date'] : null;
+        $memberData['baptism_location'] = $validated['baptism_location'] ?? null;
+        $memberData['baptized_by'] = $validated['baptized_by'] ?? $memberData['minister'];
+        $memberData['confirmation_date'] = !empty($validated['confirmation_date']) ? $validated['confirmation_date'] : null;
+        $memberData['confirmation_location'] = $validated['confirmation_location'] ?? null;
+        $memberData['confirmation_register_number'] = $validated['confirmation_register_number'] ?? null;
+        $memberData['confirmation_number'] = $validated['confirmation_number'] ?? null;
+        $memberData['eucharist_date'] = !empty($validated['eucharist_date']) ? $validated['eucharist_date'] : null;
+        $memberData['eucharist_location'] = $validated['eucharist_location'] ?? null;
+        
+        // Marriage information
+        $memberData['marriage_date'] = !empty($validated['marriage_date']) ? $validated['marriage_date'] : null;
+        $memberData['marriage_location'] = $validated['marriage_location'] ?? null;
+        $memberData['marriage_county'] = $validated['marriage_county'] ?? null;
+        $memberData['marriage_sub_county'] = $validated['marriage_sub_county'] ?? null;
+        $memberData['marriage_entry_number'] = $validated['marriage_entry_number'] ?? null;
+        $memberData['marriage_certificate_number'] = $validated['marriage_certificate_number'] ?? null;
+        $memberData['marriage_religion'] = $validated['marriage_religion'] ?? null;
+        $memberData['marriage_license_number'] = $validated['marriage_license_number'] ?? null;
+        $memberData['marriage_officiant_name'] = $validated['marriage_officiant_name'] ?? null;
+        $memberData['marriage_witness1_name'] = $validated['marriage_witness1_name'] ?? null;
+        $memberData['marriage_witness2_name'] = $validated['marriage_witness2_name'] ?? null;
+        
+        // Spouse information
+        $memberData['spouse_name'] = $validated['spouse_name'] ?? null;
+        $memberData['spouse_age'] = !empty($validated['spouse_age']) && is_numeric($validated['spouse_age']) ? (int)$validated['spouse_age'] : null;
+        $memberData['spouse_residence'] = $validated['spouse_residence'] ?? null;
+        $memberData['spouse_county'] = $validated['spouse_county'] ?? null;
+        $memberData['spouse_marital_status'] = $validated['spouse_marital_status'] ?? null;
+        $memberData['spouse_occupation'] = $validated['spouse_occupation'] ?? null;
+        $memberData['spouse_father_name'] = $validated['spouse_father_name'] ?? null;
+        $memberData['spouse_father_occupation'] = $validated['spouse_father_occupation'] ?? null;
+        $memberData['spouse_father_residence'] = $validated['spouse_father_residence'] ?? null;
+        $memberData['spouse_mother_name'] = $validated['spouse_mother_name'] ?? null;
+        $memberData['spouse_mother_occupation'] = $validated['spouse_mother_occupation'] ?? null;
+        $memberData['spouse_mother_residence'] = $validated['spouse_mother_residence'] ?? null;
+        
+        // Contact
+        $memberData['emergency_contact'] = $validated['emergency_contact'] ?? null;
+        $memberData['emergency_phone'] = $validated['emergency_phone'] ?? null;
+        
+        // Notes
+        $memberData['notes'] = $validated['notes'] ?? null;
+        
+        // Filter out empty strings and replace with null
+        return array_map(function($value) {
+            return ($value === '' || $value === []) ? null : $value;
+        }, $memberData);
+    }
+
+    /**
+     * Create related records (baptism, marriage, etc.)
+     */
+    private function createRelatedRecords(Member $member, array $validated): void
+    {
+        try {
+            // Create baptism record if baptism date is provided
+            if (!empty($validated['baptism_date'])) {
+                $this->createComprehensiveBaptismRecord($member, $validated);
+            }
+
+            // Create marriage record if married and marriage details provided
+            if ($member->matrimony_status === 'married' && !empty($validated['marriage_date'])) {
+                $this->createComprehensiveMarriageRecord($member, $validated);
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to create related records', [
+                'member_id' => $member->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Clear member-related cache
+     */
+    private function clearMemberCache(): void
+    {
+        try {
+            Cache::forget('optimized_stats');
+            Cache::forget('dashboard_core_' . Auth::id());
+            Cache::forget('parish_overview');
+            Cache::forget('recent_activities_' . Auth::id());
             
-            return back()->withErrors(['error' => $errorMessage])->withInput();
+            // Clear user-specific cache patterns
+            $userId = Auth::id();
+            $cacheKeys = [
+                "user_permissions_{$userId}",
+                "dashboard_alerts_{$userId}",
+                "quick_actions_{$userId}",
+                "api_stats"
+            ];
+            
+            foreach ($cacheKeys as $key) {
+                Cache::forget($key);
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to clear cache', ['error' => $e->getMessage()]);
         }
     }
 
@@ -2023,5 +2115,63 @@ class MemberController extends Controller
             'certificate_data' => $certificateData,
             'message' => 'Baptism certificate data ready for download'
         ]);
+    }
+
+    /**
+     * Download marriage certificate for a member
+     */
+    public function downloadMarriageCertificate(Member $member)
+    {
+        if (!$member->marriage_date || $member->matrimony_status !== 'married') {
+            return back()->with('error', 'Member has no marriage record to generate certificate.');
+        }
+
+        try {
+            // Prepare data for certificate
+            $data = [
+                'member' => $member,
+                'parish_name' => config('app.parish_name', 'Sacred Heart Kandara Parish'),
+                'generated_at' => now()
+            ];
+
+            // Generate PDF using Dompdf
+            $pdf = app('dompdf.wrapper');
+            $pdf->loadView('certificates.marriage-certificate', $data);
+            $pdf->setPaper('A4', 'portrait');
+
+            $filename = 'marriage-certificate-' . Str::slug($member->full_name) . '-' . now()->format('Y-m-d') . '.pdf';
+
+            return $pdf->download($filename);
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to generate marriage certificate: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Download baptism card for a member  
+     */
+    public function downloadBaptismCard(Member $member)
+    {
+        try {
+            // Prepare data for baptism card
+            $data = [
+                'member' => $member,
+                'parish_name' => config('app.parish_name', 'Sacred Heart Kandara Parish'),
+                'generated_at' => now()
+            ];
+
+            // Generate PDF using Dompdf
+            $pdf = app('dompdf.wrapper');
+            $pdf->loadView('certificates.baptism-card', $data);
+            $pdf->setPaper('A5', 'landscape');
+
+            $filename = 'baptism-card-' . Str::slug($member->full_name) . '-' . now()->format('Y-m-d') . '.pdf';
+
+            return $pdf->download($filename);
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to generate baptism card: ' . $e->getMessage());
+        }
     }
 }

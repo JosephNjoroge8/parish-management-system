@@ -57,48 +57,34 @@ class PermissionMiddleware
                 ->with('error', 'Your account has been deactivated. Please contact the administrator.');
         }
         
-        // 3. Super Admin bypass - they have access to everything
-        if ($user->hasRole('super-admin')) {
-            Log::info('Super admin access granted', [
+        // 3. Simplified permission check - admin users have all access
+        if (!$user->is_admin) {
+            Log::warning('Non-admin access attempt', [
                 'user_id' => $user->id,
                 'user_email' => $user->email,
                 'permission_required' => $permission,
-                'route' => $request->route()?->getName(),
-            ]);
-            
-            // Update last login timestamp
-            $user->updateLastLogin();
-            return $next($request);
-        }
-        
-        // 4. Check if user has required permission
-        if (!$user->hasPermissionTo($permission)) {
-            Log::warning('Insufficient permissions', [
-                'user_id' => $user->id,
-                'user_email' => $user->email,
-                'permission_required' => $permission,
-                'user_roles' => $user->getRoles()->pluck('name')->toArray(),
                 'route' => $request->route()?->getName(),
             ]);
             
             if ($request->expectsJson()) {
                 return response()->json([
-                    'message' => 'You do not have permission to access this resource.',
-                    'error' => 'Insufficient permissions',
+                    'message' => 'Access denied. Only system administrators can access this resource.',
+                    'error' => 'Insufficient privileges',
                     'required_permission' => $permission
                 ], 403);
             }
             
             return redirect()->route('dashboard')
-                ->with('error', 'You do not have permission to access this area.');
+                ->with('error', 'Access denied. Only system administrators can access this area.');
         }
         
-        // 5. Log successful access
-        Log::info('Permission granted', [
+        // 4. Log successful admin access
+        Log::info('Admin access granted', [
             'user_id' => $user->id,
             'user_email' => $user->email,
             'permission_required' => $permission,
             'route' => $request->route()?->getName(),
+            'access_level' => 'admin',
         ]);
         
         // Update last login timestamp

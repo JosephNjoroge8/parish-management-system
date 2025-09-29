@@ -217,7 +217,23 @@ docker-compose.override.yml
 # Debug files
 debug_*.php
 test_*.php
+test-*.php
 /storage/debugbar/
+
+# Test and analysis files
+*.test.php
+*_test.php
+test-*.php
+test_*.php
+
+# Temporary documentation files
+/MYSQL_MIGRATION_GUIDE.md
+/DEPLOYMENT_PRODUCTION_GUIDE.md
+/PRODUCTION_DEPLOYMENT_GUIDE.md
+/MEMBER_REGISTRATION_ANALYSIS.md
+/MEMBER_REGISTRATION_RESOLUTION.md
+/DATABASE_ENHANCEMENT_REPORT.md
+/TROUBLESHOOT_503_ERRORS.md
 
 # ============================================================================
 # PARISH-SPECIFIC SENSITIVE FILES
@@ -308,3 +324,24 @@ UserControllerOptimized.php
 # NOTE: Always review files before committing to ensure no sensitive data is included
 # Use: git status --ignored to see ignored files
 # Use: git add -f filename to force add an ignored file if needed
+
+# Additional development files to ignore
+debug_*.php
+test_*.php
+test-*.php
+*_test.php
+*.test.php
+/storage/debugbar/
+/storage/logs/*.log
+
+# Development documentation
+/MYSQL_MIGRATION_GUIDE.md
+/DEPLOYMENT_PRODUCTION_GUIDE.md
+/PRODUCTION_DEPLOYMENT_GUIDE.md
+/MEMBER_REGISTRATION_ANALYSIS.md
+/MEMBER_REGISTRATION_RESOLUTION.md
+/DATABASE_ENHANCEMENT_REPORT.md
+
+# Keep only essential documentation
+!/README.md
+!/LICENSE

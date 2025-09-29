@@ -27,17 +27,8 @@ class RegisteredUserController extends Controller
      */
     public static function userIsSuperAdmin($user): bool
     {
-        try {
-            // Try Spatie role check first
-            if (method_exists($user, 'hasRole')) {
-                return $user->hasRole('super-admin');
-            }
-        } catch (\Exception $e) {
-            // Fallback to email check for default admin
-        }
-        
-        // Fallback: check if user is the default admin
-        return $user->email === 'admin@parish.com';
+        // Simplified: check is_admin flag
+        return $user->is_admin;
     }
 
     /**

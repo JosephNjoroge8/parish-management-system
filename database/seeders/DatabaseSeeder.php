@@ -16,19 +16,16 @@ class DatabaseSeeder extends Seeder
 
         // Run seeders in the correct order based on dependencies
         $this->call([
-            // 1. CRITICAL: Roles and permissions MUST be seeded first
-            RolePermissionSeeder::class,
-            
-            // 2. Users (depends on roles and permissions)
+            // 1. Users (simple is_admin flag authentication)
             UserSeeder::class,
             
-            // 3. Sample data (depends on users and permissions)
+            // 2. Sample data (depends on users)
             SampleDataSeeder::class,
         ]);
 
         $this->command->info('🎉 Parish Management System Database Seeding Completed Successfully!');
-        $this->command->info('🔐 Authentication and authorization system is now properly configured.');
+        $this->command->info('🔐 Simple admin authentication system is now configured.');
         $this->command->info('� Super Admin credentials: admin@parish.com / admin123');
-        $this->command->info('�📊 You can now access the dashboard with proper role-based security.');
+        $this->command->info('�📊 You can now access the dashboard with admin privileges.');
     }
 }

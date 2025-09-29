@@ -1,99 +1,18 @@
-# Optimized cPanel Deployment Configuration
-# Fast and reliable deployment for Parish Management System
-# Documentation: https://docs.cpanel.net/knowledge-base/web-services/guide-to-git-deployment/
-
 ---
 deployment:
   tasks:
-    # Step 1: Initialize deployment path
-    - export DEPLOYPATH=/home2/shemidig/parish_system/
-    - echo "🚀 Starting deployment to $DEPLOYPATH"
-    
-    # Step 2: Fast bulk copy (much faster than individual file copies)
-    - echo "📁 Copying application files..."
-    - /bin/cp -R . $DEPLOYPATH/ 2>/dev/null || true
-    
-    # Step 3: Remove git files from deployment (security & space)
-    - /bin/rm -rf $DEPLOYPATH/.git
-    - /bin/rm -f $DEPLOYPATH/.gitignore
-    - echo "🗑️ Git files removed from deployment"
-    
-    # Step 4: Essential file permissions (fast approach)
-    - echo "🔒 Setting essential permissions..."
-    - chmod -R 755 $DEPLOYPATH
-    - chmod -R 777 $DEPLOYPATH/storage $DEPLOYPATH/bootstrap/cache 2>/dev/null || true
-    
-    # Step 5: Environment check and Laravel setup
-    - echo "⚙️ Setting up Laravel environment..."
-    - |
-      cd $DEPLOYPATH
-      if [ ! -f .env ]; then
-        if [ -f .env.example ]; then
-          cp .env.example .env
-          echo "📋 Created .env from template - EDIT WITH YOUR DATABASE CREDENTIALS!"
-        else
-          echo "❌ ERROR: No .env or .env.example found!"
-          exit 1
-        fi
-      else
-        echo "✅ .env file exists"
-      fi
-    
-    # Step 6: Laravel optimization (essential commands only)
-    - echo "🚀 Optimizing Laravel..."
-    - |
-      cd $DEPLOYPATH
-      
-      # Generate app key if needed
-      /usr/local/bin/ea-php82 artisan key:generate --force --no-interaction || echo "Key generation skipped"
-      
-      # Clear caches (fast)
-      /usr/local/bin/ea-php82 artisan config:clear --no-interaction || true
-      /usr/local/bin/ea-php82 artisan cache:clear --no-interaction || true
-      
-      # Run migrations (with timeout protection)
-      timeout 60 /usr/local/bin/ea-php82 artisan migrate --force --no-interaction || echo "Migration timeout/error - check manually"
-      
-      # Run seeders to ensure roles and permissions are set up (skip if data exists)
-      /usr/local/bin/ea-php82 artisan db:seed --class=RolePermissionSeeder --force --no-interaction || echo "Seeder execution failed - check manually"
-      
-      # Clear duplicate family codes if they exist
-      /usr/local/bin/ea-php82 artisan tinker --execute="
-        use App\Models\Family;
-        use Illuminate\Support\Facades\DB;
-        
-        // Remove duplicate sample families if they exist
-        Family::where('family_code', 'FAM001')->where('family_name', 'like', '%Kamau%')->delete();
-        Family::where('family_code', 'FAM002')->where('family_name', 'like', '%Wanjiku%')->delete();
-        
-        echo 'Cleared duplicate sample families';
-      " || true
-      
-      # Create storage link
-      /usr/local/bin/ea-php82 artisan storage:link --no-interaction || true
-      
-      # Production optimization
-      /usr/local/bin/ea-php82 artisan config:cache --no-interaction || true
-      /usr/local/bin/ea-php82 artisan route:cache --no-interaction || true
-      
-      echo "✅ Laravel setup completed"
-
-    # Step 7: Final security and verification
-    - echo "🔐 Final security settings..."
-    - |
-      cd $DEPLOYPATH
-      
-      # Secure .env file
-      [ -f .env ] && chmod 600 .env
-      
-      # Remove any development files that might have been copied
-      rm -f debug_*.php test_*.php *.log 2>/dev/null || true
-      
-      # Verify Laravel is working
-      if /usr/local/bin/ea-php82 artisan --version >/dev/null 2>&1; then
-        echo "🎉 Parish Management System Deployed Successfully!"
-        echo "🌐 Access your system at: http://parish.quovadisyouthhub.org/"
-        echo "� Remember to verify your .env database settings!"
-      else
-        echo "⚠️ Deployment completed but Laravel check failed - verify manually"
-      fi
+    - export DEPLOYPATH=/home/$USER/public_html/
+    - /bin/cp -R * $DEPLOYPATH
+    - /bin/cp .env $DEPLOYPATH
+    - /bin/cp .htaccess $DEPLOYPATH
+    - cd $DEPLOYPATH && php artisan optimize:clear
+    - cd $DEPLOYPATH && php artisan key:generate --force
+    - cd $DEPLOYPATH && php artisan migrate --force
+    - cd $DEPLOYPATH && php artisan config:cache
+    - cd $DEPLOYPATH && php artisan route:cache
+    - cd $DEPLOYPATH && php artisan view:cache
+    - cd $DEPLOYPATH && php artisan storage:link
+    - cd $DEPLOYPATH && php artisan db:configure-production
+    - cd $DEPLOYPATH && php artisan db:optimize-mysql
+    - cd $DEPLOYPATH && chmod -R 755 storage bootstrap/cache
+    - cd $DEPLOYPATH && chmod 644 .env

@@ -108,29 +108,20 @@ export default function Welcome({ auth, laravelVersion, phpVersion }: WelcomePro
                     <div className="relative w-full max-w-2xl px-6 lg:max-w-7xl">
                         {/* Navigation */}
                         <header className="absolute top-0 right-0 p-6 text-right">
-                            {auth.user ? (
+                            <div className="space-x-4">
                                 <Link
-                                    href={route('dashboard')}
+                                    href={route('login')}
+                                    className="rounded-md px-4 py-2 text-blue-600 hover:text-blue-800 transition duration-300"
+                                >
+                                    Log in
+                                </Link>
+                                <Link
+                                    href={route('login')}
                                     className="rounded-md px-6 py-3 bg-blue-600 text-white hover:bg-blue-700 transition duration-300 shadow-lg"
                                 >
-                                    Go to Dashboard
+                                    Access System
                                 </Link>
-                            ) : (
-                                <div className="space-x-4">
-                                    <Link
-                                        href={route('login')}
-                                        className="rounded-md px-4 py-2 text-blue-600 hover:text-blue-800 transition duration-300"
-                                    >
-                                        Log in
-                                    </Link>
-                                    <Link
-                                        href={route('register')}
-                                        className="rounded-md px-6 py-3 bg-blue-600 text-white hover:bg-blue-700 transition duration-300 shadow-lg"
-                                    >
-                                        Register
-                                    </Link>
-                                </div>
-                            )}
+                            </div>
                         </header>
 
                         {/* Hero Section */}
@@ -148,33 +139,23 @@ export default function Welcome({ auth, laravelVersion, phpVersion }: WelcomePro
                                 
                                 <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
                                     A comprehensive solution for managing your parish community, 
-                                    members, families, sacraments, and financial records all in one place.
+                                    members, families, sacraments, and financial records all in one secure place.
+                                    Please log in to access your dashboard.
                                 </p>
 
                                 <div className="flex justify-center space-x-4 mb-16">
-                                    {auth.user ? (
-                                        <Link
-                                            href={route('dashboard')}
-                                            className="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition duration-300 shadow-lg"
-                                        >
-                                            Access Dashboard
-                                        </Link>
-                                    ) : (
-                                        <>
-                                            <Link
-                                                href={route('login')}
-                                                className="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition duration-300 shadow-lg"
-                                            >
-                                                Get Started
-                                            </Link>
-                                            <Link
-                                                href="#features"
-                                                className="bg-white text-blue-600 border-2 border-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition duration-300"
-                                            >
-                                                Learn More
-                                            </Link>
-                                        </>
-                                    )}
+                                    <Link
+                                        href={route('login')}
+                                        className="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition duration-300 shadow-lg"
+                                    >
+                                        Access Dashboard
+                                    </Link>
+                                    <Link
+                                        href="#features"
+                                        className="bg-white text-blue-600 border-2 border-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition duration-300"
+                                    >
+                                        Learn More
+                                    </Link>
                                 </div>
                             </div>
                         </main>

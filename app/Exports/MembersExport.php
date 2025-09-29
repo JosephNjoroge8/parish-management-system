@@ -4,6 +4,7 @@
 namespace App\Exports;
 
 use App\Models\Member;
+use App\Helpers\DatabaseHelper;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -134,11 +135,11 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
 
         // Age filters
         if (!empty($this->filters['age_min'])) {
-            $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) >= ?', [(int)$this->filters['age_min']]);
+            $query->whereRaw(DatabaseHelper::getAgeSQL() . ' >= ?', [(int)$this->filters['age_min']]);
         }
 
         if (!empty($this->filters['age_max'])) {
-            $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) <= ?', [(int)$this->filters['age_max']]);
+            $query->whereRaw(DatabaseHelper::getAgeSQL() . ' <= ?', [(int)$this->filters['age_max']]);
         }
 
         if (!empty($this->filters['age_group'])) {
@@ -331,42 +332,42 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
         switch ($ageGroup) {
             case 'children':
             case '0-12':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 0 AND 12');
+                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' BETWEEN 0 AND 12');
                 break;
             case 'youth':
             case '13-24':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 13 AND 24');
+                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' BETWEEN 13 AND 24');
                 break;
             case 'young_adults':
             case '18-30':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 18 AND 30');
+                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' BETWEEN 18 AND 30');
                 break;
             case 'adults':
             case '25-59':
             case '31-50':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 25 AND 59');
+                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' BETWEEN 25 AND 59');
                 break;
             case 'middle_aged':
             case '51-70':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN 51 AND 70');
+                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' BETWEEN 51 AND 70');
                 break;
             case 'seniors':
             case '60+':
             case '70+':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) >= 60');
+                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' >= 60');
                 break;
             case 'elderly':
-                $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) >= 70');
+                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' >= 70');
                 break;
             default:
                 // Handle custom age ranges like "25-40"
                 if (preg_match('/^(\\d+)-(\\d+)$/', $ageGroup, $matches)) {
                     $minAge = (int)$matches[1];
                     $maxAge = (int)$matches[2];
-                    $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) BETWEEN ? AND ?', [$minAge, $maxAge]);
+                    $query->whereRaw(DatabaseHelper::getAgeSQL() . ' BETWEEN ? AND ?', [$minAge, $maxAge]);
                 } elseif (preg_match('/^(\\d+)\\+$/', $ageGroup, $matches)) {
                     $minAge = (int)$matches[1];
-                    $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, NOW()) >= ?', [$minAge]);
+                    $query->whereRaw(DatabaseHelper::getAgeSQL() . ' >= ?', [$minAge]);
                 }
                 break;
         }

@@ -24,7 +24,7 @@ export default defineConfig({
     },
     build: {
         outDir: 'public/build',
-        manifest: true,
+        manifest: 'manifest.json', // Specify manifest filename explicitly
         emptyOutDir: true,
         sourcemap: false, // Disable sourcemaps for production
         minify: 'terser',

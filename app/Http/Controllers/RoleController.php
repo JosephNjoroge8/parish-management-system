@@ -42,7 +42,7 @@ class RoleController extends Controller
         $user = Auth::user();
         
         // Super admin can manage all roles
-        if ($user && ($user->hasRole('super-admin') || $user->email === 'admin@parish.com')) {
+        if ($user && $user->is_admin) {
             return true;
         }
 

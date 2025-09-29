@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import SidebarLayout from '@/Layouts/SidebarLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { PageProps } from '@/types';
+import { useNotifications } from '@/Components/Notification';
 import { 
     Users, 
     Home, 
@@ -377,41 +378,153 @@ export default function Dashboard({
     const safeQuickActions = quickActions || [];
     const safeAlerts = alerts || [];
 
+    // Notification system
+    const { success, error: notifyError, info, warning } = useNotifications();
+
     // State for real-time stats updates
     const [liveStats, setLiveStats] = useState<Stats>(safeStats);
+    const [liveActivities, setLiveActivities] = useState(safeRecentActivities);
+    const [liveAlerts, setLiveAlerts] = useState(safeAlerts);
     const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
     const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(null);
+    const [apiError, setApiError] = useState<string | null>(null);
 
-    // Function to refresh dashboard data
+    // Function to fetch real-time stats from API
+    const fetchRealTimeStats = useCallback(async () => {
+        try {
+            const response = await fetch('/api/dashboard/stats');
+            const result = await response.json();
+            
+            if (result.success) {
+                setLiveStats(result.data);
+                setLastUpdated(new Date());
+                setApiError(null);
+            } else {
+                throw new Error(result.error || 'Failed to fetch stats');
+            }
+        } catch (error) {
+            console.error('Real-time stats error:', error);
+            setApiError('Failed to fetch real-time statistics');
+        }
+    }, []);
+
+    // Function to fetch recent activities
+    const fetchRecentActivities = useCallback(async () => {
+        try {
+            const response = await fetch('/api/dashboard/recent-activities');
+            const result = await response.json();
+            
+            if (result.success) {
+                setLiveActivities(result.data);
+            }
+        } catch (error) {
+            console.error('Recent activities error:', error);
+        }
+    }, []);
+
+    // Function to fetch alerts
+    const fetchAlerts = useCallback(async () => {
+        try {
+            const response = await fetch('/api/dashboard/alerts');
+            const result = await response.json();
+            
+            if (result.success) {
+                setLiveAlerts(result.data);
+            }
+        } catch (error) {
+            console.error('Alerts error:', error);
+        }
+    }, []);
+
+    // Function to refresh all dashboard data
     const refreshData = useCallback(async () => {
         setIsRefreshing(true);
-        setError(null);
+        setApiError(null);
+        
         try {
-            // Use router.reload to refresh data from Laravel controller
-            router.reload({
-                only: ['stats', 'recentActivities', 'upcomingEvents'],
-                onSuccess: (page) => {
-                    setLiveStats(page.props.stats || safeStats);
-                    setLastUpdated(new Date());
-                },
-                onError: (errors) => {
-                    setError('Failed to refresh dashboard data');
-                }
-            });
+            await Promise.all([
+                fetchRealTimeStats(),
+                fetchRecentActivities(),
+                fetchAlerts()
+            ]);
+            
+            success('Dashboard Updated', 'All statistics have been refreshed successfully');
         } catch (error) {
             console.error('Failed to refresh dashboard data:', error);
-            setError('Network error occurred');
+            notifyError('Update Failed', 'Could not refresh dashboard data. Please try again.');
         } finally {
             setIsRefreshing(false);
         }
-    }, [safeStats]);
+    }, [fetchRealTimeStats, fetchRecentActivities, fetchAlerts, success, notifyError]);
 
-    // Auto-refresh every 5 minutes
+    // Auto-refresh every 2 minutes for real-time updates
     useEffect(() => {
-        const interval = setInterval(refreshData, 5 * 60 * 1000);
+        const interval = setInterval(() => {
+            fetchRealTimeStats();
+            fetchRecentActivities();
+            fetchAlerts();
+        }, 2 * 60 * 1000);
+        
         return () => clearInterval(interval);
-    }, [refreshData]);
+    }, [fetchRealTimeStats, fetchRecentActivities, fetchAlerts]);
+
+    // Show welcome notification on first load
+    useEffect(() => {
+        const hasShownWelcome = sessionStorage.getItem('dashboard_welcome_shown');
+        if (!hasShownWelcome) {
+            setTimeout(() => {
+                info('Welcome!', welcome_message || 'Welcome to the Parish Management System');
+                sessionStorage.setItem('dashboard_welcome_shown', 'true');
+            }, 1000);
+        }
+    }, [info, welcome_message]);
+
+    // Show alerts as notifications
+    useEffect(() => {
+        if (liveAlerts.length === 0) return;
+        
+        liveAlerts.forEach((alert, index) => {
+            const alertKey = `alert_${alert.title}_${index}_${lastUpdated.getTime()}`;
+            const hasShownAlert = sessionStorage.getItem(alertKey);
+            
+            if (!hasShownAlert) {
+                setTimeout(() => {
+                    switch (alert.type) {
+                        case 'warning':
+                            warning(alert.title, alert.message, {
+                                duration: 8000, // 8 seconds for warnings
+                                actions: alert.action && alert.link ? [{
+                                    label: alert.action,
+                                    onClick: () => router.visit(alert.link),
+                                    variant: 'primary'
+                                }] : undefined
+                            });
+                            break;
+                        case 'error':
+                            notifyError(alert.title, alert.message, {
+                                duration: 10000, // 10 seconds for errors
+                                actions: alert.action && alert.link ? [{
+                                    label: alert.action,
+                                    onClick: () => router.visit(alert.link),
+                                    variant: 'primary'
+                                }] : undefined
+                            });
+                            break;
+                        default:
+                            info(alert.title, alert.message, {
+                                duration: 6000, // 6 seconds for info
+                                actions: alert.action && alert.link ? [{
+                                    label: alert.action,
+                                    onClick: () => router.visit(alert.link),
+                                    variant: 'primary'
+                                }] : undefined
+                            });
+                    }
+                    sessionStorage.setItem(alertKey, 'true');
+                }, 2000 + (index * 1000)); // Stagger notifications
+            }
+        });
+    }, [liveAlerts, warning, notifyError, info, lastUpdated]);
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -439,8 +552,8 @@ export default function Dashboard({
                                     Updating...
                                 </div>
                             )}
-                            {error && (
-                                <div className="flex items-center text-sm text-red-500" title={error}>
+                            {apiError && (
+                                <div className="flex items-center text-sm text-red-500" title={apiError}>
                                     <AlertTriangle className="w-4 h-4 mr-1" />
                                     Error
                                 </div>
@@ -642,8 +755,8 @@ export default function Dashboard({
                             Recent Parish Activities
                         </h3>
                         <div className="space-y-4">
-                            {safeRecentActivities.length > 0 ? (
-                                safeRecentActivities.slice(0, 5).map((activity) => (
+                            {liveActivities.length > 0 ? (
+                                liveActivities.slice(0, 5).map((activity) => (
                                     <ActivityCard key={activity.id} activity={activity} />
                                 ))
                             ) : (

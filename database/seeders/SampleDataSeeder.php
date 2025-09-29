@@ -46,7 +46,12 @@ class SampleDataSeeder extends Seeder
             ]
         );
 
-        // Create sample members
+        // Create sample members with auto-sync fields
+        $fatherName = 'Mwangi Kamau';
+        $motherName = 'Grace Wanjiku';
+        $godparentName = 'James Mwangi';
+        $ministerName = 'Fr. Michael Johnson';
+        
         $johnKamau = Member::create([
             'first_name' => 'John',
             'middle_name' => 'Mwangi',
@@ -72,6 +77,16 @@ class SampleDataSeeder extends Seeder
             'tribe' => 'Kikuyu',
             'clan' => 'Anjiru',
             'is_differently_abled' => false,
+            // Main family fields (entered once)
+            'parent' => $fatherName, // Father's name (main field)
+            'mother_name' => $motherName, // Mother's name (main field)
+            'godparent' => $godparentName, // Godparent name (main field)
+            'minister' => $ministerName, // Minister name (main field)
+            // Auto-synced fields (populated automatically)
+            'father_name' => $fatherName, // Auto-synced from 'parent'
+            'baptized_by' => $ministerName, // Auto-synced from 'minister'
+            'sponsor' => $godparentName, // Auto-synced from 'godparent'
+            'baptism_location' => 'St. Mary\'s Catholic Church',
         ]);
 
         $maryKamau = Member::create([
@@ -99,6 +114,31 @@ class SampleDataSeeder extends Seeder
             'tribe' => 'Kikuyu',
             'clan' => 'Acheera',
             'is_differently_abled' => false,
+            // Main family fields
+            'parent' => 'Peter Wanjiku',
+            'mother_name' => 'Alice Wanjiku',
+            'godparent' => 'Elizabeth Wanjiru',
+            'minister' => 'Fr. Paul Mbugua',
+            // Auto-synced fields
+            'father_name' => 'Peter Wanjiku',
+            'baptized_by' => 'Fr. Paul Mbugua',
+            'sponsor' => 'Elizabeth Wanjiru',
+            'baptism_location' => 'St. Mary\'s Catholic Church',
+            // Marriage information
+            'marriage_date' => '2002-06-15',
+            'marriage_location' => 'St. Mary\'s Catholic Church',
+            'marriage_county' => 'Kiambu',
+            'marriage_sub_county' => 'Thika',
+            'marriage_religion' => 'Catholic',
+            'marriage_officiant_name' => 'Fr. Michael Johnson',
+            'spouse_name' => 'John Mwangi Kamau',
+            'spouse_age' => 27,
+            'spouse_residence' => 'Thika Town',
+            'spouse_county' => 'Kiambu',
+            'spouse_marital_status' => 'Single',
+            'spouse_occupation' => 'Teacher',
+            'spouse_father_name' => $fatherName,
+            'spouse_mother_name' => $motherName,
         ]);
 
         $peterKamau = Member::create([
@@ -124,6 +164,17 @@ class SampleDataSeeder extends Seeder
             'tribe' => 'Kikuyu',
             'clan' => 'Anjiru',
             'is_differently_abled' => false,
+            // Main family fields
+            'parent' => 'John Mwangi Kamau',
+            'mother_name' => 'Mary Wanjiku Kamau',
+            'godparent' => 'James Mwangi',
+            'minister' => 'Fr. Michael Johnson',
+            // Auto-synced fields
+            'father_name' => 'John Mwangi Kamau',
+            'baptized_by' => 'Fr. Michael Johnson',
+            'sponsor' => 'James Mwangi',
+            'baptism_location' => 'St. Mary\'s Catholic Church',
+            'confirmation_location' => 'St. Mary\'s Catholic Church',
         ]);
 
         // Update family head
@@ -328,21 +379,27 @@ class SampleDataSeeder extends Seeder
             'recorded_by' => 1,
         ]);
 
-        // Create more sample members for testing
+        // Create more sample members for testing with auto-sync fields
         for ($i = 1; $i <= 10; $i++) {
+            $gender = $i % 2 == 0 ? 'Female' : 'Male';
+            $fatherName = 'Father' . $i . ' Lastname' . $i;
+            $motherName = 'Mother' . $i . ' Lastname' . $i;
+            $godparentName = 'Godparent' . $i . ' Name' . $i;
+            $ministerName = 'Fr. Minister' . $i;
+            
             $member = Member::create([
                 'first_name' => 'Member' . $i,
                 'middle_name' => 'Middle' . $i,
                 'last_name' => 'Lastname' . $i,
                 'date_of_birth' => Carbon::now()->subYears(rand(18, 65))->format('Y-m-d'),
-                'gender' => $i % 2 == 0 ? 'Female' : 'Male',
+                'gender' => $gender,
                 'id_number' => '1234567' . str_pad($i, 2, '0', STR_PAD_LEFT),
                 'phone' => '+25470000' . str_pad($i, 4, '0', STR_PAD_LEFT),
                 'email' => 'member' . $i . '@parish.com',
                 'residence' => 'Nairobi County, Area ' . $i,
                 'local_church' => 'Sacred Heart Kandara',
                 'small_christian_community' => $i <= 5 ? 'Tumaini SCC' : 'Upendo SCC',
-                'church_group' => $this->getRandomChurchGroup($i % 2 == 0 ? 'Female' : 'Male'),
+                'church_group' => $this->getRandomChurchGroup($gender),
                 'membership_status' => 'active',
                 'membership_date' => Carbon::now()->subYears(rand(1, 10))->format('Y-m-d'),
                 'baptism_date' => Carbon::now()->subYears(rand(15, 50))->format('Y-m-d'),
@@ -353,6 +410,16 @@ class SampleDataSeeder extends Seeder
                 'clan' => 'Clan' . $i,
                 'is_differently_abled' => rand(0, 10) == 0, // 10% chance
                 'disability_description' => rand(0, 10) == 0 ? 'Sample disability description' : null,
+                // Main family fields (entered once)
+                'parent' => $fatherName,
+                'mother_name' => $motherName,
+                'godparent' => $godparentName,
+                'minister' => $ministerName,
+                // Auto-synced fields (populated automatically)
+                'father_name' => $fatherName,
+                'baptized_by' => $ministerName,
+                'sponsor' => $godparentName,
+                'baptism_location' => 'Sacred Heart Kandara',
             ]);
 
             // Create some random tithe records for these members

@@ -12,78 +12,40 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Global middleware
+        // Essential global middleware only
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
-            \App\Http\Middleware\SecurityHeadersMiddleware::class,
-            \App\Http\Middleware\PerformanceMonitor::class,
         ]);
 
-        // API middleware
-        $middleware->api(append: [
-            \App\Http\Middleware\ApiRateLimitMiddleware::class,
-            \App\Http\Middleware\ValidateJsonMiddleware::class,
-        ]);
+        // Remove heavy API middleware temporarily
+        // $middleware->api(append: [
+        //     \App\Http\Middleware\ApiRateLimitMiddleware::class,
+        //     \App\Http\Middleware\ValidateJsonMiddleware::class,
+        // ]);
 
-        // Global middleware for all requests
-        $middleware->append([
-            \App\Http\Middleware\SecurityHeadersMiddleware::class,
-            \App\Http\Middleware\ProductionSecurityMiddleware::class,
-        ]);
+        // Remove heavy global middleware temporarily
+        // $middleware->append([
+        //     \App\Http\Middleware\SecurityHeadersMiddleware::class,
+        //     \App\Http\Middleware\ProductionSecurityMiddleware::class,
+        // ]);
 
-        // Route middleware aliases
+        // Route middleware aliases - SIMPLIFIED AND OPTIMIZED
         $middleware->alias([
-            // Core authentication middleware
-            'auth.strict' => \App\Http\Middleware\AuthenticateStrict::class,
-            'ensure.authenticated' => \App\Http\Middleware\EnsureAuthenticated::class,
-            'check.user.status' => \App\Http\Middleware\CheckUserStatus::class,
-            
-            // Spatie Permission middleware (existing)
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-            
-            // Custom Parish System middleware
-            'custom.permission' => \App\Http\Middleware\PermissionMiddleware::class,
-            'custom.role' => \App\Http\Middleware\RoleMiddleware::class,
-            'church.context' => \App\Http\Middleware\ChurchContextMiddleware::class,
-            'activity.log' => \App\Http\Middleware\ActivityLogMiddleware::class,
-            'api.rate' => \App\Http\Middleware\ApiRateLimitMiddleware::class,
-            'validate.json' => \App\Http\Middleware\ValidateJsonMiddleware::class,
-            'security.headers' => \App\Http\Middleware\SecurityHeadersMiddleware::class,
+            // Core authentication middleware only
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
-            'performance' => \App\Http\Middleware\PerformanceMonitor::class,
-            
         ]);
 
-        // Middleware groups for specific route patterns
-        $middleware->group('parish', [
-            'ensure.authenticated', // Ensures user is authenticated and has valid role
+        // Simplified middleware groups
+        $middleware->group('admin_only', [
+            'auth',
             'verified',
-            'church.context',
-            'activity.log',
-        ]);
-
-        // Admin middleware group - highest security
-        $middleware->group('admin', [
-            'ensure.authenticated', // Strict authentication first
-            'verified',
-            'admin', // Admin role verification
-            'activity.log',
-        ]);
-
-        // Member management middleware group
-        $middleware->group('member.management', [
-            'ensure.authenticated',
-            'verified',
-            'church.context',
-            'activity.log',
+            'admin',
         ]);
     })
     ->withProviders([
         // Add your custom providers here
-        \App\Providers\PermissionServiceProvider::class,
+        // \App\Providers\PermissionServiceProvider::class, // Disabled for simplified admin system
     ])
     ->withExceptions(function (Exceptions $exceptions) {
         // Handle 403 errors gracefully

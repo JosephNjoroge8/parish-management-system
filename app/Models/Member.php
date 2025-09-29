@@ -11,6 +11,7 @@ class Member extends Model
     use HasFactory;
 
     protected $fillable = [
+        // Core personal information
         'first_name',
         'middle_name',
         'last_name',
@@ -20,60 +21,171 @@ class Member extends Model
         'phone',
         'email',
         'residence',
+        
+        // Church information
         'local_church',
         'small_christian_community',
         'church_group',
         'additional_church_groups',
+        
+        // Membership information
         'membership_status',
         'membership_date',
-        'baptism_date',
-        'confirmation_date',
         'matrimony_status',
         'marriage_type',
         'occupation',
         'education_level',
+        
+        // Family and relationships (main fields - entered once)
         'family_id',
         'parent_id',
         'godparent_id',
         'minister_id',
         'tribe',
         'clan',
+        'parent',          // Legacy string field for father's name
+        'mother_name',     // Mother's name
+        'godparent',       // Legacy string field for godparent name
+        'minister',        // Legacy string field for minister/baptized_by name
+        
+        // Disability information
         'is_differently_abled',
         'disability_description',
-        'notes',
         
-        // Comprehensive Baptism Record Fields
-        'birth_village',
-        'county',
+        // Sacrament information
+        'baptism_date',
         'baptism_location',
-        'baptized_by',
-        'sponsor',
-        'father_name',
-        'mother_name',
-        
-        // Optional Sacrament Fields
-        'eucharist_location',
-        'eucharist_date',
+        'baptized_by',     // Auto-synced from 'minister' field
+        'sponsor',         // Auto-synced from 'godparent' field
+        'father_name',     // Auto-synced from 'parent' field
+        'confirmation_date',
         'confirmation_location',
         'confirmation_register_number',
         'confirmation_number',
+        'eucharist_date',
+        'eucharist_location',
         
-        // Marriage Record Fields
+        // Marriage Certificate fields (essential for certificate generation)
         'marriage_date',
         'marriage_location',
-        'married_by',
+        'marriage_county',
+        'marriage_sub_county',
+        'marriage_entry_number',
+        'marriage_certificate_number',
+        'marriage_religion',
+        'marriage_license_number',
+        'marriage_officiant_name',
+        'marriage_witness1_name',
+        'marriage_witness2_name',
+        
+        // Spouse Information (for marriage certificate)
         'spouse_name',
+        'spouse_age',
+        'spouse_residence',
+        'spouse_county',
+        'spouse_marital_status',
+        'spouse_occupation',
+        'spouse_father_name',
+        'spouse_father_occupation',
+        'spouse_father_residence',
+        'spouse_mother_name',
+        'spouse_mother_occupation',
+        'spouse_mother_residence',
+        
+        // Legacy marriage fields (for compatibility with existing data)
+        'married_by',
         'witness_1_name',
         'witness_2_name',
         'marriage_register_number',
-        'marriage_certificate_number',
+        'marriage_spouse',
+        'marriage_number',
+        'marriage_church',
         
-        // Additional Fields
+        // Baptism Card specific fields (for baptism-card.blade.php compatibility)
+        'marriage_spouse',           // Same as above, auto-synced from spouse_name
+        'marriage_register_number',  // Same as above, auto-synced from marriage_entry_number
+        'marriage_number',           // Same as above, auto-synced from marriage_certificate_number
+        
+        // Marriage Certificate specific fields (for marriage-certificate.blade.php)
+        'husband_name',
+        'husband_age',
+        'husband_residence',
+        'husband_county',
+        'husband_marital_status',
+        'husband_occupation',
+        'husband_father_name',
+        'husband_father_occupation',
+        'husband_father_residence',
+        'husband_mother_name',
+        'husband_mother_occupation',
+        'husband_mother_residence',
+        'wife_name',
+        'wife_age',
+        'wife_residence',
+        'wife_county',
+        'wife_marital_status',
+        'wife_occupation',
+        'wife_father_name',
+        'wife_father_occupation',
+        'wife_father_residence',
+        'wife_mother_name',
+        'wife_mother_occupation',
+        'wife_mother_residence',
+        
+        // Marriage Certificate template field mappings (auto-synced from form fields)
+        'sub_county',          // Maps to marriage_sub_county for template
+        // Note: county field already exists above
+        'entry_number',        // Maps to marriage_entry_number for template
+        'certificate_number',  // Maps to marriage_certificate_number for template
+        'officiant_name',      // Maps to marriage_officiant_name for template
+        'witness1_name',       // Maps to marriage_witness1_name for template
+        'witness2_name',       // Maps to marriage_witness2_name for template
+        'religion',            // Maps to marriage_religion for template
+        'license_number',      // Maps to marriage_license_number for template
+        
+        // Additional location fields
+        'birth_village',
+        'county',
+        'district',
+        'province',
+        
+        // Additional family fields
         'godfather_name',
         'godmother_name',
-        'parent',
-        'godparent',
-        'minister',
+        
+        // Complex marriage record fields (for comprehensive church records)
+        'spouse_tribe',
+        'spouse_clan',
+        'spouse_birth_place',
+        'spouse_domicile',
+        'spouse_baptized_at',
+        'spouse_baptism_date',
+        'spouse_widower_widow_of',
+        'spouse_parent_consent',
+        'banas_number',
+        'banas_church_1',
+        'banas_date_1',
+        'banas_church_2',
+        'banas_date_2',
+        'dispensation_from',
+        'dispensation_given_by',
+        'dispensation_impediment',
+        'dispensation_authority',
+        'dispensation_date',
+        'presence_of',
+        'delegated_by',
+        'delegation_date',
+        'male_witness_full_name',
+        'male_witness_father',
+        'male_witness_clan',
+        'female_witness_full_name',
+        'female_witness_father',
+        'female_witness_clan',
+        'other_documents',
+        'civil_marriage_certificate_number',
+        
+        // Notes and additional information
+        'notes',
     ];
 
     protected $casts = [
@@ -193,10 +305,11 @@ class Member extends Model
         });
     }
 
-    // Constants for church groups (7 groups only - Young Parents removed)
+    // Constants for church groups (8 groups including Young Parents)
     const CHURCH_GROUPS = [
         'PMC' => 'PMC (Pontifical Missionary Childhood)',
         'Youth' => 'Youth',
+        'Young Parents' => 'Young Parents',
         'C.W.A' => 'C.W.A (Catholic Women Association)',
         'CMA' => 'CMA (Catholic Men Association)', 
         'Choir' => 'Choir',
@@ -403,13 +516,14 @@ class Member extends Model
             return $query;
         }
 
-        $now = now();
+        // Use database-agnostic age calculation
+        $ageSQL = \App\Helpers\DatabaseHelper::getAgeSQL('date_of_birth');
         
         return match($ageGroup) {
-            'children' => $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, ?) BETWEEN 0 AND 12', [$now]),
-            'youth' => $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, ?) BETWEEN 13 AND 24', [$now]),
-            'adults' => $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, ?) BETWEEN 25 AND 59', [$now]),
-            'seniors' => $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, ?) >= 60', [$now]),
+            'children' => $query->whereRaw("({$ageSQL}) BETWEEN 0 AND 12"),
+            'youth' => $query->whereRaw("({$ageSQL}) BETWEEN 13 AND 24"),
+            'adults' => $query->whereRaw("({$ageSQL}) BETWEEN 25 AND 59"),
+            'seniors' => $query->whereRaw("({$ageSQL}) >= 60"),
             default => $query,
         };
     }
@@ -548,16 +662,16 @@ class Member extends Model
         if ($ageGroup) {
             switch($ageGroup) {
                 case 'children':
-                    $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, ?) BETWEEN 0 AND 12', [$now]);
+                    $query->whereRaw(DatabaseHelper::getAgeSQL('date_of_birth', '?') . ' BETWEEN 0 AND 12', [$now]);
                     break;
                 case 'youth':
-                    $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, ?) BETWEEN 13 AND 24', [$now]);
+                    $query->whereRaw(DatabaseHelper::getAgeSQL('date_of_birth', '?') . ' BETWEEN 13 AND 24', [$now]);
                     break;
                 case 'adults':
-                    $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, ?) BETWEEN 25 AND 59', [$now]);
+                    $query->whereRaw(DatabaseHelper::getAgeSQL('date_of_birth', '?') . ' BETWEEN 25 AND 59', [$now]);
                     break;
                 case 'seniors':
-                    $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, ?) >= 60', [$now]);
+                    $query->whereRaw(DatabaseHelper::getAgeSQL('date_of_birth', '?') . ' >= 60', [$now]);
                     break;
             }
         }

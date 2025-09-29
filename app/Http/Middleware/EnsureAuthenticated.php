@@ -24,6 +24,9 @@ class EnsureAuthenticated
                 'user_agent' => $request->userAgent(),
             ]);
             
+            // Clear any existing session data
+            $request->session()->flush();
+            
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Authentication required',
@@ -34,6 +37,32 @@ class EnsureAuthenticated
             return redirect()->route('login')
                 ->with('message', 'Please log in to access this area.');
         }
+
+        // 1.5. Check session timeout (4 hours max)
+        $lastActivity = $request->session()->get('last_activity', now()->timestamp);
+        if (now()->timestamp - $lastActivity > 14400) { // 4 hours
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            
+            Log::info('Session timeout logout', [
+                'user_id' => Auth::id(),
+                'last_activity' => $lastActivity
+            ]);
+            
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Session expired. Please log in again.',
+                    'error' => 'Session expired'
+                ], 401);
+            }
+            
+            return redirect()->route('login')
+                ->with('message', 'Your session has expired. Please log in again.');
+        }
+        
+        // Update last activity timestamp
+        $request->session()->put('last_activity', now()->timestamp);
 
         $user = Auth::user();
         
@@ -61,54 +90,15 @@ class EnsureAuthenticated
                 ->with('error', 'Your account has been deactivated. Please contact the administrator.');
         }
         
-        // 3. Verify user has at least one role (every user must have a role)
-        try {
-            $userRoles = $user->getRoles();
-            
-            if ($userRoles->isEmpty() && !$user->isSuperAdminByEmail()) {
-                Log::warning('User without role attempted access', [
-                    'user_id' => $user->id,
-                    'user_email' => $user->email,
-                    'route' => $request->route()?->getName(),
-                ]);
-                
-                if ($request->expectsJson()) {
-                    return response()->json([
-                        'message' => 'Your account has not been assigned a role. Please contact the administrator.',
-                        'error' => 'No role assigned'
-                    ], 403);
-                }
-                
-                return redirect()->route('login')
-                    ->with('error', 'Your account has not been assigned a role. Please contact the administrator.');
-            }
-        } catch (\Exception $e) {
-            Log::error('Role verification failed', [
-                'user_id' => $user->id,
-                'user_email' => $user->email,
-                'error' => $e->getMessage(),
-            ]);
-            
-            // If role check fails and not super admin by email, deny access
-            if (!$user->isSuperAdminByEmail()) {
-                if ($request->expectsJson()) {
-                    return response()->json([
-                        'message' => 'Unable to verify account permissions. Please contact the administrator.',
-                        'error' => 'Role verification failed'
-                    ], 500);
-                }
-                
-                return redirect()->route('login')
-                    ->with('error', 'Unable to verify account permissions. Please contact the administrator.');
-            }
-        }
+        // 3. Basic authentication check - allow all authenticated active users
+        // (Admin-specific routes will be protected by the AdminMiddleware)
         
         // 4. Log successful access and update last login
-        Log::info('Authenticated access granted', [
+        Log::info('Authenticated user access granted', [
             'user_id' => $user->id,
             'user_email' => $user->email,
             'route' => $request->route()?->getName(),
-            'user_roles' => $user->getRoles()->pluck('name')->toArray(),
+            'access_level' => $user->is_admin ? 'admin' : 'user',
         ]);
         
         // Update last login timestamp

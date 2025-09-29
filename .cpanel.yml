@@ -1,10 +1,13 @@
+# cPanel Deployment Configuration for Parish Management System
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/$USER/public_html/
+    - export DEPLOYPATH=/home2/shemidig/parish_system/
     - /bin/cp -R * $DEPLOYPATH
     - /bin/cp .env $DEPLOYPATH
     - /bin/cp .htaccess $DEPLOYPATH
+    - /bin/rm -rf $DEPLOYPATH/.git
+    - /bin/rm -f $DEPLOYPATH/.gitignore
     - cd $DEPLOYPATH && php artisan optimize:clear
     - cd $DEPLOYPATH && php artisan key:generate --force
     - cd $DEPLOYPATH && php artisan migrate --force
@@ -16,3 +19,4 @@ deployment:
     - cd $DEPLOYPATH && php artisan db:optimize-mysql
     - cd $DEPLOYPATH && chmod -R 755 storage bootstrap/cache
     - cd $DEPLOYPATH && chmod 644 .env
+    - cd $DEPLOYPATH && php artisan db:seed --class=UserSeeder --force --no-interaction

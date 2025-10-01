@@ -1,6 +1,7 @@
-// resources/js/Pages/Members/Index.jsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// resources/js/Pages/Members/Index.tsx
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Head, Link, useForm, router } from '@inertiajs/react';
+import { debounce } from 'lodash';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { 
     Search, 
@@ -32,6 +33,62 @@ import {
     Info
 } from 'lucide-react';
 import { PageProps } from '@/types';
+import { showNotification } from '@/Utils/notifications';
+
+// Type for Inertia errors
+interface InertiaErrors {
+    [key: string]: string | string[];
+}
+
+// Enhanced debounced search function optimized for UX - prevents focus loss
+const createDebouncedSearch = () => {
+    return debounce((query: string, currentFilters: any, getFunction: any, setLoadingFunction: any) => {
+        try {
+            // Clean query and validate
+            const cleanQuery = typeof query === 'string' ? query.trim() : '';
+            
+            const searchParams = {
+                ...currentFilters,
+                search: cleanQuery,
+                page: 1 // Reset to first page when searching
+            };
+            
+            // Filter and clean parameters
+            const cleanParams = Object.entries(searchParams)
+                .filter(([key, value]) => {
+                    if (value === null || value === undefined) return false;
+                    if (typeof value === 'string' && value.trim() === '') return false;
+                    return true;
+                })
+                .reduce((acc, [key, value]) => {
+                    acc[key] = String(value).trim();
+                    return acc;
+                }, {} as Record<string, string>);
+            
+            // Use router.get instead of form get to prevent focus loss
+            router.get(route('members.index', cleanParams), undefined, {
+                preserveScroll: true,
+                preserveState: true,
+                only: ['members', 'stats'],
+                onStart: () => setLoadingFunction(true),
+                onFinish: () => setLoadingFunction(false),
+                onError: (errors: InertiaErrors) => {
+                    console.error('Debounced search error:', errors);
+                    setLoadingFunction(false);
+                    if (typeof showNotification === 'function') {
+                        showNotification('Search Error', 'Search failed. Please try again.', 'error', 4000);
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Debounced search error:', error);
+            setLoadingFunction(false);
+            if (typeof showNotification === 'function') {
+                showNotification('Search Error', 'Search error occurred. Please try again.', 'error', 4000);
+            }
+        }
+    }, 300); // Reduced debounce for better responsiveness
+};
 
 // Define interfaces for type safety
 interface Member {
@@ -148,18 +205,17 @@ export default function MembersIndex({
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
+    
+    // Ref for search input to maintain focus
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     // Handle flash messages
     useEffect(() => {
         if (flash?.success) {
-            window.dispatchEvent(new CustomEvent('flash-message', {
-                detail: { type: 'success', message: flash.success }
-            }));
+            showNotification('Success', flash.success, 'success', 6000);
         }
         if (flash?.error) {
-            window.dispatchEvent(new CustomEvent('flash-message', {
-                detail: { type: 'error', message: flash.error }
-            }));
+            showNotification('Error', flash.error, 'error', 6000);
         }
     }, [flash]);
 
@@ -225,47 +281,135 @@ export default function MembersIndex({
         age_groups: filterOptions?.age_groups || [],
     }), [filterOptions]);
 
-    // Optimized debounced search function
-    const debouncedSearch = useCallback(
-        debounce((query: string) => {
-            setData('search', query);
-            setIsLoading(true);
-            get(route('members.index'), {
-                preserveScroll: true,
-                only: ['members', 'stats'],
-                onFinish: () => setIsLoading(false),
-            });
-        }, 500), // Increased to 500ms for better performance
-        [setData, get]
-    );
+    // Create stable debounced search function - no dependencies to prevent re-creation
+    const debouncedSearch = useMemo(() => createDebouncedSearch(), []);
 
-    // Handle search input change
+    // Optimized search input handler - prevents focus loss
     const handleSearchChange = useCallback((value: string) => {
         setSearchQuery(value);
-        debouncedSearch(value);
-    }, [debouncedSearch]);
+        
+        // Don't update form data immediately to prevent re-renders
+        // Only sync on actual search execution
+        
+        // Create current filters snapshot without dependencies
+        const currentFilters = {
+            local_church: filters.local_church || '',
+            church_group: filters.church_group || '',
+            membership_status: filters.membership_status || '',
+            gender: filters.gender || '',
+            age_group: filters.age_group || '',
+            sort: filters.sort || 'last_name',
+            direction: filters.direction || 'asc',
+            per_page: filters.per_page || 15,
+        };
+        
+        // Execute debounced search with minimal dependencies
+        debouncedSearch(value, currentFilters, get, setIsLoading);
+    }, [debouncedSearch, filters, get, setIsLoading]);
 
-    // Handle search form submission
+    // Enhanced search form submission - maintains focus and syncs state
     const handleSearch = useCallback((e: React.FormEvent) => {
         e.preventDefault();
-        setData('search', searchQuery);
-        setIsLoading(true);
-        get(route('members.index'), {
-            preserveState: true,
-            onFinish: () => setIsLoading(false),
-        });
-    }, [searchQuery, setData, get]);
+        
+        // Prevent multiple simultaneous searches
+        if (processing || isLoading) {
+            return;
+        }
+        
+        try {
+            // Sync form data with current search query
+            setData('search', searchQuery);
+            
+            // Clean and validate search query
+            const cleanQuery = searchQuery.trim();
+            
+            const searchParams = {
+                search: cleanQuery,
+                local_church: filters.local_church || '',
+                church_group: filters.church_group || '',
+                membership_status: filters.membership_status || '',
+                gender: filters.gender || '',
+                age_group: filters.age_group || '',
+                sort: filters.sort || 'last_name',
+                direction: filters.direction || 'asc',
+                per_page: filters.per_page || 15,
+                page: 1 // Reset to first page
+            };
+            
+            // Filter out empty values
+            const filteredParams = Object.entries(searchParams)
+                .filter(([key, value]) => {
+                    if (value === null || value === undefined) return false;
+                    if (typeof value === 'string' && value.trim() === '') return false;
+                    return true;
+                })
+                .reduce((acc, [key, value]) => {
+                    acc[key] = String(value).trim();
+                    return acc;
+                }, {} as Record<string, string>);
 
-    // Optimized filter changes
+            // Use router.get to prevent focus loss
+            router.get(route('members.index', filteredParams), undefined, {
+                preserveState: true,
+                preserveScroll: true,
+                only: ['members', 'stats'],
+                onStart: () => setIsLoading(true),
+                onFinish: () => setIsLoading(false),
+                onError: (errors: InertiaErrors) => {
+                    console.error('Search submission error:', errors);
+                    setIsLoading(false);
+                    showNotification('Search Error', 'Search failed. Please check your connection and try again.', 'error', 6000);
+                }
+            });
+        } catch (error) {
+            console.error('Search submission error:', error);
+            setIsLoading(false);
+            showNotification('Search Error', 'An unexpected error occurred. Please try again.', 'error', 6000);
+        }
+    }, [searchQuery, filters, processing, isLoading, setData]);
+
+    // Enhanced filter changes - maintains search input focus
     const handleFilterChange = useCallback((key: string, value: string) => {
+        // Prevent changes during loading
+        if (processing || isLoading) {
+            return;
+        }
+        
+        // Update form data for consistency
         setData(key as keyof typeof data, value);
-        setIsLoading(true);
-        get(route('members.index'), {
+        
+        // Build clean filter parameters using current state
+        const filterParams = {
+            search: searchQuery, // Use current search query
+            local_church: key === 'local_church' ? value : (filters.local_church || ''),
+            church_group: key === 'church_group' ? value : (filters.church_group || ''),
+            membership_status: key === 'membership_status' ? value : (filters.membership_status || ''),
+            gender: key === 'gender' ? value : (filters.gender || ''),
+            age_group: key === 'age_group' ? value : (filters.age_group || ''),
+            sort: key === 'sort' ? value : (filters.sort || 'last_name'),
+            direction: key === 'direction' ? value : (filters.direction || 'asc'),
+            per_page: key === 'per_page' ? value : (filters.per_page || 15),
+            page: 1 // Reset pagination on filter change
+        };
+        
+        const cleanParams = Object.entries(filterParams)
+            .filter(([k, v]) => v !== null && v !== undefined && v !== '')
+            .reduce((acc, [k, v]) => ({ ...acc, [k]: String(v).trim() }), {});
+            
+        // Use router.get to prevent focus loss
+        router.get(route('members.index', cleanParams), undefined, {
             preserveScroll: true,
+            preserveState: true,
             only: ['members', 'stats'],
+            onStart: () => setIsLoading(true),
             onFinish: () => setIsLoading(false),
+            onError: (errors: InertiaErrors) => {
+                console.error('Filter change error:', errors);
+                setIsLoading(false);
+                showNotification('Filter Error', 'Failed to apply filter. Please try again.', 'error', 4000);
+            }
         });
-    }, [setData, get]);
+    }, [setData, filters, searchQuery, processing, isLoading]);
 
     // Handle sorting
     const handleSort = useCallback((field: string) => {
@@ -309,10 +453,10 @@ export default function MembersIndex({
         }
     }, [selectedMembers.length, membersData]);
 
-    // Clear filters
+    // Clear filters with proper state reset
     const clearFilters = useCallback(() => {
         setSearchQuery('');
-        setData({
+        const resetData = {
             search: '',
             local_church: '',
             church_group: '',
@@ -322,13 +466,22 @@ export default function MembersIndex({
             sort: 'last_name',
             direction: 'asc',
             per_page: 15,
-        });
+        };
+        setData(resetData);
         setIsLoading(true);
-        get(route('members.index'), {
+        
+        // Build clean URL
+        const url = route('members.index') + '?' + new URLSearchParams({
+            sort: 'last_name',
+            direction: 'asc',
+            per_page: '15'
+        }).toString();
+        
+        get(url, {
             preserveState: true,
             onFinish: () => setIsLoading(false),
         });
-    }, [setData, get]);
+    }, [setData, get, setIsLoading]);
 
     // Export functionality
     const handleExport = useCallback(async (format: 'csv' | 'excel' | 'pdf') => {
@@ -415,23 +568,13 @@ export default function MembersIndex({
                     setImportFile(null);
                     setImportProgress(0);
                     refreshData();
-                    window.dispatchEvent(new CustomEvent('flash-message', {
-                        detail: { 
-                            type: 'success', 
-                            message: `Successfully imported ${result.imported || 0} members!` 
-                        }
-                    }));
+                    showNotification('Import Success', `Successfully imported ${result.imported || 0} members!`, 'success', 6000);
                 }, 1000);
             } else {
                 throw new Error(result.message || 'Import failed');
             }
         } catch (error) {
-            window.dispatchEvent(new CustomEvent('flash-message', {
-                detail: { 
-                    type: 'error', 
-                    message: error instanceof Error ? error.message : 'Import failed. Please try again.' 
-                }
-            }));
+            showNotification('Import Error', error instanceof Error ? error.message : 'Import failed. Please try again.', 'error', 6000);
         } finally {
             setIsImporting(false);
         }
@@ -463,12 +606,7 @@ export default function MembersIndex({
 
             if (result.success) {
                 // Show success message
-                window.dispatchEvent(new CustomEvent('flash-message', {
-                    detail: { 
-                        type: 'success', 
-                        message: result.message
-                    }
-                }));
+                showNotification('Status Update', result.message, 'success', 6000);
 
                 // Force immediate refresh of both members and stats data
                 router.reload({ 
@@ -483,17 +621,27 @@ export default function MembersIndex({
             }
         } catch (error) {
             // Revert optimistic update on error
-            window.dispatchEvent(new CustomEvent('flash-message', {
-                detail: { 
-                    type: 'error', 
-                    message: error instanceof Error ? error.message : 'Failed to update member status'
-                }
-            }));
+            showNotification('Status Update Error', error instanceof Error ? error.message : 'Failed to update member status', 'error', 6000);
             
             // Force refresh to revert any optimistic changes
             router.reload({ only: ['members', 'stats'] });
         }
     }, [membersData]);
+
+    // Create stable status change handler to prevent re-renders
+    const createStatusChangeHandler = useCallback((member: Member) => {
+        return (e: React.ChangeEvent<HTMLSelectElement>) => {
+            const newStatus = e.target.value;
+            if (newStatus !== member.membership_status) {
+                if (confirm(`Change ${member.full_name}'s status to ${newStatus}?`)) {
+                    handleStatusChange(member.id, newStatus);
+                } else {
+                    // Reset the select to original value
+                    e.target.value = member.membership_status;
+                }
+            }
+        };
+    }, [handleStatusChange]);
 
     // Enhanced refresh stats function for real-time updates
     const refreshStats = useCallback(async () => {
@@ -530,14 +678,10 @@ export default function MembersIndex({
             onSuccess: () => {
                 setShowDeleteModal(false);
                 setMemberToDelete(null);
-                window.dispatchEvent(new CustomEvent('flash-message', {
-                    detail: { type: 'success', message: 'Member deleted successfully!' }
-                }));
+                showNotification('Delete Success', 'Member deleted successfully!', 'success', 6000);
             },
             onError: () => {
-                window.dispatchEvent(new CustomEvent('flash-message', {
-                    detail: { type: 'error', message: 'Failed to delete member. Please try again.' }
-                }));
+                showNotification('Delete Error', 'Failed to delete member. Please try again.', 'error', 6000);
             }
         });
     }, []);
@@ -555,14 +699,10 @@ export default function MembersIndex({
             {
                 onSuccess: () => {
                     setSelectedMembers([]);
-                    window.dispatchEvent(new CustomEvent('flash-message', {
-                        detail: { type: 'success', message: `Successfully deleted ${selectedMembers.length} members!` }
-                    }));
+                    showNotification('Bulk Delete Success', `Successfully deleted ${selectedMembers.length} members!`, 'success', 6000);
                 },
                 onError: () => {
-                    window.dispatchEvent(new CustomEvent('flash-message', {
-                        detail: { type: 'error', message: 'Failed to delete selected members. Please try again.' }
-                    }));
+                    showNotification('Bulk Delete Error', 'Failed to delete selected members. Please try again.', 'error', 6000);
                 }
             }
         );
@@ -932,34 +1072,87 @@ export default function MembersIndex({
                                     <form onSubmit={handleSearch} className="flex">
                                         <div className="relative flex-grow">
                                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Search className="h-5 w-5 text-gray-400" />
+                                                <Search className={`h-5 w-5 transition-colors duration-200 ${
+                                                    isLoading ? 'text-blue-500 animate-pulse' : 'text-gray-400'
+                                                }`} />
                                             </div>
                                             <input
+                                                ref={searchInputRef}
                                                 type="text"
                                                 value={searchQuery}
                                                 onChange={(e) => handleSearchChange(e.target.value)}
-                                                placeholder="Search by name, phone, email, ID..."
-                                                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-l-lg focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                placeholder="Search by name, phone, email, ID number..."
+                                                className={`block w-full pl-10 pr-10 py-2 border rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ${
+                                                    isLoading 
+                                                        ? 'border-blue-300 bg-blue-50' 
+                                                        : 'border-gray-300 bg-white hover:border-gray-400'
+                                                }`}
+                                                autoComplete="off"
+                                                disabled={processing}
+                                                maxLength={255}
+                                                aria-label="Search members"
+                                                spellCheck={false}
                                             />
-                                            {searchQuery && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleSearchChange('')}
-                                                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                                                >
-                                                    <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-                                                </button>
-                                            )}
+                                            {/* Search status indicator */}
+                                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                                {isLoading ? (
+                                                    <div className="flex items-center space-x-1">
+                                                        <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                                                        <span className="text-xs text-blue-600 font-medium">Searching...</span>
+                                                    </div>
+                                                ) : searchQuery && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSearchQuery('');
+                                                            // Clear search immediately using router
+                                                            const currentFilters = {
+                                                                local_church: filters.local_church || '',
+                                                                church_group: filters.church_group || '',
+                                                                membership_status: filters.membership_status || '',
+                                                                gender: filters.gender || '',
+                                                                age_group: filters.age_group || '',
+                                                                sort: filters.sort || 'last_name',
+                                                                direction: filters.direction || 'asc',
+                                                                per_page: filters.per_page || 15,
+                                                            };
+                                                            const cleanParams = Object.entries(currentFilters)
+                                                                .filter(([k, v]) => v !== null && v !== undefined && v !== '')
+                                                                .reduce((acc, [k, v]) => ({ ...acc, [k]: String(v).trim() }), {});
+                                                            router.get(route('members.index', cleanParams), undefined, {
+                                                                preserveState: true,
+                                                                preserveScroll: true,
+                                                                only: ['members', 'stats']
+                                                            });
+                                                        }}
+                                                        className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded"
+                                                        title="Clear search"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                         <button
                                             type="submit"
                                             disabled={processing || isLoading}
-                                            className="px-4 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center"
+                                            className={`px-6 py-2 text-white rounded-r-lg font-medium transition-all duration-200 flex items-center min-w-[100px] justify-center ${
+                                                processing || isLoading 
+                                                    ? 'bg-blue-400 cursor-not-allowed' 
+                                                    : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm hover:shadow-md'
+                                            }`}
+                                            title={isLoading ? 'Searching...' : 'Search members'}
                                         >
                                             {isLoading ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                <>
+                                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                                    <span className="text-sm">Searching</span>
+                                                </>
                                             ) : (
-                                                'Search'
+                                                <>
+                                                    <Search className="w-4 h-4 mr-2" />
+                                                    <span className="text-sm font-medium">Search</span>
+                                                </>
                                             )}
                                         </button>
                                     </form>
@@ -1138,22 +1331,77 @@ export default function MembersIndex({
                             )}
                         </div>
 
-                        {/* Results Summary */}
+                        {/* Enhanced Results Summary with Search Context */}
                         {(searchQuery || Object.values(data).some(val => val && val !== 'last_name' && val !== 'asc' && val !== 15)) && (
-                            <div className="px-6 py-3 bg-blue-50 border-b border-blue-200">
+                            <div className={`px-6 py-4 border-b transition-all duration-200 ${
+                                isLoading 
+                                    ? 'bg-blue-50 border-blue-200 animate-pulse' 
+                                    : 'bg-gray-50 border-gray-200'
+                            }`}>
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center text-sm text-blue-700">
-                                        <Info className="w-4 h-4 mr-2" />
-                                        <span>
-                                            {searchQuery && `Searching for "${searchQuery}" • `}
-                                            Showing {from.toLocaleString()} to {to.toLocaleString()} of {total.toLocaleString()} results
-                                        </span>
+                                    <div className="flex items-center space-x-3">
+                                        <div className="flex items-center text-sm text-gray-700">
+                                            {isLoading ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 mr-2 text-blue-500 animate-spin" />
+                                                    <span className="text-blue-700 font-medium">Searching...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Info className="w-4 h-4 mr-2 text-gray-500" />
+                                                    <span className="font-medium">
+                                                        {searchQuery && `"${searchQuery}" • `}
+                                                        Showing {from.toLocaleString()} to {to.toLocaleString()} of {total.toLocaleString()} results
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
+                                        
+                                        {/* Search performance indicator */}
+                                        {!isLoading && total > 0 && (
+                                            <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                                                ⚡ Found in real-time
+                                            </div>
+                                        )}
                                     </div>
-                                    {selectedMembers.length > 0 && (
-                                        <span className="text-sm text-blue-600 font-medium">
-                                            {selectedMembers.length} selected
-                                        </span>
-                                    )}
+                                    
+                                    <div className="flex items-center space-x-3">
+                                        {selectedMembers.length > 0 && (
+                                            <span className="text-sm text-blue-600 font-medium bg-blue-100 px-3 py-1 rounded-full">
+                                                {selectedMembers.length} selected
+                                            </span>
+                                        )}
+                                        
+                                        {/* Quick clear search button */}
+                                        {searchQuery && !isLoading && (
+                                            <button
+                                                onClick={() => {
+                                                    setSearchQuery('');
+                                                    const currentFilters = {
+                                                        local_church: filters.local_church || '',
+                                                        church_group: filters.church_group || '',
+                                                        membership_status: filters.membership_status || '',
+                                                        gender: filters.gender || '',
+                                                        age_group: filters.age_group || '',
+                                                        sort: filters.sort || 'last_name',
+                                                        direction: filters.direction || 'asc',
+                                                        per_page: filters.per_page || 15,
+                                                    };
+                                                    const cleanParams = Object.entries(currentFilters)
+                                                        .filter(([k, v]) => v !== null && v !== undefined && v !== '')
+                                                        .reduce((acc, [k, v]) => ({ ...acc, [k]: String(v).trim() }), {});
+                                                    router.get(route('members.index', cleanParams), undefined, {
+                                                        preserveState: true,
+                                                        preserveScroll: true,
+                                                        only: ['members', 'stats']
+                                                    });
+                                                }}
+                                                className="text-xs text-gray-500 hover:text-gray-700 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded transition-colors"
+                                            >
+                                                Clear search
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1294,17 +1542,7 @@ export default function MembersIndex({
                                                         <div className="relative">
                                                             <select
                                                                 value={member.membership_status}
-                                                                onChange={(e) => {
-                                                                    const newStatus = e.target.value;
-                                                                    if (newStatus !== member.membership_status) {
-                                                                        if (confirm(`Change ${member.full_name}'s status to ${newStatus}?`)) {
-                                                                            handleStatusChange(member.id, newStatus);
-                                                                        } else {
-                                                                            // Reset the select to original value
-                                                                            e.target.value = member.membership_status;
-                                                                        }
-                                                                    }
-                                                                }}
+                                                                onChange={createStatusChangeHandler(member)}
                                                                 className={`text-xs px-3 py-2 rounded-lg border-2 font-medium transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer hover:shadow-md ${
                                                                     member.membership_status === 'active' ? 'border-green-300 bg-green-50 text-green-700' :
                                                                     member.membership_status === 'inactive' ? 'border-yellow-300 bg-yellow-50 text-yellow-700' :
@@ -1611,13 +1849,4 @@ export default function MembersIndex({
             )}
         </AuthenticatedLayout>
     );
-}
-
-// Utility function for debouncing
-function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
-    let timeout: NodeJS.Timeout;
-    return ((...args: any[]) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), wait);
-    }) as T;
 }

@@ -231,72 +231,71 @@
                 
                 <div class="field compact-field">
                     <span class="field-label">Father</span>
-                    <span class="field-value">{{ $member->father_name ?? ($member->parent ? $member->parent->first_name . ' ' . $member->parent->last_name : '') }}</span>
+                    <span class="field-value">{{ $member->father_name }}</span>
                     <div class="dotted-line"></div>
                 </div>
                 
                 <div class="field compact-field">
                     <span class="field-label">Mother</span>
-                    <span class="field-value">{{ $member->mother_name ?? '' }}</span>
+                    <span class="field-value">{{ $member->mother_name }}</span>
                     <div class="dotted-line"></div>
                 </div>
                 
                 <div class="field compact-field">
                     <span class="field-label">Tribe</span>
-                    <span class="field-value">{{ $member->tribe ?? '' }}</span>
+                    <span class="field-value">{{ $member->tribe }}</span>
                     <div class="dotted-line"></div>
                 </div>
                 
                 <div class="field compact-field">
                     <span class="field-label">Born on</span>
-                    <span class="field-value">{{ $member->birth_village ?? '' }}</span>
+                    <span class="field-value">{{ $member->birth_village }}</span>
                     <div class="dotted-line"></div>
                 </div>
                 
                 <div class="field compact-field">
                     <span class="field-label">County</span>
-                    <span class="field-value">{{ $member->county ?? '' }}</span>
+                    <span class="field-value">{{ $member->county }}</span>
                     <div class="dotted-line"></div>
                 </div>
                 
                 <div class="field compact-field">
                     <span class="field-label">Date</span>
-                    <span class="field-value">{{ $member->date_of_birth ? $member->date_of_birth->format('d/m/Y') : '' }}</span>
+                    <span class="field-value">{{ $member->date_of_birth ? \Carbon\Carbon::parse($member->date_of_birth)->format('d/m/Y') : '' }}</span>
                     <div class="dotted-line"></div>
                 </div>
                 
                 <div class="field compact-field">
                     <span class="field-label">Residence</span>
-                    <span class="field-value">{{ $member->residence ?? '' }}</span>
+                    <span class="field-value">{{ $member->residence }}</span>
                     <div class="dotted-line"></div>
                 </div>
             </div>
             
-            <!-- Cell 2: Baptism -->
             <div class="cell">
                 <div class="section-title">BAPTISM</div>
                 
                 <div class="field compact-field">
                     <span class="field-label">At</span>
-                    <span class="field-value">{{ $member->baptism_location ?? $member->local_church ?? '' }}</span>
+                    <span class="field-value">{{ $member->baptism_location }}</span>
                     <div class="dotted-line"></div>
                 </div>
                 
                 <div class="field compact-field">
                     <span class="field-label">Date</span>
-                    <span class="field-value">{{ $member->baptism_date ? $member->baptism_date->format('d/m/Y') : '' }}</span>
+                    <span class="field-value">{{ $member->baptism_date ? \Carbon\Carbon::parse($member->baptism_date)->format('d/m/Y') : '' }}</span>
                     <div class="dotted-line"></div>
                 </div>
                 
                 <div class="field compact-field">
                     <span class="field-label">By</span>
-                    <span class="field-value">{{ $member->baptized_by ?? ($member->minister ? $member->minister->first_name . ' ' . $member->minister->last_name : '') }}</span>
+                    <span class="field-value">{{ $member->baptized_by }}</span>
                     <div class="dotted-line"></div>
                 </div>
                 
                 <div class="field compact-field">
                     <span class="field-label">Sponsor</span>
-                    <span class="field-value">{{ $member->sponsor ?? ($member->godparent ? $member->godparent->first_name . ' ' . $member->godparent->last_name : '') }}</span>
+                    <span class="field-value">{{ $member->sponsor }}</span>
                     <div class="dotted-line"></div>
                 </div>
             </div>
@@ -311,13 +310,13 @@
                     
                     <div class="field compact-field">
                         <span class="field-label">At</span>
-                        <span class="field-value">{{ $member->eucharist_location ?? '' }}</span>
+                        <span class="field-value">{{ $member->eucharist_location }}</span>
                         <div class="dotted-line"></div>
                     </div>
                     
                     <div class="field compact-field">
                         <span class="field-label">Date</span>
-                        <span class="field-value">{{ $member->eucharist_date ? $member->eucharist_date->format('d/m/Y') : '' }}</span>
+                        <span class="field-value">{{ $member->eucharist_date ? \Carbon\Carbon::parse($member->eucharist_date)->format('d/m/Y') : '' }}</span>
                         <div class="dotted-line"></div>
                     </div>
                 </div>
@@ -328,26 +327,26 @@
                     
                     <div class="field compact-field">
                         <span class="field-label">At</span>
-                        <span class="field-value">{{ $member->confirmation_location ?? '' }}</span>
+                        <span class="field-value">{{ $member->confirmation_location }}</span>
                         <div class="dotted-line"></div>
                     </div>
                     
                     <div class="field compact-field">
                         <span class="field-label">Date</span>
-                        <span class="field-value">{{ $member->confirmation_date ? $member->confirmation_date->format('d/m/Y') : '' }}</span>
+                        <span class="field-value">{{ $member->confirmation_date ? \Carbon\Carbon::parse($member->confirmation_date)->format('d/m/Y') : '' }}</span>
                         <div class="dotted-line"></div>
                     </div>
                     
                     <div class="confirmation-fields">
                         <div class="field">
                             <span class="field-label">Reg.No.</span>
-                            <span class="field-value">{{ $member->confirmation_register_number ?? '' }}</span>
+                            <span class="field-value">{{ $member->confirmation_register_number }}</span>
                             <div class="dotted-line"></div>
                         </div>
                         
                         <div class="field">
                             <span class="field-label">Conf.No.</span>
-                            <span class="field-value">{{ $member->confirmation_number ?? '' }}</span>
+                            <span class="field-value">{{ $member->confirmation_number }}</span>
                             <div class="dotted-line"></div>
                         </div>
                     </div>
@@ -359,32 +358,32 @@
                     
                     <div class="field compact-field">
                         <span class="field-label">With</span>
-                        <span class="field-value">{{ $member->marriage_spouse ?? '' }}</span>
+                        <span class="field-value">{{ $member->marriage_spouse }}</span>
                         <div class="dotted-line"></div>
                     </div>
                     
                     <div class="field compact-field">
                         <span class="field-label">At</span>
-                        <span class="field-value">{{ $member->marriage_location ?? '' }}</span>
+                        <span class="field-value">{{ $member->marriage_location }}</span>
                         <div class="dotted-line"></div>
                     </div>
                     
                     <div class="field compact-field">
                         <span class="field-label">Date</span>
-                        <span class="field-value">{{ $member->marriage_date ? $member->marriage_date->format('d/m/Y') : '' }}</span>
+                        <span class="field-value">{{ $member->marriage_date ? \Carbon\Carbon::parse($member->marriage_date)->format('d/m/Y') : '' }}</span>
                         <div class="dotted-line"></div>
                     </div>
                     
                     <div class="confirmation-fields">
                         <div class="field">
                             <span class="field-label">Reg.No.</span>
-                            <span class="field-value">{{ $member->marriage_register_number ?? '' }}</span>
+                            <span class="field-value">{{ $member->marriage_register_number }}</span>
                             <div class="dotted-line"></div>
                         </div>
                         
                         <div class="field">
                             <span class="field-label">Mar.No.</span>
-                            <span class="field-value">{{ $member->marriage_number ?? '' }}</span>
+                            <span class="field-value">{{ $member->marriage_number }}</span>
                             <div class="dotted-line"></div>
                         </div>
                     </div>

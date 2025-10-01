@@ -387,3 +387,45 @@ test-*.php
 # Keep only essential documentation
 !/README.md
 !/LICENSE
+
+# Additional development files to ignore
+debug_*.php
+test_*.php
+test-*.php
+*_test.php
+*.test.php
+/storage/debugbar/
+/storage/logs/*.log
+
+# Development documentation
+/MYSQL_MIGRATION_GUIDE.md
+/DEPLOYMENT_PRODUCTION_GUIDE.md
+/PRODUCTION_DEPLOYMENT_GUIDE.md
+/MEMBER_REGISTRATION_ANALYSIS.md
+/MEMBER_REGISTRATION_RESOLUTION.md
+/DATABASE_ENHANCEMENT_REPORT.md
+
+# Keep only essential documentation
+!/README.md
+!/LICENSE
+
+# Additional development files to ignore
+debug_*.php
+test_*.php
+test-*.php
+*_test.php
+*.test.php
+/storage/debugbar/
+/storage/logs/*.log
+
+# Development documentation
+/MYSQL_MIGRATION_GUIDE.md
+/DEPLOYMENT_PRODUCTION_GUIDE.md
+/PRODUCTION_DEPLOYMENT_GUIDE.md
+/MEMBER_REGISTRATION_ANALYSIS.md
+/MEMBER_REGISTRATION_RESOLUTION.md
+/DATABASE_ENHANCEMENT_REPORT.md
+
+# Keep only essential documentation
+!/README.md
+!/LICENSE

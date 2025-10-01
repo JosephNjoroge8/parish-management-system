@@ -9,6 +9,7 @@ use App\Models\MarriageRecord;
 use App\Models\Sacrament;
 use App\Exports\MembersExport;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Maatwebsite\Excel\Facades\Excel;
@@ -16,7 +17,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
+use App\Services\MarriageCertificateValidator;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -38,20 +39,100 @@ class MemberController extends Controller
     public function index(Request $request)
     {
         try {
-            // Simple pagination with basic search only
-            $query = Member::query();
-            
-            // Basic search only (remove complex CONCAT operations)
-            if ($request->filled('search')) {
-                $search = $request->get('search');
-                $query->where(function ($q) use ($search) {
-                    $q->where('first_name', 'like', "%{$search}%")
-                      ->orWhere('last_name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
-                });
+            // Validate incoming request parameters
+            $validator = Validator::make($request->all(), [
+                'search' => 'nullable|string|max:255',
+                'membership_status' => 'nullable|string|in:active,inactive,transferred,deceased',
+                'local_church' => 'nullable|string|max:255',
+                'church_group' => 'nullable|string|max:255',
+                'gender' => 'nullable|string|in:male,female,MALE,FEMALE,Male,Female',
+                'age_group' => 'nullable|string|in:children,youth,adults,seniors',
+                'sort' => 'nullable|string|in:first_name,last_name,created_at,membership_date,date_of_birth',
+                'direction' => 'nullable|string|in:asc,desc',
+                'per_page' => 'nullable|integer|min:5|max:100',
+                'page' => 'nullable|integer|min:1'
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('Invalid search parameters', [
+                    'errors' => $validator->errors(),
+                    'request' => $request->all()
+                ]);
+                
+                // Return with validation errors but still show page
+                return Inertia::render('Members/Index', [
+                    'members' => [
+                        'data' => [], 
+                        'total' => 0, 
+                        'current_page' => 1,
+                        'last_page' => 1,
+                        'per_page' => 15,
+                        'from' => 0,
+                        'to' => 0
+                    ],
+                    'filters' => [],
+                    'stats' => $this->getStats(),
+                    'filterOptions' => $this->getFilterOptions(),
+                ])->with('error', 'Invalid search parameters. Please check your input.');
             }
 
-            // Simple filters only
+            Log::info('Members index request', [
+                'search' => $request->get('search'),
+                'filters' => $request->only(['search', 'membership_status', 'local_church', 'church_group', 'gender']),
+                'user_id' => Auth::id()
+            ]);
+
+            $query = Member::query();
+            
+            // Enhanced search functionality with comprehensive field coverage and SQL injection protection
+            if ($request->filled('search')) {
+                $search = trim($request->get('search'));
+                
+                // Skip empty searches
+                if (empty($search)) {
+                    // Don't apply search filter for empty string
+                } else {
+                    // Sanitize search input
+                    $search = preg_replace('/[^\w\s@.\-+()]/u', '', $search);
+                    
+                    $query->where(function ($q) use ($search) {
+                        // Basic field searches with proper parameter binding
+                        $q->where('first_name', 'like', "%{$search}%")
+                          ->orWhere('last_name', 'like', "%{$search}%")
+                          ->orWhere('middle_name', 'like', "%{$search}%")
+                          ->orWhere('email', 'like', "%{$search}%")
+                          ->orWhere('phone', 'like', "%{$search}%")
+                          ->orWhere('id_number', 'like', "%{$search}%")
+                          ->orWhere('residence', 'like', "%{$search}%")
+                          ->orWhere('occupation', 'like', "%{$search}%");
+                          
+                        // ID search only if numeric
+                        if (is_numeric($search)) {
+                            $q->orWhere('id', '=', (int)$search);
+                        }
+                        
+                        // Database-agnostic full name search
+                        if (DB::getDriverName() === 'mysql') {
+                            $q->orWhereRaw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) LIKE ?", ["%{$search}%"])
+                              ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
+                        } else {
+                            // SQLite compatible
+                            $q->orWhereRaw("(first_name || ' ' || COALESCE(middle_name, '') || ' ' || last_name) LIKE ?", ["%{$search}%"])
+                              ->orWhereRaw("(first_name || ' ' || last_name) LIKE ?", ["%{$search}%"]);
+                        }
+                        
+                        // Phone number search (database-agnostic)
+                        if (DB::getDriverName() === 'mysql') {
+                            $q->orWhereRaw("REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') LIKE ?", ["%{$search}%"]);
+                        } else {
+                            // For SQLite or other databases
+                            $q->orWhere('phone', 'like', "%{$search}%");
+                        }
+                    });
+                }
+            }
+
+            // Apply filters
             if ($request->filled('membership_status')) {
                 $query->where('membership_status', $request->get('membership_status'));
             }
@@ -60,32 +141,120 @@ class MemberController extends Controller
                 $query->where('local_church', $request->get('local_church'));
             }
 
-            // Simple sorting
-            $sortField = in_array($request->get('sort'), ['first_name', 'last_name', 'created_at']) 
+            if ($request->filled('church_group')) {
+                $query->where('church_group', $request->get('church_group'));
+            }
+
+            if ($request->filled('gender')) {
+                $query->where('gender', $request->get('gender'));
+            }
+
+            // Age group filtering with database-agnostic date calculations
+            if ($request->filled('age_group')) {
+                $ageGroup = $request->get('age_group');
+                $today = now();
+                
+                // Use database-agnostic date calculations
+                switch ($ageGroup) {
+                    case 'children':
+                        if (DB::getDriverName() === 'mysql') {
+                            $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, ?) < 13', [$today]);
+                        } else {
+                            // SQLite compatible
+                            $query->whereRaw('(julianday(?) - julianday(date_of_birth)) / 365.25 < 13', [$today->toDateString()]);
+                        }
+                        break;
+                    case 'youth':
+                        if (DB::getDriverName() === 'mysql') {
+                            $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, ?) BETWEEN 13 AND 35', [$today]);
+                        } else {
+                            $query->whereRaw('(julianday(?) - julianday(date_of_birth)) / 365.25 BETWEEN 13 AND 35', [$today->toDateString()]);
+                        }
+                        break;
+                    case 'adults':
+                        if (DB::getDriverName() === 'mysql') {
+                            $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, ?) BETWEEN 36 AND 60', [$today]);
+                        } else {
+                            $query->whereRaw('(julianday(?) - julianday(date_of_birth)) / 365.25 BETWEEN 36 AND 60', [$today->toDateString()]);
+                        }
+                        break;
+                    case 'seniors':
+                        if (DB::getDriverName() === 'mysql') {
+                            $query->whereRaw('TIMESTAMPDIFF(YEAR, date_of_birth, ?) > 60', [$today]);
+                        } else {
+                            $query->whereRaw('(julianday(?) - julianday(date_of_birth)) / 365.25 > 60', [$today->toDateString()]);
+                        }
+                        break;
+                }
+            }
+
+            // Enhanced sorting options
+            $allowedSortFields = ['first_name', 'last_name', 'created_at', 'membership_date', 'date_of_birth'];
+            $sortField = in_array($request->get('sort'), $allowedSortFields) 
                 ? $request->get('sort') 
                 : 'last_name';
             $sortDirection = $request->get('direction') === 'desc' ? 'desc' : 'asc';
             
             $query->orderBy($sortField, $sortDirection);
+            
+            // Secondary sort by first_name for consistency
+            if ($sortField !== 'first_name') {
+                $query->orderBy('first_name', 'asc');
+            }
 
-            // Fast pagination with smaller page size
-            $members = $query->paginate(10)->withQueryString();
+            // Configurable pagination
+            $perPage = in_array($request->get('per_page'), [10, 15, 25, 50, 100]) 
+                ? (int)$request->get('per_page') 
+                : 15;
+            
+            $members = $query->paginate($perPage)->withQueryString();
 
-            // Get comprehensive stats using the dedicated method
+            // Get comprehensive stats
             $stats = $this->getStats();
+
+            // Get filter options for the frontend
+            $filterOptions = $this->getFilterOptions();
+
+            Log::info('Members index success', [
+                'total_members' => $members->total(),
+                'search_term' => $request->get('search'),
+                'filters_applied' => count(array_filter($request->only(['search', 'membership_status', 'local_church', 'church_group', 'gender'])))
+            ]);
 
             return Inertia::render('Members/Index', [
                 'members' => $members,
-                'filters' => $request->only(['search', 'membership_status', 'local_church']),
+                'filters' => $request->only(['search', 'membership_status', 'local_church', 'church_group', 'gender', 'age_group', 'sort', 'direction', 'per_page']),
                 'stats' => $stats,
+                'filterOptions' => $filterOptions,
             ]);
         } catch (\Exception $e) {
-            Log::error('Member index error: ' . $e->getMessage());
-            return Inertia::render('Members/Index', [
-                'members' => ['data' => [], 'total' => 0],
-                'filters' => [],
-                'stats' => ['total' => 0, 'active' => 0],
+            Log::error('Member index error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
             ]);
+            
+            return Inertia::render('Members/Index', [
+                'members' => [
+                    'data' => [], 
+                    'total' => 0, 
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => 15,
+                    'from' => 0,
+                    'to' => 0
+                ],
+                'filters' => [],
+                'stats' => [
+                    'total_members' => 0, 
+                    'active_members' => 0,
+                    'new_this_month' => 0,
+                    'by_church' => [],
+                    'by_group' => [],
+                    'by_status' => [],
+                    'by_gender' => []
+                ],
+                'filterOptions' => $this->getFilterOptions(),
+            ])->with('error', 'Unable to load members. Please try again.');
         }
     }
 
@@ -181,19 +350,33 @@ class MemberController extends Controller
                 'marriage_witness1_name' => 'nullable|string|max:255',
                 'marriage_witness2_name' => 'nullable|string|max:255',
                 
-                // Spouse Information with conditional validation
-                'spouse_name' => 'nullable|string|max:255',
-                'spouse_age' => 'nullable|integer|min:1|max:120',
-                'spouse_residence' => 'nullable|string|max:255',
-                'spouse_county' => 'nullable|string|max:255',
-                'spouse_marital_status' => 'nullable|string|max:255',
-                'spouse_occupation' => 'nullable|string|max:255',
-                'spouse_father_name' => 'nullable|string|max:255',
-                'spouse_father_occupation' => 'nullable|string|max:255',
-                'spouse_father_residence' => 'nullable|string|max:255',
-                'spouse_mother_name' => 'nullable|string|max:255',
-                'spouse_mother_occupation' => 'nullable|string|max:255',
-                'spouse_mother_residence' => 'nullable|string|max:255',
+                // Bridegroom Information (for when member is female)
+                'bridegroom_name' => 'nullable|string|max:255',
+                'bridegroom_age' => 'nullable|integer|min:1|max:120',
+                'bridegroom_residence' => 'nullable|string|max:255',
+                'bridegroom_county' => 'nullable|string|max:255',
+                'bridegroom_marital_status' => 'nullable|string|max:255',
+                'bridegroom_occupation' => 'nullable|string|max:255',
+                'bridegroom_father_name' => 'nullable|string|max:255',
+                'bridegroom_father_occupation' => 'nullable|string|max:255',
+                'bridegroom_father_residence' => 'nullable|string|max:255',
+                'bridegroom_mother_name' => 'nullable|string|max:255',
+                'bridegroom_mother_occupation' => 'nullable|string|max:255',
+                'bridegroom_mother_residence' => 'nullable|string|max:255',
+                
+                // Bride Information (for when member is male)
+                'bride_name' => 'nullable|string|max:255',
+                'bride_age' => 'nullable|integer|min:1|max:120',
+                'bride_residence' => 'nullable|string|max:255',
+                'bride_county' => 'nullable|string|max:255',
+                'bride_marital_status' => 'nullable|string|max:255',
+                'bride_occupation' => 'nullable|string|max:255',
+                'bride_father_name' => 'nullable|string|max:255',
+                'bride_father_occupation' => 'nullable|string|max:255',
+                'bride_father_residence' => 'nullable|string|max:255',
+                'bride_mother_name' => 'nullable|string|max:255',
+                'bride_mother_occupation' => 'nullable|string|max:255',
+                'bride_mother_residence' => 'nullable|string|max:255',
                 
                 // Contact
                 'emergency_contact' => 'nullable|string|max:255',
@@ -223,21 +406,34 @@ class MemberController extends Controller
                 'confirmation_date.after' => 'Confirmation date must be after baptism date',
                 'marriage_date.before_or_equal' => 'Marriage date cannot be in the future',
                 'membership_date.before_or_equal' => 'Membership date cannot be in the future',
-                'spouse_age.min' => 'Spouse age must be at least 1',
-                'spouse_age.max' => 'Spouse age cannot exceed 120',
+                'bridegroom_age.min' => 'Bridegroom age must be at least 1',
+                'bridegroom_age.max' => 'Bridegroom age cannot exceed 120',
+                'bride_age.min' => 'Bride age must be at least 1',
+                'bride_age.max' => 'Bride age cannot exceed 120',
                 'notes.max' => 'Notes cannot exceed 2000 characters',
             ]);
 
-            // Conditional validation for married members
+            // Enhanced conditional validation for married members
             if ($validated['matrimony_status'] === 'married') {
+                // Determine which partner fields to validate based on member's gender
+                $partnerNameField = $validated['gender'] === 'Male' ? 'bride_name' : 'bridegroom_name';
+                
                 $conditionalRules = [
-                    'spouse_name' => 'required|string|max:255',
+                    $partnerNameField => 'required|string|max:255',
                     'marriage_date' => 'required|date|before_or_equal:today',
+                    'marriage_location' => 'required|string|max:255',
+                    'marriage_county' => 'required|string|max:255',
+                    'marriage_sub_county' => 'required|string|max:255',
                 ];
                 
+                $partnerTitle = $validated['gender'] === 'Male' ? 'Bride' : 'Bridegroom';
+                
                 $request->validate($conditionalRules, [
-                    'spouse_name.required' => 'Spouse name is required for married members',
+                    $partnerNameField . '.required' => $partnerTitle . ' name is required for married members',
                     'marriage_date.required' => 'Marriage date is required for married members',
+                    'marriage_location.required' => 'Marriage location is required for married members',
+                    'marriage_county.required' => 'Marriage county is required for married members',
+                    'marriage_sub_county.required' => 'Marriage sub-county is required for married members',
                 ]);
             }
 
@@ -434,19 +630,37 @@ class MemberController extends Controller
         $memberData['marriage_witness1_name'] = $validated['marriage_witness1_name'] ?? null;
         $memberData['marriage_witness2_name'] = $validated['marriage_witness2_name'] ?? null;
         
-        // Spouse information
-        $memberData['spouse_name'] = $validated['spouse_name'] ?? null;
-        $memberData['spouse_age'] = !empty($validated['spouse_age']) && is_numeric($validated['spouse_age']) ? (int)$validated['spouse_age'] : null;
-        $memberData['spouse_residence'] = $validated['spouse_residence'] ?? null;
-        $memberData['spouse_county'] = $validated['spouse_county'] ?? null;
-        $memberData['spouse_marital_status'] = $validated['spouse_marital_status'] ?? null;
-        $memberData['spouse_occupation'] = $validated['spouse_occupation'] ?? null;
-        $memberData['spouse_father_name'] = $validated['spouse_father_name'] ?? null;
-        $memberData['spouse_father_occupation'] = $validated['spouse_father_occupation'] ?? null;
-        $memberData['spouse_father_residence'] = $validated['spouse_father_residence'] ?? null;
-        $memberData['spouse_mother_name'] = $validated['spouse_mother_name'] ?? null;
-        $memberData['spouse_mother_occupation'] = $validated['spouse_mother_occupation'] ?? null;
-        $memberData['spouse_mother_residence'] = $validated['spouse_mother_residence'] ?? null;
+        // Map bridegroom/bride information to spouse fields in database
+        // Determine which fields to use based on member's gender
+        if ($validated['gender'] === 'Male') {
+            // For male members, bride information is the spouse
+            $memberData['spouse_name'] = $validated['bride_name'] ?? null;
+            $memberData['spouse_age'] = !empty($validated['bride_age']) && is_numeric($validated['bride_age']) ? (int)$validated['bride_age'] : null;
+            $memberData['spouse_residence'] = $validated['bride_residence'] ?? null;
+            $memberData['spouse_county'] = $validated['bride_county'] ?? null;
+            $memberData['spouse_marital_status'] = $validated['bride_marital_status'] ?? null;
+            $memberData['spouse_occupation'] = $validated['bride_occupation'] ?? null;
+            $memberData['spouse_father_name'] = $validated['bride_father_name'] ?? null;
+            $memberData['spouse_father_occupation'] = $validated['bride_father_occupation'] ?? null;
+            $memberData['spouse_father_residence'] = $validated['bride_father_residence'] ?? null;
+            $memberData['spouse_mother_name'] = $validated['bride_mother_name'] ?? null;
+            $memberData['spouse_mother_occupation'] = $validated['bride_mother_occupation'] ?? null;
+            $memberData['spouse_mother_residence'] = $validated['bride_mother_residence'] ?? null;
+        } else {
+            // For female members, bridegroom information is the spouse
+            $memberData['spouse_name'] = $validated['bridegroom_name'] ?? null;
+            $memberData['spouse_age'] = !empty($validated['bridegroom_age']) && is_numeric($validated['bridegroom_age']) ? (int)$validated['bridegroom_age'] : null;
+            $memberData['spouse_residence'] = $validated['bridegroom_residence'] ?? null;
+            $memberData['spouse_county'] = $validated['bridegroom_county'] ?? null;
+            $memberData['spouse_marital_status'] = $validated['bridegroom_marital_status'] ?? null;
+            $memberData['spouse_occupation'] = $validated['bridegroom_occupation'] ?? null;
+            $memberData['spouse_father_name'] = $validated['bridegroom_father_name'] ?? null;
+            $memberData['spouse_father_occupation'] = $validated['bridegroom_father_occupation'] ?? null;
+            $memberData['spouse_father_residence'] = $validated['bridegroom_father_residence'] ?? null;
+            $memberData['spouse_mother_name'] = $validated['bridegroom_mother_name'] ?? null;
+            $memberData['spouse_mother_occupation'] = $validated['bridegroom_mother_occupation'] ?? null;
+            $memberData['spouse_mother_residence'] = $validated['bridegroom_mother_residence'] ?? null;
+        }
         
         // Contact
         $memberData['emergency_contact'] = $validated['emergency_contact'] ?? null;
@@ -832,6 +1046,63 @@ class MemberController extends Controller
             'confirmation_location' => 'nullable|string|max:255',
             'confirmation_register_number' => 'nullable|string|max:50',
             'confirmation_number' => 'nullable|string|max:50',
+            
+            // Marriage Certificate Fields
+            'marriage_date' => 'nullable|date|before_or_equal:today',
+            'marriage_location' => 'nullable|string|max:255',
+            'marriage_sub_county' => 'nullable|string|max:255',
+            'marriage_county' => 'nullable|string|max:255',
+            'marriage_entry_number' => 'nullable|string|max:50',
+            'marriage_certificate_number' => 'nullable|string|max:50',
+            'marriage_religion' => 'nullable|string|max:255',
+            'marriage_license_number' => 'nullable|string|max:255',
+            'marriage_officiant_name' => 'nullable|string|max:255',
+            'marriage_witness1_name' => 'nullable|string|max:255',
+            'marriage_witness2_name' => 'nullable|string|max:255',
+            
+            // Spouse Information Fields
+            'spouse_name' => 'nullable|string|max:255',
+            'spouse_age' => 'nullable|integer|min:1|max:150',
+            'spouse_residence' => 'nullable|string|max:255',
+            'spouse_county' => 'nullable|string|max:255',
+            'spouse_marital_status' => 'nullable|string|max:255',
+            'spouse_occupation' => 'nullable|string|max:255',
+            'spouse_father_name' => 'nullable|string|max:255',
+            'spouse_father_occupation' => 'nullable|string|max:255',
+            'spouse_father_residence' => 'nullable|string|max:255',
+            'spouse_mother_name' => 'nullable|string|max:255',
+            'spouse_mother_occupation' => 'nullable|string|max:255',
+            'spouse_mother_residence' => 'nullable|string|max:255',
+            
+            // Marriage Certificate Frontend Fields (mapped to spouse fields)
+            'bridegroom_name' => 'nullable|string|max:255',
+            'bridegroom_age' => 'nullable|integer|min:1|max:150',
+            'bridegroom_residence' => 'nullable|string|max:255',
+            'bridegroom_county' => 'nullable|string|max:255',
+            'bridegroom_marital_status' => 'nullable|string|max:255',
+            'bridegroom_occupation' => 'nullable|string|max:255',
+            'bridegroom_father_name' => 'nullable|string|max:255',
+            'bridegroom_mother_name' => 'nullable|string|max:255',
+            'bridegroom_father_occupation' => 'nullable|string|max:255',
+            'bridegroom_mother_occupation' => 'nullable|string|max:255',
+            'bridegroom_father_residence' => 'nullable|string|max:255',
+            'bridegroom_mother_residence' => 'nullable|string|max:255',
+            'bride_name' => 'nullable|string|max:255',
+            'bride_age' => 'nullable|integer|min:1|max:150',
+            'bride_residence' => 'nullable|string|max:255',
+            'bride_county' => 'nullable|string|max:255',
+            'bride_marital_status' => 'nullable|string|max:255',
+            'bride_occupation' => 'nullable|string|max:255',
+            'bride_father_name' => 'nullable|string|max:255',
+            'bride_mother_name' => 'nullable|string|max:255',
+            'bride_father_occupation' => 'nullable|string|max:255',
+            'bride_mother_occupation' => 'nullable|string|max:255',
+            'bride_father_residence' => 'nullable|string|max:255',
+            'bride_mother_residence' => 'nullable|string|max:255',
+            
+            // Emergency contact fields
+            'emergency_contact' => 'nullable|string|max:255',
+            'emergency_phone' => 'nullable|string|max:20',
         ]);
 
         try {
@@ -875,25 +1146,85 @@ class MemberController extends Controller
     }
 
     /**
-     * Search members (API endpoint).
+     * Enhanced search members (API endpoint) with improved performance and security.
      */
     public function search(Request $request)
     {
-        $query = $request->get('q', '');
-        
-        $members = Member::where(function ($q) use ($query) {
-            $q->where('first_name', 'like', "%{$query}%")
-              ->orWhere('last_name', 'like', "%{$query}%")
-              ->orWhere('middle_name', 'like', "%{$query}%")
-              ->orWhere('phone', 'like', "%{$query}%")
-              ->orWhere('email', 'like', "%{$query}%")
-              ->orWhere('id', 'like', "%{$query}%");
-        })
-        ->select('id', 'first_name', 'middle_name', 'last_name', 'phone', 'email', 'church_group', 'local_church', 'date_of_birth', 'membership_status')
-        ->limit(20)
-        ->get();
+        try {
+            // Validate search input
+            $validator = Validator::make($request->all(), [
+                'q' => 'required|string|max:255',
+                'limit' => 'nullable|integer|min:1|max:50'
+            ]);
 
-        return response()->json(['members' => $members]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Invalid search parameters',
+                    'members' => []
+                ], 400);
+            }
+
+            $query = trim($request->get('q', ''));
+            $limit = min((int)$request->get('limit', 20), 50);
+            
+            // Skip empty queries
+            if (empty($query)) {
+                return response()->json(['members' => []]);
+            }
+            
+            // Sanitize search input
+            $query = preg_replace('/[^\w\s@.\-+()]/u', '', $query);
+            
+            $membersQuery = Member::query();
+            
+            $membersQuery->where(function ($q) use ($query) {
+                $q->where('first_name', 'like', "%{$query}%")
+                  ->orWhere('last_name', 'like', "%{$query}%")
+                  ->orWhere('middle_name', 'like', "%{$query}%")
+                  ->orWhere('phone', 'like', "%{$query}%")
+                  ->orWhere('email', 'like', "%{$query}%")
+                  ->orWhere('id_number', 'like', "%{$query}%");
+                  
+                // Add ID search only if numeric
+                if (is_numeric($query)) {
+                    $q->orWhere('id', '=', (int)$query);
+                }
+                
+                // Database-agnostic full name search
+                if (DB::getDriverName() === 'mysql') {
+                    $q->orWhereRaw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) LIKE ?", ["%{$query}%"])
+                      ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$query}%"]);
+                } else {
+                    $q->orWhereRaw("(first_name || ' ' || COALESCE(middle_name, '') || ' ' || last_name) LIKE ?", ["%{$query}%"])
+                      ->orWhereRaw("(first_name || ' ' || last_name) LIKE ?", ["%{$query}%"]);
+                }
+            });
+
+            $members = $membersQuery
+                ->select('id', 'first_name', 'middle_name', 'last_name', 'phone', 'email', 'church_group', 'local_church', 'date_of_birth', 'membership_status', 'id_number')
+                ->orderBy('membership_status', 'asc') // Active members first
+                ->orderBy('last_name', 'asc')
+                ->orderBy('first_name', 'asc')
+                ->limit($limit)
+                ->get();
+
+            return response()->json([
+                'members' => $members,
+                'total' => $members->count(),
+                'query' => $query
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Search API error: ' . $e->getMessage(), [
+                'query' => $request->get('q'),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Search failed',
+                'members' => []
+            ], 500);
+        }
     }
 
     /**
@@ -2139,83 +2470,229 @@ class MemberController extends Controller
 
     public function downloadMarriageCertificate(Member $member)
     {
-        // More flexible validation - check if member has any marriage data
-        $hasMarriageData = $member->matrimony_status === 'married' || 
-                          $member->marriage_date || 
-                          $member->spouse_name || 
-                          $member->husband_name || 
-                          $member->wife_name ||
-                          $member->marriage_certificate_number;
-
-        if (!$hasMarriageData) {
-            return back()->with('error', 'Member has no marriage record to generate certificate.');
-        }
-
         try {
-            // Debug: Log what data we have
-            Log::info('Marriage certificate data for member ' . $member->id, [
-                'matrimony_status' => $member->matrimony_status,
-                'marriage_date' => $member->marriage_date,
-                'spouse_name' => $member->spouse_name,
-                'husband_name' => $member->husband_name,
-                'wife_name' => $member->wife_name,
-                'marriage_certificate_number' => $member->marriage_certificate_number,
+            // Validate data completeness using our validator service
+            $validator = new MarriageCertificateValidator();
+            $validation = $validator->validateMemberData($member);
+
+            // Log validation results for debugging
+            Log::info('Marriage certificate validation for member ' . $member->id, [
+                'is_valid' => $validation['is_valid'],
+                'completeness_score' => $validation['completeness_score'],
+                'missing_required_count' => count($validation['missing_required']),
+                'recommendations_count' => count($validation['recommendations'])
             ]);
 
-            // Create marriageRecord object from member data
+            // Check if certificate can be generated
+            if (!$validation['is_valid']) {
+                $missingFields = collect($validation['missing_required'])->pluck('label')->join(', ');
+                return back()->with('error', 
+                    "Cannot generate certificate - missing required fields: {$missingFields}. " .
+                    "Please update the member's marriage details first."
+                );
+            }
+
+            // Show warning for low completeness score
+            if ($validation['completeness_score'] < 75) {
+                session()->flash('warning', 
+                    "Certificate generated with {$validation['completeness_score']}% completeness. " .
+                    "Some optional fields may be empty. Consider updating member details for a more complete certificate."
+                );
+            }
+
+            // Enhanced marriageRecord object with complete field mapping
             $marriageRecord = (object) [
                 'id' => $member->id,
-                'certificate_number' => $member->marriage_certificate_number ?? $member->certificate_number,
-                'marriage_location' => $member->marriage_location ?? 'Sacred Heart Kandara Parish',
-                'sub_county' => $member->sub_county ?? 'Kandara',
-                'county' => $member->county ?? 'Murang\'a',
                 'marriage_date' => $member->marriage_date,
-                'entry_number' => $member->marriage_entry_number,
-                'husband_name' => $member->husband_name ?? $member->full_name,
-                'husband_age' => $member->husband_age ?? $member->age,
-                'husband_residence' => $member->husband_residence ?? $member->address,
-                'husband_marital_status' => 'Single',
-                'husband_county' => $member->husband_county ?? $member->county,
-                'husband_occupation' => $member->husband_occupation ?? $member->occupation,
-                'husband_father_name' => $member->husband_father_name ?? $member->father_name,
-                'husband_mother_name' => $member->husband_mother_name ?? $member->mother_name,
-                'husband_father_occupation' => $member->husband_father_occupation,
-                'husband_mother_occupation' => $member->husband_mother_occupation,
-                'husband_father_residence' => $member->husband_father_residence,
-                'husband_mother_residence' => $member->husband_mother_residence,
-                'wife_name' => $member->wife_name ?? $member->spouse_name,
-                'wife_age' => $member->wife_age,
-                'wife_residence' => $member->wife_residence ?? $member->address,
-                'wife_marital_status' => 'Single',
-                'wife_county' => $member->wife_county ?? $member->county,
-                'wife_occupation' => $member->wife_occupation ?? $member->spouse_occupation,
-                'wife_father_name' => $member->wife_father_name,
-                'wife_mother_name' => $member->wife_mother_name,
-                'wife_father_occupation' => $member->wife_father_occupation,
-                'wife_mother_occupation' => $member->wife_mother_occupation,
-                'wife_father_residence' => $member->wife_father_residence,
-                'wife_mother_residence' => $member->wife_mother_residence,
+                'record_number' => $member->marriage_entry_number ?? str_pad($member->id, 4, '0', STR_PAD_LEFT),
+                'civil_marriage_certificate_number' => $member->marriage_certificate_number ?? str_pad($member->id, 6, '0', STR_PAD_LEFT),
+                
+                // Location details with comprehensive fallbacks
+                'marriage_church' => $member->marriage_location ?? 'Sacred Heart Kandara Parish',
+                'district' => $member->marriage_sub_county ?? 'Kandara',
+                'province' => $member->marriage_county ?? 'Murang\'a',
+                
+                // Husband details with complete field mapping
+                'husband_name' => $member->husband_name ?? 
+                    ($member->gender === 'Male' ? 
+                        ($member->first_name . ' ' . ($member->middle_name ? $member->middle_name . ' ' : '') . $member->last_name) : 
+                        $member->spouse_name),
+                'husband_age' => $member->husband_age ?? 
+                    ($member->gender === 'Male' && $member->date_of_birth ? 
+                        \Carbon\Carbon::parse($member->date_of_birth)->age : 
+                        $member->spouse_age),
+                'husband_domicile' => $member->husband_residence ?? 
+                    ($member->gender === 'Male' ? $member->residence : $member->spouse_residence),
+                'husband_residence' => $member->husband_residence ?? 
+                    ($member->gender === 'Male' ? $member->residence : $member->spouse_residence),
+                'husband_widower_of' => $member->husband_widower_of ?? null,
+                'husband_county' => $member->husband_county ?? 
+                    ($member->gender === 'Male' ? $member->marriage_county : $member->spouse_county),
+                'husband_occupation' => $member->husband_occupation ?? 
+                    ($member->gender === 'Male' ? $member->occupation : $member->spouse_occupation),
+                'husband_father_name' => $member->husband_father_name ?? 
+                    ($member->gender === 'Male' ? $member->father_name : $member->spouse_father_name),
+                'husband_mother_name' => $member->husband_mother_name ?? 
+                    ($member->gender === 'Male' ? $member->mother_name : $member->spouse_mother_name),
+                'husband_father_occupation' => $member->husband_father_occupation ?? 
+                    ($member->gender === 'Male' ? 
+                        $member->father_occupation ?? null : 
+                        $member->bridegroom_father_occupation ?? $member->spouse_father_occupation),
+                'husband_mother_occupation' => $member->husband_mother_occupation ?? 
+                    ($member->gender === 'Male' ? 
+                        $member->mother_occupation ?? null : 
+                        $member->bridegroom_mother_occupation ?? $member->spouse_mother_occupation),
+                'husband_father_residence' => $member->husband_father_residence ?? 
+                    ($member->gender === 'Male' ? 
+                        $member->father_residence ?? null : 
+                        $member->bridegroom_father_residence ?? $member->spouse_father_residence),
+                'husband_mother_residence' => $member->husband_mother_residence ?? 
+                    ($member->gender === 'Male' ? 
+                        $member->mother_residence ?? null : 
+                        $member->bridegroom_mother_residence ?? $member->spouse_mother_residence),
+                
+                // Wife details with complete field mapping
+                'wife_name' => $member->wife_name ?? 
+                    ($member->gender === 'Female' ? 
+                        ($member->first_name . ' ' . ($member->middle_name ? $member->middle_name . ' ' : '') . $member->last_name) : 
+                        $member->spouse_name),
+                'wife_age' => $member->wife_age ?? 
+                    ($member->gender === 'Female' && $member->date_of_birth ? 
+                        \Carbon\Carbon::parse($member->date_of_birth)->age : 
+                        $member->spouse_age),
+                'wife_domicile' => $member->wife_residence ?? 
+                    ($member->gender === 'Female' ? $member->residence : $member->spouse_residence),
+                'wife_residence' => $member->wife_residence ?? 
+                    ($member->gender === 'Female' ? $member->residence : $member->spouse_residence),
+                'wife_widow_of' => $member->wife_widow_of ?? null,
+                'wife_county' => $member->wife_county ?? 
+                    ($member->gender === 'Female' ? $member->marriage_county : $member->spouse_county),
+                'wife_occupation' => $member->wife_occupation ?? 
+                    ($member->gender === 'Female' ? $member->occupation : $member->spouse_occupation),
+                'wife_father_name' => $member->wife_father_name ?? 
+                    ($member->gender === 'Female' ? $member->father_name : $member->spouse_father_name),
+                'wife_mother_name' => $member->wife_mother_name ?? 
+                    ($member->gender === 'Female' ? $member->mother_name : $member->spouse_mother_name),
+                'wife_father_occupation' => $member->wife_father_occupation ?? 
+                    ($member->gender === 'Female' ? 
+                        $member->father_occupation ?? null : 
+                        $member->bride_father_occupation ?? $member->spouse_father_occupation),
+                'wife_mother_occupation' => $member->wife_mother_occupation ?? 
+                    ($member->gender === 'Female' ? 
+                        $member->mother_occupation ?? null : 
+                        $member->bride_mother_occupation ?? $member->spouse_mother_occupation),
+                'wife_father_residence' => $member->wife_father_residence ?? 
+                    ($member->gender === 'Female' ? 
+                        $member->father_residence ?? null : 
+                        $member->bride_father_residence ?? $member->spouse_father_residence),
+                'wife_mother_residence' => $member->wife_mother_residence ?? 
+                    ($member->gender === 'Female' ? 
+                        $member->mother_residence ?? null : 
+                        $member->bride_mother_residence ?? $member->spouse_mother_residence),
+                
+                // Marriage ceremony details
+                'religion' => $member->marriage_religion ?? 'Catholic',
+                'banns_number' => $member->banns_number ?? '',
+                'presence_of' => $member->marriage_officiant_name ?? 'Rev. Parish Priest',
+                
+                // Enhanced witness information - map to actual database fields
+                'male_witness_full_name' => $member->marriage_witness1_name ?? $member->witness_1_name ?? '',
+                'male_witness_father' => $member->male_witness_father ?? '',
+                'female_witness_full_name' => $member->marriage_witness2_name ?? $member->witness_2_name ?? '',
+                'female_witness_father' => $member->female_witness_father ?? '',
+                
+                // Additional mock relationships for template compatibility
+                'husband' => null,
+                'wife' => null,
+                'parishPriest' => (object)['name' => $member->presence_of ?? 'Rev. Parish Priest'],
             ];
 
-            // Prepare data for certificate
-            $data = [
-                'marriageRecord' => $marriageRecord,
-                'member' => $member,
-                'parish_name' => config('app.parish_name', 'Sacred Heart Kandara Parish'),
-                'generated_at' => now()
-            ];
-
-            // Generate PDF using Dompdf
+            // Enhanced PDF generation with better settings
             $pdf = app('dompdf.wrapper');
-            $pdf->loadView('certificates.marriage-certificate', $data);
+            $pdf->loadView('certificates.marriage-certificate', ['marriageRecord' => $marriageRecord]);
             $pdf->setPaper('A4', 'portrait');
+            $pdf->setOptions([
+                'dpi' => 150,
+                'defaultFont' => 'sans-serif',
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
+            ]);
 
-            $filename = 'marriage-certificate-' . Str::slug($member->full_name) . '-' . now()->format('Y-m-d') . '.pdf';
+            // Create descriptive filename
+            $husbandName = $marriageRecord->husband_name ? str_replace([' ', '.'], ['-', ''], strtolower($marriageRecord->husband_name)) : 'husband';
+            $wifeName = $marriageRecord->wife_name ? str_replace([' ', '.'], ['-', ''], strtolower($marriageRecord->wife_name)) : 'wife';
+            $filename = sprintf('marriage-certificate-%s-%s-%s.pdf', 
+                $husbandName, 
+                $wifeName, 
+                $member->marriage_date ? \Carbon\Carbon::parse($member->marriage_date)->format('Y-m-d') : date('Y-m-d')
+            );
+
+            // Log successful generation
+            Log::info('Marriage certificate generated successfully', [
+                'member_id' => $member->id,
+                'filename' => $filename,
+                'completeness_score' => $validation['completeness_score']
+            ]);
 
             return $pdf->download($filename);
 
         } catch (\Exception $e) {
+            Log::error('Marriage certificate generation failed', [
+                'member_id' => $member->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return back()->with('error', 'Failed to generate marriage certificate: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate marriage certificate data completeness report
+     */
+    public function marriageCertificateReport()
+    {
+        try {
+            // Get all married members or members with marriage data
+            $marriedMembers = Member::where(function($query) {
+                $query->where('matrimony_status', 'married')
+                      ->orWhereNotNull('marriage_date')
+                      ->orWhereNotNull('spouse_name')
+                      ->orWhereNotNull('husband_name')
+                      ->orWhereNotNull('wife_name')
+                      ->orWhereNotNull('marriage_certificate_number');
+            })->get();
+
+            // Generate validation report
+            $validator = new MarriageCertificateValidator();
+            $summaryReport = $validator->generateSummaryReport($marriedMembers);
+
+            // Get detailed validation for each member
+            $memberValidations = [];
+            foreach ($marriedMembers as $member) {
+                $validation = $validator->validateMemberData($member);
+                $memberValidations[] = [
+                    'member' => $member,
+                    'validation' => $validation
+                ];
+            }
+
+            // Sort by completeness score (lowest first to prioritize fixes)
+            usort($memberValidations, function($a, $b) {
+                return $a['validation']['completeness_score'] <=> $b['validation']['completeness_score'];
+            });
+
+            return Inertia::render('Reports/MarriageCertificateReport', [
+                'summaryReport' => $summaryReport,
+                'memberValidations' => collect($memberValidations)->take(50), // Limit to first 50 for performance
+                'totalMembers' => count($memberValidations)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Marriage certificate report generation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->with('error', 'Failed to generate marriage certificate report: ' . $e->getMessage());
         }
     }
 
@@ -2225,9 +2702,48 @@ class MemberController extends Controller
     public function downloadBaptismCard(Member $member)
     {
         try {
+            // Load necessary relationships
+            $member->load(['family']);
+            
+            // Prepare enhanced data for baptism card with comprehensive fallbacks
+            $baptismCard = (object) [
+                // Basic Information
+                'full_name' => $member->full_name ?? ($member->first_name . ' ' . ($member->middle_name ? $member->middle_name . ' ' : '') . $member->last_name),
+                'father_name' => $member->father_name ?? '',
+                'mother_name' => $member->mother_name ?? '',
+                'tribe' => $member->tribe ?? '',
+                'birth_village' => $member->birth_village ?? '',
+                'county' => $member->county ?? '',
+                'date_of_birth' => $member->date_of_birth,
+                'residence' => $member->residence ?? '',
+                
+                // Baptism Information
+                'baptism_location' => $member->baptism_location ?? $member->local_church ?? 'Sacred Heart Kandara Parish',
+                'baptism_date' => $member->baptism_date,
+                'baptized_by' => $member->baptized_by ?? '',
+                'sponsor' => $member->sponsor ?? '',
+                
+                // Eucharist Information
+                'eucharist_location' => $member->eucharist_location ?? $member->local_church ?? '',
+                'eucharist_date' => $member->eucharist_date,
+                
+                // Confirmation Information
+                'confirmation_location' => $member->confirmation_location ?? $member->local_church ?? '',
+                'confirmation_date' => $member->confirmation_date,
+                'confirmation_register_number' => $member->confirmation_register_number ?? '',
+                'confirmation_number' => $member->confirmation_number ?? '',
+                
+                // Marriage Information with proper field mapping
+                'marriage_spouse' => $member->spouse_name ?? '',
+                'marriage_location' => $member->marriage_location ?? '',
+                'marriage_date' => $member->marriage_date,
+                'marriage_register_number' => $member->marriage_entry_number ?? '',
+                'marriage_number' => $member->marriage_certificate_number ?? '',
+            ];
+
             // Prepare data for baptism card
             $data = [
-                'member' => $member,
+                'member' => $baptismCard,
                 'parish_name' => config('app.parish_name', 'Sacred Heart Kandara Parish'),
                 'generated_at' => now()
             ];
@@ -2237,11 +2753,15 @@ class MemberController extends Controller
             $pdf->loadView('certificates.baptism-card', $data);
             $pdf->setPaper('A5', 'landscape');
 
-            $filename = 'baptism-card-' . Str::slug($member->full_name) . '-' . now()->format('Y-m-d') . '.pdf';
+            $filename = 'baptism-card-' . Str::slug($baptismCard->full_name) . '-' . now()->format('Y-m-d') . '.pdf';
 
             return $pdf->download($filename);
 
         } catch (\Exception $e) {
+            Log::error('Failed to generate baptism card for member ' . $member->id, [
+                'error' => $e->getMessage(),
+                'member_id' => $member->id
+            ]);
             return back()->with('error', 'Failed to generate baptism card: ' . $e->getMessage());
         }
     }

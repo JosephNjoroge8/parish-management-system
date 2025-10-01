@@ -7,7 +7,7 @@ export function showNotification(
     title: string, 
     message: string, 
     type: NotificationType = 'info', 
-    duration: number = 5000
+    duration: number = 7000  // Increased from 5000ms to 7000ms for better readability
 ): void {
     // Remove existing notification
     dismissNotification();

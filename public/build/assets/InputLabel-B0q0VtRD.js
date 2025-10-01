@@ -1,1 +1,0 @@
-import{j as e}from"./app-CE4iXgnb.js";function a({value:a,className:s="",children:t,...l}){return e.jsx("label",{...l,className:"block text-sm font-medium text-gray-700 "+s,children:a||t})}export{a as I};

@@ -79,6 +79,8 @@ class Member extends Model
         'marriage_witness2_name',
         
         // Spouse Information (for marriage certificate)
+        // Note: Frontend uses 'bridegroom_*' and 'bride_*' terminology for better UX,
+        // but these are mapped to spouse_* fields in the database via MemberController
         'spouse_name',
         'spouse_age',
         'spouse_residence',

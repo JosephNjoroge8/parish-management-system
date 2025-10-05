@@ -1,16 +1,18 @@
 <?php
+
 // filepath: app/Http/Controllers/RoleController.php
+
 namespace App\Http\Controllers;
 
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Http\RedirectResponse;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
+use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
 {
@@ -26,10 +28,19 @@ class RoleController extends Controller
     private function getClearanceLevel(string $roleName): int
     {
         $name = strtolower($roleName);
-        if (str_contains($name, 'super')) return 5;
-        if (str_contains($name, 'admin')) return 4;
-        if (str_contains($name, 'manager')) return 3;
-        if (str_contains($name, 'staff') || str_contains($name, 'secretary') || str_contains($name, 'treasurer')) return 2;
+        if (str_contains($name, 'super')) {
+            return 5;
+        }
+        if (str_contains($name, 'admin')) {
+            return 4;
+        }
+        if (str_contains($name, 'manager')) {
+            return 3;
+        }
+        if (str_contains($name, 'staff') || str_contains($name, 'secretary') || str_contains($name, 'treasurer')) {
+            return 2;
+        }
+
         return 1; // Viewer level
     }
 
@@ -40,13 +51,13 @@ class RoleController extends Controller
     {
         /** @var \App\Models\User $user */
         $user = Auth::user();
-        
+
         // Super admin can manage all roles
         if ($user && $user->is_admin) {
             return true;
         }
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -58,26 +69,27 @@ class RoleController extends Controller
 
         // User can only manage roles with lower clearance level
         $targetLevel = $this->getClearanceLevel($roleName);
+
         return $userLevel > $targetLevel;
     }
 
     public function index(): Response
     {
         $roles = Role::with(['permissions', 'users'])
-                    ->withCount('users')
-                    ->get()
-                    ->map(function ($role) {
-                        return [
-                            'id' => $role->id,
-                            'name' => $role->name,
-                            'display_name' => ucwords(str_replace('-', ' ', $role->name)),
-                            'permissions_count' => $role->permissions->count(),
-                            'users_count' => $role->users_count,
-                            'created_at' => $role->created_at->format('Y-m-d'),
-                            'clearance_level' => $this->getClearanceLevel($role->name),
-                            'description' => $this->getRoleDescription($role->name),
-                        ];
-                    });
+            ->withCount('users')
+            ->get()
+            ->map(function ($role) {
+                return [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                    'display_name' => ucwords(str_replace('-', ' ', $role->name)),
+                    'permissions_count' => $role->permissions->count(),
+                    'users_count' => $role->users_count,
+                    'created_at' => $role->created_at->format('Y-m-d'),
+                    'clearance_level' => $this->getClearanceLevel($role->name),
+                    'description' => $this->getRoleDescription($role->name),
+                ];
+            });
 
         return Inertia::render('Admin/Roles/Index', [
             'roles' => $roles,
@@ -96,7 +108,7 @@ class RoleController extends Controller
             'secretary' => 'Staff level access for daily operations',
             'treasurer' => 'Financial management and reporting access',
             'staff' => 'Basic staff operations access',
-            'viewer' => 'Read-only access to basic information'
+            'viewer' => 'Read-only access to basic information',
         ];
 
         return $descriptions[$roleName] ?? 'Custom role with specific permissions';
@@ -125,33 +137,34 @@ class RoleController extends Controller
         ]);
 
         // Check if user can create role with this clearance level
-        if (!$this->canManageRole($request->name)) {
+        if (! $this->canManageRole($request->name)) {
             return redirect()->back()
-                           ->withErrors(['name' => 'You do not have permission to create roles at this clearance level.']);
+                ->withErrors(['name' => 'You do not have permission to create roles at this clearance level.']);
         }
 
         try {
             $role = Role::create([
                 'name' => $request->name,
-                'guard_name' => 'web'
+                'guard_name' => 'web',
             ]);
-            
+
             $role->givePermissionTo($request->permissions);
 
             // Log role creation
             Log::info('Role created', [
                 'role_name' => $role->name,
                 'permissions_count' => count($request->permissions),
-                'created_by' => Auth::user()->email
+                'created_by' => Auth::user()->email,
             ]);
 
             return redirect()->route('admin.roles.index')
-                           ->with('success', 'Role created successfully.');
+                ->with('success', 'Role created successfully.');
         } catch (\Exception $e) {
-            Log::error('Error creating role: ' . $e->getMessage());
+            Log::error('Error creating role: '.$e->getMessage());
+
             return redirect()->back()
-                           ->withInput()
-                           ->withErrors(['name' => 'Failed to create role. Please try again.']);
+                ->withInput()
+                ->withErrors(['name' => 'Failed to create role. Please try again.']);
         }
     }
 
@@ -183,7 +196,7 @@ class RoleController extends Controller
     public function edit(Role $role): Response
     {
         // Check if user can edit this role
-        if (!$this->canManageRole($role->name)) {
+        if (! $this->canManageRole($role->name)) {
             abort(403, 'You do not have permission to edit this role.');
         }
 
@@ -208,7 +221,7 @@ class RoleController extends Controller
     public function update(Request $request, Role $role): RedirectResponse
     {
         // Check if user can edit this role
-        if (!$this->canManageRole($role->name)) {
+        if (! $this->canManageRole($role->name)) {
             abort(403, 'You do not have permission to edit this role.');
         }
 
@@ -229,13 +242,13 @@ class RoleController extends Controller
         // Don't allow changing super-admin role name
         if ($role->name === 'super-admin' && $request->name !== 'super-admin') {
             return redirect()->back()
-                           ->withErrors(['name' => 'Super Admin role name cannot be changed.']);
+                ->withErrors(['name' => 'Super Admin role name cannot be changed.']);
         }
 
         // Check if new role name would require higher clearance
-        if ($request->name !== $role->name && !$this->canManageRole($request->name)) {
+        if ($request->name !== $role->name && ! $this->canManageRole($request->name)) {
             return redirect()->back()
-                           ->withErrors(['name' => 'You do not have permission to create roles at this clearance level.']);
+                ->withErrors(['name' => 'You do not have permission to create roles at this clearance level.']);
         }
 
         try {
@@ -252,54 +265,56 @@ class RoleController extends Controller
             Log::info('Role updated', [
                 'role_name' => $role->name,
                 'permissions_count' => count($request->permissions),
-                'updated_by' => Auth::user()->email
+                'updated_by' => Auth::user()->email,
             ]);
 
             return redirect()->route('admin.roles.show', $role)
-                           ->with('success', 'Role updated successfully.');
+                ->with('success', 'Role updated successfully.');
         } catch (\Exception $e) {
-            Log::error('Error updating role: ' . $e->getMessage());
+            Log::error('Error updating role: '.$e->getMessage());
+
             return redirect()->back()
-                           ->withInput()
-                           ->withErrors(['name' => 'Failed to update role. Please try again.']);
+                ->withInput()
+                ->withErrors(['name' => 'Failed to update role. Please try again.']);
         }
     }
 
     public function destroy(Role $role): RedirectResponse
     {
         // Check if user can delete this role
-        if (!$this->canManageRole($role->name)) {
+        if (! $this->canManageRole($role->name)) {
             abort(403, 'You do not have permission to delete this role.');
         }
 
         // Prevent deletion of super-admin role
         if ($role->name === 'super-admin') {
             return redirect()->route('admin.roles.index')
-                           ->withErrors(['error' => 'Super Admin role cannot be deleted.']);
+                ->withErrors(['error' => 'Super Admin role cannot be deleted.']);
         }
 
         // Check if role has users
         if ($role->users()->count() > 0) {
             return redirect()->route('admin.roles.index')
-                           ->withErrors(['error' => "Cannot delete role '{$role->name}' because it has assigned users."]);
+                ->withErrors(['error' => "Cannot delete role '{$role->name}' because it has assigned users."]);
         }
 
         try {
             // Log role deletion before deleting
             Log::info('Role deleted', [
                 'role_name' => $role->name,
-                'deleted_by' => Auth::user()->email
+                'deleted_by' => Auth::user()->email,
             ]);
 
             $roleName = $role->name;
             $role->delete();
 
             return redirect()->route('admin.roles.index')
-                           ->with('success', "Role '{$roleName}' deleted successfully.");
+                ->with('success', "Role '{$roleName}' deleted successfully.");
         } catch (\Exception $e) {
-            Log::error('Error deleting role: ' . $e->getMessage());
+            Log::error('Error deleting role: '.$e->getMessage());
+
             return redirect()->route('admin.roles.index')
-                           ->withErrors(['error' => 'Failed to delete role. Please try again.']);
+                ->withErrors(['error' => 'Failed to delete role. Please try again.']);
         }
     }
 }

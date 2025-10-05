@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Family;
 use App\Models\Member;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class FamilyController extends Controller
 {
@@ -17,13 +17,13 @@ class FamilyController extends Controller
     {
         try {
             $family = Family::findOrFail($familyId);
-            
+
             // Get the head of family or first adult member with tribal data
             $familyHead = Member::where('family_id', $familyId)
-                ->where(function($query) {
+                ->where(function ($query) {
                     $query->whereNotNull('tribe')
-                          ->orWhereNotNull('clan')
-                          ->orWhereNotNull('small_christian_community');
+                        ->orWhereNotNull('clan')
+                        ->orWhereNotNull('small_christian_community');
                 })
                 ->orderByRaw('CASE 
                     WHEN tribe IS NOT NULL AND clan IS NOT NULL THEN 1
@@ -31,14 +31,14 @@ class FamilyController extends Controller
                     ELSE 3
                 END')
                 ->first();
-            
-            if (!$familyHead) {
+
+            if (! $familyHead) {
                 return response()->json([
                     'message' => 'No family head found with inheritable data',
-                    'data' => null
+                    'data' => null,
                 ], 404);
             }
-            
+
             return response()->json([
                 'data' => [
                     'id' => $familyHead->id,
@@ -47,18 +47,18 @@ class FamilyController extends Controller
                     'clan' => $familyHead->clan,
                     'small_christian_community' => $familyHead->small_christian_community,
                     'local_church' => $familyHead->local_church,
-                    'family_name' => $family->family_name ?? null
-                ]
+                    'family_name' => $family->family_name ?? null,
+                ],
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Family not found',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 404);
         }
     }
-    
+
     /**
      * Search families
      */
@@ -66,34 +66,34 @@ class FamilyController extends Controller
     {
         $query = $request->input('q', '');
         $limit = min((int) $request->input('limit', 10), 50);
-        
+
         if (strlen(trim($query)) < 2) {
             // Return first 10 families if no search query
-            $families = Family::with(['members' => function($q) {
+            $families = Family::with(['members' => function ($q) {
                 $q->select('id', 'family_id', 'first_name', 'middle_name', 'last_name')
-                  ->orderBy('date_of_birth');
+                    ->orderBy('date_of_birth');
             }])
-            ->limit($limit)
-            ->get();
+                ->limit($limit)
+                ->get();
         } else {
             // Search by family name or family code
-            $families = Family::where(function($q) use ($query) {
+            $families = Family::where(function ($q) use ($query) {
                 $q->where('family_name', 'like', "%{$query}%");
                 if (property_exists($q->getModel(), 'family_code')) {
                     $q->orWhere('family_code', 'like', "%{$query}%");
                 }
             })
-            ->with(['members' => function($q) {
-                $q->select('id', 'family_id', 'first_name', 'middle_name', 'last_name')
-                  ->orderBy('date_of_birth');
-            }])
-            ->limit($limit)
-            ->get();
+                ->with(['members' => function ($q) {
+                    $q->select('id', 'family_id', 'first_name', 'middle_name', 'last_name')
+                        ->orderBy('date_of_birth');
+                }])
+                ->limit($limit)
+                ->get();
         }
-        
+
         $formattedFamilies = $families->map(function ($family) {
             $headOfFamily = $family->members->first();
-            
+
             return [
                 'id' => $family->id,
                 'family_name' => $family->family_name,
@@ -105,7 +105,7 @@ class FamilyController extends Controller
                 'members_count' => $family->members->count(),
             ];
         });
-        
+
         return response()->json(['data' => $formattedFamilies]);
     }
 }

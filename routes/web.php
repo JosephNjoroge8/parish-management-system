@@ -1,22 +1,20 @@
 <?php
 
-use App\Http\Controllers\Auth\RegisteredUserController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\MemberController;
-use App\Http\Controllers\FamilyController;
-use App\Http\Controllers\SacramentController;
-use App\Http\Controllers\SacramentalRecordsController;
-use App\Http\Controllers\TitheController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\CommunityGroupController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FamilyController;
+use App\Http\Controllers\MemberController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SacramentalRecordsController;
+use App\Http\Controllers\SacramentController;
+use App\Http\Controllers\TitheController;
+use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 /*
@@ -41,11 +39,16 @@ Route::get('/', function () {
     ]);
 });
 
+// Temporary test route for marriage certificate (remove after testing)
+Route::get('/test-marriage-cert/{member}', function (\App\Models\Member $member) {
+    return app(\App\Http\Controllers\MemberController::class)->downloadMarriageCertificate($member);
+})->name('test.marriage.certificate');
+
 // Authenticated routes - ALL dashboard access requires login authentication
 Route::middleware(['auth', 'verified'])->group(function () {
     // Dashboard - requires authentication and redirects non-authenticated users to login
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    
+
     // API Routes for real-time updates
     Route::prefix('api')->group(function () {
         Route::get('/dashboard/stats', [DashboardController::class, 'getStatsApi'])->name('api.dashboard.stats');
@@ -53,7 +56,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/dashboard/alerts', [DashboardController::class, 'getAlertsApi'])->name('api.dashboard.alerts');
         Route::get('/members/stats', [MemberController::class, 'getStatistics'])->name('api.members.stats');
     });
-    
+
     // Profile Routes - also require authentication
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -62,14 +65,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 // Admin-only routes (all parish management functionality)
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
-    
+
     // Debug routes
     Route::get('/debug-stats', function () {
         try {
             $members_count = \App\Models\Member::count();
             $families_count = \App\Models\Family::count();
             $active_members = \App\Models\Member::where('membership_status', 'active')->count();
-            
+
             return response()->json([
                 'members_count' => $members_count,
                 'families_count' => $families_count,
@@ -79,19 +82,20 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
                     'members' => \Illuminate\Support\Facades\Schema::hasTable('members'),
                     'families' => \Illuminate\Support\Facades\Schema::hasTable('families'),
                     'users' => \Illuminate\Support\Facades\Schema::hasTable('users'),
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => $e->getMessage(),
-                'database_status' => 'Error'
+                'database_status' => 'Error',
             ]);
         }
     })->name('debug.stats');
-    
+
     // Debug admin permissions
-    Route::get('/debug-admin', function() {
+    Route::get('/debug-admin', function () {
         $user = Auth::user();
+
         return response()->json([
             'authenticated' => Auth::check(),
             'user' => $user ? [
@@ -100,9 +104,9 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
                 'is_active' => $user->is_active,
                 'isSuperAdminByEmail' => $user->isSuperAdminByEmail(),
             ] : null,
-            'message' => $user ? 
-                ($user->isSuperAdminByEmail() ? 'User IS admin' : 'User is NOT admin') : 
-                'No user authenticated'
+            'message' => $user ?
+                ($user->isSuperAdminByEmail() ? 'User IS admin' : 'User is NOT admin') :
+                'No user authenticated',
         ]);
     });
 
@@ -135,8 +139,12 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         Route::get('/stats/live', [MemberController::class, 'getStatsApi'])->name('stats.live');
         Route::get('/{member}/baptism-certificate', [MemberController::class, 'downloadBaptismCard'])->name('baptism-certificate')->where('member', '[0-9]+');
         Route::get('/{member}/marriage-certificate', [MemberController::class, 'downloadMarriageCertificate'])->name('marriage-certificate')->where('member', '[0-9]+');
+        Route::get('/{member}/profile-pdf', [MemberController::class, 'downloadProfilePdf'])->name('profile-pdf')->where('member', '[0-9]+');
+        Route::get('/{member}/profile-summary', [MemberController::class, 'downloadProfileSummary'])->name('profile-summary')->where('member', '[0-9]+');
+        Route::get('/{member}/profile-card', [MemberController::class, 'downloadProfileCard'])->name('profile-card')->where('member', '[0-9]+');
+        Route::get('/{member}/profile-data', [MemberController::class, 'downloadProfileData'])->name('profile-data')->where('member', '[0-9]+');
     });
-    
+
     // ========================================
     // FAMILIES ROUTES
     // ========================================
@@ -160,7 +168,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         Route::post('/{family}/add-member', [FamilyController::class, 'addMember'])->name('add-member')->where('family', '[0-9]+');
         Route::delete('/{family}/remove-member', [FamilyController::class, 'removeMember'])->name('remove-member')->where('family', '[0-9]+');
     });
-    
+
     // ========================================
     // SACRAMENTS ROUTES
     // ========================================
@@ -181,7 +189,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         Route::patch('/{sacrament}', [SacramentController::class, 'update'])->name('update.patch')->where('sacrament', '[0-9]+');
         Route::delete('/{sacrament}', [SacramentController::class, 'destroy'])->name('destroy')->where('sacrament', '[0-9]+');
     });
-    
+
     // ========================================
     // SACRAMENTAL RECORDS ROUTES
     // ========================================
@@ -213,7 +221,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         Route::patch('/{tithe}', [TitheController::class, 'update'])->name('update.patch')->where('tithe', '[0-9]+');
         Route::delete('/{tithe}', [TitheController::class, 'destroy'])->name('destroy')->where('tithe', '[0-9]+');
     });
-    
+
     // ========================================
     // ACTIVITIES ROUTES
     // ========================================
@@ -237,7 +245,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         Route::post('/{activity}/members', [ActivityController::class, 'addMember'])->name('add-member')->where('activity', '[0-9]+');
         Route::delete('/{activity}/members/{member}', [ActivityController::class, 'removeMember'])->name('remove-member')->where(['activity' => '[0-9]+', 'member' => '[0-9]+']);
     });
-    
+
     // ========================================
     // COMMUNITY GROUPS ROUTES
     // ========================================
@@ -246,7 +254,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         Route::get('/statistics', [CommunityGroupController::class, 'statistics'])->name('statistics');
         Route::get('/{groupName}', [CommunityGroupController::class, 'show'])->name('show')->where('groupName', '[^/]+');
     });
-    
+
     // ========================================
     // REPORTS ROUTES
     // ========================================
@@ -270,11 +278,11 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         Route::get('/activities/export', [ReportController::class, 'exportActivitiesReport'])->name('activities.export');
         Route::get('/financial/export', [ReportController::class, 'exportFinancialReport'])->name('financial.export');
         Route::post('/custom-export', [ReportController::class, 'customExport'])->name('custom-export');
-        
+
         // Enhanced Export Routes - Matching Frontend Expectations
         Route::get('/export-filtered-members', [ReportController::class, 'exportFilteredMembers'])->name('export-filtered-members');
         Route::post('/export/filtered', [ReportController::class, 'exportFilteredMembers'])->name('export.filtered');
-        
+
         // Category-specific export routes
         Route::get('/export-by-local-church', [ReportController::class, 'exportByLocalChurch'])->name('export-by-local-church');
         Route::get('/export-by-church-group', [ReportController::class, 'exportByChurchGroup'])->name('export-by-church-group');
@@ -289,17 +297,17 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         Route::get('/export-by-state', [ReportController::class, 'exportByState'])->name('export-by-state');
         Route::get('/export-by-lga', [ReportController::class, 'exportByLga'])->name('export-by-lga');
         Route::get('/export-by-year-joined', [ReportController::class, 'exportByYearJoined'])->name('export-by-year-joined');
-        
+
         // Sacrament-based exports
         Route::get('/export-baptized-members', [ReportController::class, 'exportBaptizedMembers'])->name('export-baptized-members');
         Route::get('/export-confirmed-members', [ReportController::class, 'exportConfirmedMembers'])->name('export-confirmed-members');
         Route::get('/export-married-members', [ReportController::class, 'exportMarriedMembers'])->name('export-married-members');
-        
+
         // Special exports
         Route::get('/export-members-data', [ReportController::class, 'exportMembersDataRoute'])->name('export-members-data');
         Route::get('/export-comprehensive', [ReportController::class, 'exportComprehensiveReport'])->name('export-comprehensive');
         Route::get('/export-member-directory', [ReportController::class, 'exportMemberDirectory'])->name('export-member-directory');
-        
+
         // Member list endpoints for viewing before download
         Route::get('/members-by-church', [ReportController::class, 'getMembersByLocalChurch'])->name('members-by-church');
         Route::get('/members-by-group', [ReportController::class, 'getMembersByChurchGroup'])->name('members-by-group');
@@ -312,7 +320,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         Route::get('/all-clear-records', [ReportController::class, 'getAllClearRecords'])->name('all-clear-records');
         Route::get('/filtered-members-list', [ReportController::class, 'getFilteredMembersList'])->name('filtered-members-list');
         Route::get('/member-directory', [ReportController::class, 'getMemberDirectory'])->name('member-directory');
-        
+
         Route::get('/', [ReportController::class, 'index'])->name('index');
     });
 });

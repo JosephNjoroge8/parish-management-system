@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\Tithe;
 use App\Models\Member;
+use App\Models\Tithe;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class TitheSeeder extends Seeder
 {
@@ -20,6 +20,7 @@ class TitheSeeder extends Seeder
 
         if ($members->isEmpty()) {
             $this->command->info('No members found. Please run MemberSeeder first.');
+
             return;
         }
 
@@ -28,7 +29,7 @@ class TitheSeeder extends Seeder
         $this->command->info('Cleared existing tithe records.');
 
         $contributions = [];
-        
+
         // Create systematic contributions for each member
         foreach ($members as $member) {
             // Skip children for tithe contributions (under 18)
@@ -36,13 +37,13 @@ class TitheSeeder extends Seeder
             if ($age < 16) {
                 continue; // Children don't typically give tithes
             }
-            
+
             // Random number of contributions per member (1-6 months)
             $contributionCount = rand(1, 6);
-            
+
             for ($i = 0; $i < $contributionCount; $i++) {
                 $contributionDate = Carbon::now()->subMonths(rand(0, 6));
-                
+
                 $contributions[] = [
                     'member_id' => $member->id,
                     'amount' => $this->getRandomAmount($age),
@@ -50,8 +51,8 @@ class TitheSeeder extends Seeder
                     'payment_method' => $this->getRandomPaymentMethod(),
                     'date_given' => $contributionDate->format('Y-m-d'),
                     'purpose' => $this->getContributionPurpose(),
-                    'receipt_number' => 'RCP' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT),
-                    'reference_number' => 'REF' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT) . $contributionDate->format('y'),
+                    'receipt_number' => 'RCP'.str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT),
+                    'reference_number' => 'REF'.str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT).$contributionDate->format('y'),
                     'notes' => $this->getContributionNote(),
                     'recorded_by' => $admin ? $admin->id : null,
                     'created_at' => now(),
@@ -66,7 +67,7 @@ class TitheSeeder extends Seeder
             Tithe::insert($chunk);
         }
 
-        $this->command->info('Created ' . count($contributions) . ' tithe records.');
+        $this->command->info('Created '.count($contributions).' tithe records.');
     }
 
     private function getRandomAmount(int $age): float
@@ -85,16 +86,17 @@ class TitheSeeder extends Seeder
     private function getRandomContributionType(): string
     {
         $types = [
-            'tithe', 
-            'offering', 
-            'special_collection', 
-            'donation', 
-            'thanksgiving', 
-            'project_contribution'
+            'tithe',
+            'offering',
+            'special_collection',
+            'donation',
+            'thanksgiving',
+            'project_contribution',
         ];
         $weights = [40, 30, 10, 8, 7, 5]; // Tithe most common
-        
+
         $randomIndex = $this->weightedRandom($weights);
+
         return $types[$randomIndex];
     }
 
@@ -102,8 +104,9 @@ class TitheSeeder extends Seeder
     {
         $methods = ['cash', 'mobile_money', 'bank_transfer', 'check', 'card'];
         $weights = [50, 30, 10, 5, 5]; // Cash most common
-        
+
         $randomIndex = $this->weightedRandom($weights);
+
         return $methods[$randomIndex];
     }
 
@@ -123,7 +126,7 @@ class TitheSeeder extends Seeder
             'Church Maintenance',
             null, // Sometimes no specific purpose
         ];
-        
+
         return $purposes[array_rand($purposes)];
     }
 
@@ -141,7 +144,7 @@ class TitheSeeder extends Seeder
             'Gratitude offering',
             null, // Sometimes no notes
         ];
-        
+
         return $notes[array_rand($notes)];
     }
 
@@ -149,7 +152,7 @@ class TitheSeeder extends Seeder
     {
         $totalWeight = array_sum($weights);
         $random = rand(1, $totalWeight);
-        
+
         $currentWeight = 0;
         foreach ($weights as $index => $weight) {
             $currentWeight += $weight;
@@ -157,7 +160,7 @@ class TitheSeeder extends Seeder
                 return $index;
             }
         }
-        
+
         return 0; // Fallback
     }
 }

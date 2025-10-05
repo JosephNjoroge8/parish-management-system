@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\CommunityGroup;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use App\Models\User;
-use App\Models\CommunityGroup;
-use Carbon\Carbon;
 
 class ActivitySeeder extends Seeder
 {

@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use App\Models\User;
 
 class UserSeeder extends Seeder
 {
@@ -38,7 +38,7 @@ class UserSeeder extends Seeder
             $this->command->info('✅ Single admin user created - no role restrictions, full system access!');
 
         } catch (\Exception $e) {
-            $this->command->error('Error creating admin user: ' . $e->getMessage());
+            $this->command->error('Error creating admin user: '.$e->getMessage());
             throw $e;
         }
     }

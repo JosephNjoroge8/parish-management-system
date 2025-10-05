@@ -5,20 +5,18 @@ namespace App\Exports;
 use App\Models\Member;
 use App\Models\Sacrament;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Color;
 
 class ComprehensiveReportExport implements WithMultipleSheets
 {
     protected $filters;
-    
+
     public function __construct(array $filters = [])
     {
         $this->filters = $filters;
@@ -40,10 +38,10 @@ class ComprehensiveReportExport implements WithMultipleSheets
     }
 }
 
-class SummarySheet implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize, WithStyles
+class SummarySheet implements FromCollection, ShouldAutoSize, WithHeadings, WithStyles, WithTitle
 {
     protected $filters;
-    
+
     public function __construct(array $filters = [])
     {
         $this->filters = $filters;
@@ -52,80 +50,88 @@ class SummarySheet implements FromCollection, WithHeadings, WithTitle, ShouldAut
     public function collection()
     {
         $members = Member::generateComprehensiveReport($this->filters);
-        
+
         return collect([
             [
                 'Total Members',
                 $members->count(),
-                ''
+                '',
             ],
             [
                 'Active Members',
                 $members->where('membership_status', 'active')->count(),
-                ''
+                '',
             ],
             [
                 'Inactive Members',
                 $members->where('membership_status', 'inactive')->count(),
-                ''
+                '',
             ],
             [
                 'Transferred Members',
                 $members->where('membership_status', 'transferred')->count(),
-                ''
+                '',
             ],
             [
                 'Deceased Members',
                 $members->where('membership_status', 'deceased')->count(),
-                ''
+                '',
             ],
             ['', '', ''],
             [
                 'Male Members',
                 $members->where('gender', 'Male')->count(),
-                ''
+                '',
             ],
             [
                 'Female Members',
                 $members->where('gender', 'Female')->count(),
-                ''
+                '',
             ],
             ['', '', ''],
             [
                 'Children (0-12)',
-                $members->filter(function($m) { return $m->age && $m->age <= 12; })->count(),
-                ''
+                $members->filter(function ($m) {
+                    return $m->age && $m->age <= 12;
+                })->count(),
+                '',
             ],
             [
                 'Youth (13-24)',
-                $members->filter(function($m) { return $m->age && $m->age >= 13 && $m->age <= 24; })->count(),
-                ''
+                $members->filter(function ($m) {
+                    return $m->age && $m->age >= 13 && $m->age <= 24;
+                })->count(),
+                '',
             ],
             [
                 'Adults (25-59)',
-                $members->filter(function($m) { return $m->age && $m->age >= 25 && $m->age <= 59; })->count(),
-                ''
+                $members->filter(function ($m) {
+                    return $m->age && $m->age >= 25 && $m->age <= 59;
+                })->count(),
+                '',
             ],
             [
                 'Seniors (60+)',
-                $members->filter(function($m) { return $m->age && $m->age >= 60; })->count(),
-                ''
+                $members->filter(function ($m) {
+                    return $m->age && $m->age >= 60;
+                })->count(),
+                '',
             ],
             ['', '', ''],
             [
                 'Baptisms This Year',
                 Sacrament::where('sacrament_type', 'baptism')->whereYear('sacrament_date', date('Y'))->count(),
-                ''
+                '',
             ],
             [
                 'Confirmations This Year',
                 Sacrament::where('sacrament_type', 'confirmation')->whereYear('sacrament_date', date('Y'))->count(),
-                ''
+                '',
             ],
             [
                 'Marriages This Year',
                 Sacrament::where('sacrament_type', 'marriage')->whereYear('sacrament_date', date('Y'))->count(),
-                ''
+                '',
             ],
         ]);
     }
@@ -135,7 +141,7 @@ class SummarySheet implements FromCollection, WithHeadings, WithTitle, ShouldAut
         return [
             'Metric',
             'Count',
-            'Percentage'
+            'Percentage',
         ];
     }
 
@@ -153,10 +159,10 @@ class SummarySheet implements FromCollection, WithHeadings, WithTitle, ShouldAut
     }
 }
 
-class MembersSheet implements FromCollection, WithHeadings, WithMapping, WithTitle, ShouldAutoSize
+class MembersSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithTitle
 {
     protected $filters;
-    
+
     public function __construct(array $filters = [])
     {
         $this->filters = $filters;
@@ -233,10 +239,10 @@ class MembersSheet implements FromCollection, WithHeadings, WithMapping, WithTit
     }
 }
 
-class SacramentsSheet implements FromCollection, WithHeadings, WithMapping, WithTitle, ShouldAutoSize
+class SacramentsSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithTitle
 {
     protected $filters;
-    
+
     public function __construct(array $filters = [])
     {
         $this->filters = $filters;
@@ -245,12 +251,12 @@ class SacramentsSheet implements FromCollection, WithHeadings, WithMapping, With
     public function collection()
     {
         $query = Sacrament::with('member');
-        
+
         // Apply filters if needed
         if (isset($this->filters['sacrament_type'])) {
             $query->where('sacrament_type', $this->filters['sacrament_type']);
         }
-        
+
         return $query->get();
     }
 
@@ -300,10 +306,10 @@ class SacramentsSheet implements FromCollection, WithHeadings, WithMapping, With
     }
 }
 
-class ChurchGroupsSheet implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize
+class ChurchGroupsSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
     protected $filters;
-    
+
     public function __construct(array $filters = [])
     {
         $this->filters = $filters;
@@ -312,7 +318,7 @@ class ChurchGroupsSheet implements FromCollection, WithHeadings, WithTitle, Shou
     public function collection()
     {
         $members = Member::generateComprehensiveReport($this->filters);
-        
+
         return $members->groupBy('church_group')->map(function ($group, $groupName) {
             return [
                 'group_name' => $groupName,
@@ -343,10 +349,10 @@ class ChurchGroupsSheet implements FromCollection, WithHeadings, WithTitle, Shou
     }
 }
 
-class LocalChurchesSheet implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize
+class LocalChurchesSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
     protected $filters;
-    
+
     public function __construct(array $filters = [])
     {
         $this->filters = $filters;
@@ -355,7 +361,7 @@ class LocalChurchesSheet implements FromCollection, WithHeadings, WithTitle, Sho
     public function collection()
     {
         $members = Member::generateComprehensiveReport($this->filters);
-        
+
         return $members->groupBy('local_church')->map(function ($church, $churchName) {
             return [
                 'church_name' => $churchName,
@@ -386,10 +392,10 @@ class LocalChurchesSheet implements FromCollection, WithHeadings, WithTitle, Sho
     }
 }
 
-class SmallCommunitiesSheet implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize
+class SmallCommunitiesSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
     protected $filters;
-    
+
     public function __construct(array $filters = [])
     {
         $this->filters = $filters;
@@ -398,7 +404,7 @@ class SmallCommunitiesSheet implements FromCollection, WithHeadings, WithTitle, 
     public function collection()
     {
         $members = Member::generateComprehensiveReport($this->filters);
-        
+
         return $members->whereNotNull('small_christian_community')
             ->groupBy('small_christian_community')
             ->map(function ($community, $communityName) {
@@ -431,10 +437,10 @@ class SmallCommunitiesSheet implements FromCollection, WithHeadings, WithTitle, 
     }
 }
 
-class AgeGroupsSheet implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize
+class AgeGroupsSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
     protected $filters;
-    
+
     public function __construct(array $filters = [])
     {
         $this->filters = $filters;
@@ -443,31 +449,55 @@ class AgeGroupsSheet implements FromCollection, WithHeadings, WithTitle, ShouldA
     public function collection()
     {
         $members = Member::generateComprehensiveReport($this->filters);
-        
+
         return collect([
             [
                 'age_group' => 'Children (0-12)',
-                'total_members' => $members->filter(function($m) { return $m->age && $m->age <= 12; })->count(),
-                'male_members' => $members->filter(function($m) { return $m->age && $m->age <= 12 && $m->gender === 'Male'; })->count(),
-                'female_members' => $members->filter(function($m) { return $m->age && $m->age <= 12 && $m->gender === 'Female'; })->count(),
+                'total_members' => $members->filter(function ($m) {
+                    return $m->age && $m->age <= 12;
+                })->count(),
+                'male_members' => $members->filter(function ($m) {
+                    return $m->age && $m->age <= 12 && $m->gender === 'Male';
+                })->count(),
+                'female_members' => $members->filter(function ($m) {
+                    return $m->age && $m->age <= 12 && $m->gender === 'Female';
+                })->count(),
             ],
             [
                 'age_group' => 'Youth (13-24)',
-                'total_members' => $members->filter(function($m) { return $m->age && $m->age >= 13 && $m->age <= 24; })->count(),
-                'male_members' => $members->filter(function($m) { return $m->age && $m->age >= 13 && $m->age <= 24 && $m->gender === 'Male'; })->count(),
-                'female_members' => $members->filter(function($m) { return $m->age && $m->age >= 13 && $m->age <= 24 && $m->gender === 'Female'; })->count(),
+                'total_members' => $members->filter(function ($m) {
+                    return $m->age && $m->age >= 13 && $m->age <= 24;
+                })->count(),
+                'male_members' => $members->filter(function ($m) {
+                    return $m->age && $m->age >= 13 && $m->age <= 24 && $m->gender === 'Male';
+                })->count(),
+                'female_members' => $members->filter(function ($m) {
+                    return $m->age && $m->age >= 13 && $m->age <= 24 && $m->gender === 'Female';
+                })->count(),
             ],
             [
                 'age_group' => 'Adults (25-59)',
-                'total_members' => $members->filter(function($m) { return $m->age && $m->age >= 25 && $m->age <= 59; })->count(),
-                'male_members' => $members->filter(function($m) { return $m->age && $m->age >= 25 && $m->age <= 59 && $m->gender === 'Male'; })->count(),
-                'female_members' => $members->filter(function($m) { return $m->age && $m->age >= 25 && $m->age <= 59 && $m->gender === 'Female'; })->count(),
+                'total_members' => $members->filter(function ($m) {
+                    return $m->age && $m->age >= 25 && $m->age <= 59;
+                })->count(),
+                'male_members' => $members->filter(function ($m) {
+                    return $m->age && $m->age >= 25 && $m->age <= 59 && $m->gender === 'Male';
+                })->count(),
+                'female_members' => $members->filter(function ($m) {
+                    return $m->age && $m->age >= 25 && $m->age <= 59 && $m->gender === 'Female';
+                })->count(),
             ],
             [
                 'age_group' => 'Seniors (60+)',
-                'total_members' => $members->filter(function($m) { return $m->age && $m->age >= 60; })->count(),
-                'male_members' => $members->filter(function($m) { return $m->age && $m->age >= 60 && $m->gender === 'Male'; })->count(),
-                'female_members' => $members->filter(function($m) { return $m->age && $m->age >= 60 && $m->gender === 'Female'; })->count(),
+                'total_members' => $members->filter(function ($m) {
+                    return $m->age && $m->age >= 60;
+                })->count(),
+                'male_members' => $members->filter(function ($m) {
+                    return $m->age && $m->age >= 60 && $m->gender === 'Male';
+                })->count(),
+                'female_members' => $members->filter(function ($m) {
+                    return $m->age && $m->age >= 60 && $m->gender === 'Female';
+                })->count(),
             ],
         ]);
     }
@@ -488,10 +518,10 @@ class AgeGroupsSheet implements FromCollection, WithHeadings, WithTitle, ShouldA
     }
 }
 
-class EducationLevelsSheet implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize
+class EducationLevelsSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
     protected $filters;
-    
+
     public function __construct(array $filters = [])
     {
         $this->filters = $filters;
@@ -500,7 +530,7 @@ class EducationLevelsSheet implements FromCollection, WithHeadings, WithTitle, S
     public function collection()
     {
         $members = Member::generateComprehensiveReport($this->filters);
-        
+
         return $members->whereNotNull('education_level')
             ->groupBy('education_level')
             ->map(function ($group, $level) {
@@ -529,10 +559,10 @@ class EducationLevelsSheet implements FromCollection, WithHeadings, WithTitle, S
     }
 }
 
-class TribesSheet implements FromCollection, WithHeadings, WithTitle, ShouldAutoSize
+class TribesSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
     protected $filters;
-    
+
     public function __construct(array $filters = [])
     {
         $this->filters = $filters;
@@ -541,7 +571,7 @@ class TribesSheet implements FromCollection, WithHeadings, WithTitle, ShouldAuto
     public function collection()
     {
         $members = Member::generateComprehensiveReport($this->filters);
-        
+
         return $members->whereNotNull('tribe')
             ->groupBy('tribe')
             ->map(function ($group, $tribe) {

@@ -16,9 +16,9 @@ return new class extends Migration
             $table->string('title');
             $table->text('description')->nullable();
             $table->enum('activity_type', [
-                'mass', 'meeting', 'event', 'workshop', 'retreat', 
-                'social', 'fundraising', 'community_service', 'youth', 
-                'choir', 'prayer', 'celebration'
+                'mass', 'meeting', 'event', 'workshop', 'retreat',
+                'social', 'fundraising', 'community_service', 'youth',
+                'choir', 'prayer', 'celebration',
             ]);
             $table->date('start_date');
             $table->date('end_date')->nullable();

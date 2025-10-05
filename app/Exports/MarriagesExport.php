@@ -9,8 +9,8 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 class MarriagesExport implements FromCollection, WithHeadings
 {
     /**
-    * @return \Illuminate\Support\Collection
-    */
+     * @return \Illuminate\Support\Collection
+     */
     public function collection()
     {
         return Member::whereNotNull('marriage_date')
@@ -25,7 +25,7 @@ class MarriagesExport implements FromCollection, WithHeadings
             'Last Name',
             'Email',
             'Marriage Date',
-            'Spouse Name'
+            'Spouse Name',
         ];
     }
 }

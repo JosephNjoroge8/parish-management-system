@@ -32,12 +32,12 @@ class AuthenticatedSessionController extends Controller
     {
         // Clear any existing session data before authentication
         $request->session()->flush();
-        
+
         $request->authenticate();
 
         // Regenerate session to prevent session fixation attacks
         $request->session()->regenerate();
-        
+
         // Set session security markers
         $request->session()->put('last_activity', now()->timestamp);
         $request->session()->put('login_time', now()->timestamp);
@@ -67,7 +67,7 @@ class AuthenticatedSessionController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         $user = Auth::user();
-        
+
         // Log logout activity
         if ($user) {
             Log::info('User logged out', [
@@ -88,6 +88,7 @@ class AuthenticatedSessionController extends Controller
         // Clear any remember me cookies
         if ($request->hasCookie(Auth::guard()->getRecallerName())) {
             $cookie = cookie()->forget(Auth::guard()->getRecallerName());
+
             return redirect('/')->withCookie($cookie)->with('message', 'You have been logged out successfully.');
         }
 

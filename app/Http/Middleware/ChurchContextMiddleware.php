@@ -1,4 +1,5 @@
 <?php
+
 // filepath: app/Http/Middleware/ChurchContextMiddleware.php
 
 namespace App\Http\Middleware;
@@ -12,17 +13,17 @@ class ChurchContextMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return redirect()->route('login');
         }
 
         $user = Auth::user();
-        
+
         // Add church context to request (simplified for single admin system)
         $request->merge([
             'user_church' => $user->local_church ?? 'Sacred Heart Kandara',
             'user_permissions' => $user->is_admin ? ['*'] : [], // Admin has all permissions
-            'user_roles' => $user->is_admin ? ['admin'] : []
+            'user_roles' => $user->is_admin ? ['admin'] : [],
         ]);
 
         return $next($request);

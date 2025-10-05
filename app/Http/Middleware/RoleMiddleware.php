@@ -1,4 +1,5 @@
 <?php
+
 // filepath: app/Http/Middleware/RoleMiddleware.php
 
 namespace App\Http\Middleware;
@@ -12,12 +13,12 @@ class RoleMiddleware
 {
     public function handle(Request $request, Closure $next, string $role): Response
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return redirect()->route('login');
         }
 
         $user = Auth::user();
-        
+
         // Super admin bypass
         if ($user->email === 'admin@parish.com') {
             return $next($request);

@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\Sacrament;
 use App\Models\Member;
+use App\Models\Sacrament;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 
 class SacramentSeeder extends Seeder
 {
@@ -19,6 +19,7 @@ class SacramentSeeder extends Seeder
 
         if ($members->isEmpty()) {
             $this->command->info('No members found. Please run MemberSeeder first.');
+
             return;
         }
 
@@ -230,10 +231,10 @@ class SacramentSeeder extends Seeder
             try {
                 Sacrament::create($sacrament);
             } catch (\Exception $e) {
-                $this->command->error('Failed to create sacrament: ' . $e->getMessage());
+                $this->command->error('Failed to create sacrament: '.$e->getMessage());
             }
         }
 
-        $this->command->info('Created ' . count($sacraments) . ' sacrament records.');
+        $this->command->info('Created '.count($sacraments).' sacrament records.');
     }
 }

@@ -41,12 +41,12 @@ class CacheOptimizationService
         try {
             // Try with tags first
             return Cache::tags([self::CACHE_TAGS['stats']])
-                ->remember($cacheKey, self::CACHE_DURATIONS['stats'], function() use ($type) {
+                ->remember($cacheKey, self::CACHE_DURATIONS['stats'], function () use ($type) {
                     return self::generateOptimizedStats($type);
                 });
         } catch (\Exception $e) {
             // Fallback to regular cache if tags are not supported
-            return Cache::remember($cacheKey, self::CACHE_DURATIONS['stats'], function() use ($type) {
+            return Cache::remember($cacheKey, self::CACHE_DURATIONS['stats'], function () use ($type) {
                 return self::generateOptimizedStats($type);
             });
         }
@@ -72,7 +72,8 @@ class CacheOptimizationService
                     return self::getGeneralStats($currentMonth, $currentYear);
             }
         } catch (\Exception $e) {
-            Log::error('Cache optimization stats generation failed: ' . $e->getMessage());
+            Log::error('Cache optimization stats generation failed: '.$e->getMessage());
+
             return [];
         }
     }
@@ -151,14 +152,14 @@ class CacheOptimizationService
     private static function getGeneralStats(int $month, int $year): array
     {
         // Use a single complex query to get all basic stats
-        $result = DB::selectOne("
+        $result = DB::selectOne('
             SELECT 
                 (SELECT COUNT(*) FROM members) as total_members,
                 (SELECT COUNT(*) FROM families) as total_families,
                 (SELECT COUNT(*) FROM sacraments) as total_sacraments,
                 (SELECT COUNT(*) FROM activities) as total_activities,
                 (SELECT COALESCE(SUM(amount), 0) FROM tithes) as total_tithes
-        ");
+        ');
 
         return (array) $result;
     }
@@ -170,6 +171,7 @@ class CacheOptimizationService
     {
         if (empty($tags)) {
             Cache::flush();
+
             return;
         }
 
@@ -189,9 +191,9 @@ class CacheOptimizationService
     /**
      * Cache search results with automatic expiration
      */
-    public static function cacheSearchResults(string $query, callable $searchFunction, int $duration = null): mixed
+    public static function cacheSearchResults(string $query, callable $searchFunction, ?int $duration = null): mixed
     {
-        $cacheKey = 'search_' . md5($query);
+        $cacheKey = 'search_'.md5($query);
         $duration = $duration ?? self::CACHE_DURATIONS['search'];
 
         return Cache::remember($cacheKey, $duration, $searchFunction);
@@ -209,17 +211,17 @@ class CacheOptimizationService
             self::getCachedStats('financial');
 
             // Warm up filter options
-            Cache::remember('filter_options_members', self::CACHE_DURATIONS['filters'], function() {
+            Cache::remember('filter_options_members', self::CACHE_DURATIONS['filters'], function () {
                 return [
                     'churches' => DB::table('members')->distinct()->pluck('local_church')->filter()->values(),
                     'groups' => DB::table('members')->distinct()->pluck('church_group')->filter()->values(),
-                    'statuses' => ['active', 'inactive', 'transferred', 'deceased']
+                    'statuses' => ['active', 'inactive', 'transferred', 'deceased'],
                 ];
             });
 
             Log::info('Cache warmup completed successfully');
         } catch (\Exception $e) {
-            Log::error('Cache warmup failed: ' . $e->getMessage());
+            Log::error('Cache warmup failed: '.$e->getMessage());
         }
     }
 

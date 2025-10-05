@@ -2,15 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Member;
-use App\Models\Family;
-use App\Models\MarriageRecord;
 use App\Models\BaptismRecord;
+use App\Models\MarriageRecord;
+use App\Models\Member;
 use App\Models\Sacrament;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class SacramentalRecordsController extends Controller
 {
@@ -44,12 +42,12 @@ class SacramentalRecordsController extends Controller
             'marriage_register_number' => 'nullable|string|max:50',
             'marriage_number' => 'nullable|string|max:50',
         ]);
-        
+
         try {
             DB::beginTransaction();
-            
+
             $member = Member::findOrFail($validated['member_id']);
-            
+
             // Create the baptism sacrament record
             $baptismSacrament = new Sacrament([
                 'member_id' => $member->id,
@@ -64,12 +62,12 @@ class SacramentalRecordsController extends Controller
                 'notes' => $request->notes ?? null,
                 'recorded_by' => Auth::check() ? Auth::id() : null,
             ]);
-            
+
             $baptismSacrament->save();
-            
+
             // Create eucharist sacrament record if date provided
             $eucharistSacrament = null;
-            if (!empty($validated['eucharist_date']) && !empty($validated['eucharist_location'])) {
+            if (! empty($validated['eucharist_date']) && ! empty($validated['eucharist_location'])) {
                 $eucharistSacrament = new Sacrament([
                     'member_id' => $member->id,
                     'sacrament_type' => 'eucharist',
@@ -77,13 +75,13 @@ class SacramentalRecordsController extends Controller
                     'location' => $validated['eucharist_location'],
                     'recorded_by' => Auth::id(),
                 ]);
-                
+
                 $eucharistSacrament->save();
             }
-            
+
             // Create confirmation sacrament record if date provided
             $confirmationSacrament = null;
-            if (!empty($validated['confirmation_date']) && !empty($validated['confirmation_location'])) {
+            if (! empty($validated['confirmation_date']) && ! empty($validated['confirmation_location'])) {
                 $confirmationSacrament = new Sacrament([
                     'member_id' => $member->id,
                     'sacrament_type' => 'confirmation',
@@ -93,13 +91,13 @@ class SacramentalRecordsController extends Controller
                     'book_number' => $validated['confirmation_register_number'] ?? null,
                     'recorded_by' => Auth::id(),
                 ]);
-                
+
                 $confirmationSacrament->save();
             }
-            
+
             // Create marriage sacrament record if date provided
             $marriageSacrament = null;
-            if (!empty($validated['marriage_date']) && !empty($validated['marriage_location'])) {
+            if (! empty($validated['marriage_date']) && ! empty($validated['marriage_location'])) {
                 $marriageSacrament = new Sacrament([
                     'member_id' => $member->id,
                     'sacrament_type' => 'marriage',
@@ -110,13 +108,13 @@ class SacramentalRecordsController extends Controller
                     'witness_1' => $validated['marriage_spouse'] ?? null,
                     'recorded_by' => Auth::id(),
                 ]);
-                
+
                 $marriageSacrament->save();
             }
-            
+
             // Generate a unique record number for the baptism record
             $recordNumber = BaptismRecord::generateRecordNumber();
-            
+
             // Create the detailed baptism record
             $baptismRecord = new BaptismRecord([
                 'record_number' => $recordNumber,
@@ -148,44 +146,44 @@ class SacramentalRecordsController extends Controller
                 'confirmation_sacrament_id' => $confirmationSacrament ? $confirmationSacrament->id : null,
                 'marriage_sacrament_id' => $marriageSacrament ? $marriageSacrament->id : null,
             ]);
-            
+
             $baptismRecord->save();
-            
+
             // Link baptism record to sacrament records
             $baptismSacrament->detailed_record_type = BaptismRecord::class;
             $baptismSacrament->detailed_record_id = $baptismRecord->id;
             $baptismSacrament->save();
-            
+
             // Update member's baptism date if not set
             if (empty($member->baptism_date)) {
                 $member->baptism_date = $validated['baptism_date'];
             }
-            
+
             // Update member's confirmation date if not set
-            if (empty($member->confirmation_date) && !empty($validated['confirmation_date'])) {
+            if (empty($member->confirmation_date) && ! empty($validated['confirmation_date'])) {
                 $member->confirmation_date = $validated['confirmation_date'];
             }
-            
+
             $member->save();
-            
+
             DB::commit();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Baptism record created successfully',
                 'record' => $baptismRecord,
             ]);
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create baptism record: ' . $e->getMessage(),
+                'message' => 'Failed to create baptism record: '.$e->getMessage(),
             ], 500);
         }
     }
-    
+
     /**
      * Store a new marriage record.
      */
@@ -242,10 +240,10 @@ class SacramentalRecordsController extends Controller
             'civil_marriage_certificate_number' => 'nullable|string|max:100',
             'other_documents' => 'nullable|string|max:255',
         ]);
-        
+
         try {
             DB::beginTransaction();
-            
+
             // Create the marriage sacrament record
             $marriageSacrament = new Sacrament([
                 'member_id' => $validated['husband_id'] ?? $validated['wife_id'],
@@ -259,61 +257,61 @@ class SacramentalRecordsController extends Controller
                 'notes' => $validated['other_documents'] ?? null,
                 'recorded_by' => Auth::id(),
             ]);
-            
+
             $marriageSacrament->save();
-            
+
             // Generate a unique record number for the marriage record if not provided
             if (empty($validated['record_number'])) {
                 $validated['record_number'] = MarriageRecord::generateRecordNumber();
             }
-            
+
             // Create the detailed marriage record
             $marriageRecord = new MarriageRecord($validated);
             $marriageRecord->sacrament_id = $marriageSacrament->id;
             $marriageRecord->parish_priest_id = Auth::id();
             $marriageRecord->save();
-            
+
             // Link marriage record to sacrament record
             $marriageSacrament->detailed_record_type = MarriageRecord::class;
             $marriageSacrament->detailed_record_id = $marriageRecord->id;
             $marriageSacrament->save();
-            
+
             // Update husband's matrimony status if husband_id is provided
-            if (!empty($validated['husband_id'])) {
+            if (! empty($validated['husband_id'])) {
                 $husband = Member::find($validated['husband_id']);
                 if ($husband) {
                     $husband->matrimony_status = 'married';
                     $husband->save();
                 }
             }
-            
+
             // Update wife's matrimony status if wife_id is provided
-            if (!empty($validated['wife_id'])) {
+            if (! empty($validated['wife_id'])) {
                 $wife = Member::find($validated['wife_id']);
                 if ($wife) {
                     $wife->matrimony_status = 'married';
                     $wife->save();
                 }
             }
-            
+
             DB::commit();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Marriage record created successfully',
                 'record' => $marriageRecord,
             ]);
-            
+
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create marriage record: ' . $e->getMessage(),
+                'message' => 'Failed to create marriage record: '.$e->getMessage(),
             ], 500);
         }
     }
-    
+
     /**
      * Get a baptism record by member ID.
      */
@@ -322,39 +320,39 @@ class SacramentalRecordsController extends Controller
         $baptismRecord = BaptismRecord::where('member_id', $memberId)
             ->with(['baptismSacrament', 'eucharistSacrament', 'confirmationSacrament', 'marriageSacrament'])
             ->first();
-            
-        if (!$baptismRecord) {
+
+        if (! $baptismRecord) {
             return response()->json([
                 'success' => false,
                 'message' => 'Baptism record not found for this member',
             ], 404);
         }
-        
+
         return response()->json([
             'success' => true,
             'record' => $baptismRecord,
         ]);
     }
-    
+
     /**
      * Get a marriage record by husband or wife ID.
      */
     public function getMarriageRecord(Request $request)
     {
         $memberId = $request->member_id;
-        
+
         $marriageRecord = MarriageRecord::where('husband_id', $memberId)
             ->orWhere('wife_id', $memberId)
             ->with(['sacrament'])
             ->first();
-            
-        if (!$marriageRecord) {
+
+        if (! $marriageRecord) {
             return response()->json([
                 'success' => false,
                 'message' => 'Marriage record not found for this member',
             ], 404);
         }
-        
+
         return response()->json([
             'success' => true,
             'record' => $marriageRecord,

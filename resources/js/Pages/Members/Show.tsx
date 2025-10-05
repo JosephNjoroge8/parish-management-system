@@ -100,9 +100,8 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
     // Status change handler
     const handleStatusChange = useCallback((newStatus: string) => {
         if (confirm(`Are you sure you want to change the member status to ${newStatus}?`)) {
-            router.post(route('quick.member-status-toggle'), {
-                member_id: member.id,
-                status: newStatus
+            router.patch(route('members.update-status', member.id), {
+                membership_status: newStatus
             }, {
                 onSuccess: () => {
                     // The page will auto-refresh with updated data
@@ -115,12 +114,31 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
         }
     }, [member.id]);
 
-    // Safe route helper
+    // Safe route helper with better fallbacks
     const safeRoute = (routeName: string, params?: any) => {
         try {
             return route(routeName, params);
         } catch (error) {
-            console.warn(`Route ${routeName} not found, falling back to members.index`);
+            console.warn(`Route ${routeName} not found`);
+            // Try alternative routes based on the intended action
+            if (routeName.includes('profile-pdf')) {
+                try { return route('members.export', params); } catch { return route('members.index'); }
+            }
+            if (routeName.includes('profile-summary')) {
+                try { return route('members.show', params); } catch { return route('members.index'); }
+            }
+            if (routeName.includes('profile-card')) {
+                try { return route('members.show', params); } catch { return route('members.index'); }
+            }
+            if (routeName.includes('profile-data')) {
+                try { return route('members.show', params); } catch { return route('members.index'); }
+            }
+            if (routeName.includes('baptism-certificate')) {
+                try { return route('members.show', params); } catch { return route('members.index'); }
+            }
+            if (routeName.includes('marriage-certificate')) {
+                try { return route('members.show', params); } catch { return route('members.index'); }
+            }
             return route('members.index');
         }
     };
@@ -277,10 +295,97 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
                             <span>Edit Member</span>
                         </Link>
                         
+                        {/* Member Profile Download Dropdown */}
+                        <div className="relative group">
+                            <button className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200 shadow-sm hover:shadow-md">
+                                <Download className="w-4 h-4" />
+                                <span>Download Profile</span>
+                            </button>
+                            
+                            <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                                <div className="py-1">
+                                    <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200">
+                                        Member Profile Downloads
+                                    </div>
+                                    
+                                    <a
+                                        href={route('members.profile-pdf', member.id)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-900 flex items-center space-x-2 transition-colors duration-150"
+                                    >
+                                        <FileText className="w-4 h-4 text-emerald-500" />
+                                        <div>
+                                            <div className="font-medium">Complete Profile (PDF)</div>
+                                            <div className="text-xs text-gray-500">Full member information document</div>
+                                        </div>
+                                    </a>
+                                    
+                                    <a
+                                        href={route('members.profile-summary', member.id)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-900 flex items-center space-x-2 transition-colors duration-150"
+                                    >
+                                        <Contact className="w-4 h-4 text-blue-500" />
+                                        <div>
+                                            <div className="font-medium">Profile Summary (PDF)</div>
+                                            <div className="text-xs text-gray-500">Essential information only</div>
+                                        </div>
+                                    </a>
+                                    
+                                    <a
+                                        href={route('members.profile-card', member.id)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-900 flex items-center space-x-2 transition-colors duration-150"
+                                    >
+                                        <User className="w-4 h-4 text-purple-500" />
+                                        <div>
+                                            <div className="font-medium">Member ID Card (PDF)</div>
+                                            <div className="text-xs text-gray-500">Printable identification card</div>
+                                        </div>
+                                    </a>
+                                    
+                                    <div className="border-t border-gray-200 mt-1">
+                                        <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                            Export Options
+                                        </div>
+                                        
+                                        <a
+                                            href={route('members.profile-data', member.id) + '?format=json'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 flex items-center space-x-2 transition-colors duration-150"
+                                        >
+                                            <FileText className="w-4 h-4 text-gray-500" />
+                                            <div>
+                                                <div className="font-medium">JSON Data Export</div>
+                                                <div className="text-xs text-gray-500">Machine-readable format</div>
+                                            </div>
+                                        </a>
+                                        
+                                        <a
+                                            href={route('members.profile-data', member.id) + '?format=csv'}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 flex items-center space-x-2 transition-colors duration-150"
+                                        >
+                                            <FileText className="w-4 h-4 text-gray-500" />
+                                            <div>
+                                                <div className="font-medium">CSV Data Export</div>
+                                                <div className="text-xs text-gray-500">Spreadsheet compatible</div>
+                                            </div>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         {/* Certificate Downloads Dropdown */}
                         <div className="relative group">
                             <button className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-4 py-2.5 rounded-lg flex items-center space-x-2 transition-all duration-200 shadow-sm hover:shadow-md">
-                                <Download className="w-4 h-4" />
+                                <ScrollText className="w-4 h-4" />
                                 <span>Certificates</span>
                             </button>
                             
@@ -292,7 +397,7 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
                                     
                                     {member.baptism_date ? (
                                         <a
-                                            href={safeRoute('members.baptism-certificate', member.id)}
+                                            href={route('members.baptism-certificate', member.id)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-900 flex items-center space-x-2 transition-colors duration-150"
@@ -315,7 +420,7 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
                                     
                                     {member.matrimony_status && ['married', 'separated', 'divorced', 'widowed'].includes(member.matrimony_status) ? (
                                         <a
-                                            href={safeRoute('members.marriage-certificate', member.id)}
+                                            href={route('members.marriage-certificate', member.id)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="w-full text-left px-3 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-900 flex items-center space-x-2 transition-colors duration-150"
@@ -854,7 +959,7 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
                                         {/* Certificate Downloads */}
                                         {member.baptism_date && (
                                             <a
-                                                href={safeRoute('members.baptism-certificate', member.id)}
+                                                href={route('members.baptism-certificate', member.id)}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="w-full bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
@@ -866,7 +971,7 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
                                         
                                         {member.matrimony_status && ['married', 'separated', 'divorced', 'widowed'].includes(member.matrimony_status) && (
                                             <a
-                                                href={safeRoute('members.marriage-certificate', member.id)}
+                                                href={route('members.marriage-certificate', member.id)}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="w-full bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
@@ -875,6 +980,33 @@ export default function ShowMember({ member, auth, flash }: MemberShowProps) {
                                                 <span>Download Marriage Certificate</span>
                                             </a>
                                         )}
+                                        
+                                        {/* Profile Download Actions */}
+                                        <div className="border-t border-gray-200 pt-3 mt-3">
+                                            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                                                Profile Downloads
+                                            </div>
+                                            
+                                            <a
+                                                href={route('members.profile-pdf', member.id)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="w-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors mb-2"
+                                            >
+                                                <FileText className="w-4 h-4" />
+                                                <span>Complete Profile PDF</span>
+                                            </a>
+                                            
+                                            <a
+                                                href={route('members.profile-card', member.id)}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="w-full bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                                            >
+                                                <User className="w-4 h-4" />
+                                                <span>Member ID Card</span>
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

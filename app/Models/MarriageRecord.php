@@ -113,7 +113,7 @@ class MarriageRecord extends Model
     {
         return $this->belongsTo(User::class, 'parish_priest_id');
     }
-    
+
     // Generate unique record number for marriage records
     public static function generateRecordNumber(): string
     {
@@ -122,13 +122,13 @@ class MarriageRecord extends Model
         $lastRecord = self::where('record_number', 'LIKE', "{$prefix}-{$year}-%")
             ->orderByRaw('CAST(SUBSTRING(record_number, -5) AS UNSIGNED) DESC')
             ->first();
-            
+
         $nextNumber = 1;
         if ($lastRecord) {
             $parts = explode('-', $lastRecord->record_number);
             $nextNumber = (int) end($parts) + 1;
         }
-        
+
         return sprintf("{$prefix}-%s-%05d", $year, $nextNumber);
     }
 
@@ -137,11 +137,12 @@ class MarriageRecord extends Model
     {
         $location = $this->marriage_church;
         if ($this->district) {
-            $location .= ', District of ' . $this->district;
+            $location .= ', District of '.$this->district;
         }
         if ($this->province) {
-            $location .= ', Province of ' . $this->province;
+            $location .= ', Province of '.$this->province;
         }
+
         return $location;
     }
 
@@ -160,7 +161,7 @@ class MarriageRecord extends Model
                 $this->female_witness_full_name ?? '',
                 $this->female_witness_father ?? '',
                 $this->female_witness_clan ?? ''
-            )
+            ),
         ];
     }
 
@@ -197,9 +198,9 @@ class MarriageRecord extends Model
     {
         return $query->where(function ($q) use ($search) {
             $q->where('husband_name', 'like', "%{$search}%")
-              ->orWhere('wife_name', 'like', "%{$search}%")
-              ->orWhere('record_number', 'like', "%{$search}%")
-              ->orWhere('marriage_church', 'like', "%{$search}%");
+                ->orWhere('wife_name', 'like', "%{$search}%")
+                ->orWhere('record_number', 'like', "%{$search}%")
+                ->orWhere('marriage_church', 'like', "%{$search}%");
         });
     }
 

@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Artisan;
 
 class HealthController extends Controller
 {
@@ -23,12 +21,12 @@ class HealthController extends Controller
             DB::connection()->getPdo();
             $checks['database'] = [
                 'status' => 'healthy',
-                'message' => 'Database connection successful'
+                'message' => 'Database connection successful',
             ];
         } catch (\Exception $e) {
             $checks['database'] = [
                 'status' => 'error',
-                'message' => 'Database connection failed: ' . $e->getMessage()
+                'message' => 'Database connection failed: '.$e->getMessage(),
             ];
             $overall = false;
         }
@@ -37,19 +35,19 @@ class HealthController extends Controller
         try {
             Cache::put('health_check', 'ok', 60);
             $value = Cache::get('health_check');
-            
+
             $checks['cache'] = [
                 'status' => $value === 'ok' ? 'healthy' : 'error',
-                'message' => $value === 'ok' ? 'Cache is working' : 'Cache test failed'
+                'message' => $value === 'ok' ? 'Cache is working' : 'Cache test failed',
             ];
-            
+
             if ($value !== 'ok') {
                 $overall = false;
             }
         } catch (\Exception $e) {
             $checks['cache'] = [
                 'status' => 'error',
-                'message' => 'Cache error: ' . $e->getMessage()
+                'message' => 'Cache error: '.$e->getMessage(),
             ];
             $overall = false;
         }
@@ -59,19 +57,19 @@ class HealthController extends Controller
             Storage::put('health_check.txt', 'ok');
             $content = Storage::get('health_check.txt');
             Storage::delete('health_check.txt');
-            
+
             $checks['storage'] = [
                 'status' => $content === 'ok' ? 'healthy' : 'error',
-                'message' => $content === 'ok' ? 'Storage is working' : 'Storage test failed'
+                'message' => $content === 'ok' ? 'Storage is working' : 'Storage test failed',
             ];
-            
+
             if ($content !== 'ok') {
                 $overall = false;
             }
         } catch (\Exception $e) {
             $checks['storage'] = [
                 'status' => 'error',
-                'message' => 'Storage error: ' . $e->getMessage()
+                'message' => 'Storage error: '.$e->getMessage(),
             ];
             $overall = false;
         }
@@ -88,13 +86,13 @@ class HealthController extends Controller
             'version' => config('app.version', '1.0.0'),
             'environment' => app()->environment(),
             'debug' => config('app.debug'),
-            'maintenance' => app()->isDownForMaintenance()
+            'maintenance' => app()->isDownForMaintenance(),
         ];
 
         $response = [
             'status' => $overall ? 'healthy' : 'error',
             'timestamp' => now()->toISOString(),
-            'checks' => $checks
+            'checks' => $checks,
         ];
 
         return response()->json($response, $overall ? 200 : 503);
@@ -125,12 +123,12 @@ class HealthController extends Controller
             return response()->json([
                 'status' => 'healthy',
                 'connection_time' => "{$time}ms",
-                'driver' => DB::connection()->getDriverName()
+                'driver' => DB::connection()->getDriverName(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 503);
         }
     }
@@ -141,8 +139,8 @@ class HealthController extends Controller
     public function cache()
     {
         try {
-            $testKey = 'health_check_' . time();
-            $testValue = 'test_' . random_int(1000, 9999);
+            $testKey = 'health_check_'.time();
+            $testValue = 'test_'.random_int(1000, 9999);
 
             $start = microtime(true);
             Cache::put($testKey, $testValue, 60);
@@ -155,18 +153,18 @@ class HealthController extends Controller
                 return response()->json([
                     'status' => 'healthy',
                     'response_time' => "{$time}ms",
-                    'driver' => config('cache.default')
+                    'driver' => config('cache.default'),
                 ]);
             } else {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Cache read/write test failed'
+                    'message' => 'Cache read/write test failed',
                 ], 503);
             }
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 503);
         }
     }
@@ -183,7 +181,7 @@ class HealthController extends Controller
         $memoryUsage = memory_get_usage(true);
         $memoryLimit = ini_get('memory_limit');
         $memoryLimitBytes = $this->convertToBytes($memoryLimit);
-        
+
         if ($memoryLimitBytes > 0) {
             $memoryPercentage = ($memoryUsage / $memoryLimitBytes) * 100;
             if ($memoryPercentage > 85) {
@@ -196,11 +194,11 @@ class HealthController extends Controller
         if (function_exists('disk_free_space')) {
             $free = disk_free_space('.');
             $total = disk_total_space('.');
-            
+
             if ($total > 0) {
                 $used = $total - $free;
                 $usagePercentage = ($used / $total) * 100;
-                
+
                 if ($usagePercentage > 85) {
                     $status = 'warning';
                     $warnings[] = "High disk usage: {$usagePercentage}%";
@@ -212,7 +210,7 @@ class HealthController extends Controller
             'status' => $status,
             'memory_usage' => $this->formatBytes($memoryUsage),
             'memory_limit' => $memoryLimit,
-            'warnings' => $warnings
+            'warnings' => $warnings,
         ];
     }
 
@@ -244,7 +242,7 @@ class HealthController extends Controller
     {
         $units = ['B', 'KB', 'MB', 'GB'];
         $factor = floor((strlen($bytes) - 1) / 3);
-        
-        return sprintf("%.2f %s", $bytes / pow(1024, $factor), $units[$factor]);
+
+        return sprintf('%.2f %s', $bytes / pow(1024, $factor), $units[$factor]);
     }
 }

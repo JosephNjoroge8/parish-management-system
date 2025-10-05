@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\DatabaseCompatibilityHelper;
 use App\Models\BaptismRecord;
 use App\Models\Member;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class BaptismRecordController extends Controller
 {
@@ -18,7 +19,7 @@ class BaptismRecordController extends Controller
 
         return Inertia::render('BaptismRecords/Index', [
             'baptismRecords' => $baptismRecords,
-            'filters' => $this->getAvailableFilters()
+            'filters' => $this->getAvailableFilters(),
         ]);
     }
 
@@ -28,7 +29,7 @@ class BaptismRecordController extends Controller
             'members' => Member::select('id', 'first_name', 'middle_name', 'last_name', 'date_of_birth')
                 ->orderBy('last_name')
                 ->get(),
-            'ministers' => $this->getAvailableClergy()
+            'ministers' => $this->getAvailableClergy(),
         ]);
     }
 
@@ -70,22 +71,22 @@ class BaptismRecordController extends Controller
     public function show(BaptismRecord $baptismRecord)
     {
         $baptismRecord->load('member');
-        
+
         return Inertia::render('BaptismRecords/Show', [
-            'baptismRecord' => $baptismRecord
+            'baptismRecord' => $baptismRecord,
         ]);
     }
 
     public function edit(BaptismRecord $baptismRecord)
     {
         $baptismRecord->load('member');
-        
+
         return Inertia::render('BaptismRecords/Edit', [
             'baptismRecord' => $baptismRecord,
             'members' => Member::select('id', 'first_name', 'middle_name', 'last_name', 'date_of_birth')
                 ->orderBy('last_name')
                 ->get(),
-            'ministers' => $this->getAvailableClergy()
+            'ministers' => $this->getAvailableClergy(),
         ]);
     }
 
@@ -101,7 +102,7 @@ class BaptismRecordController extends Controller
             'godfather_religion' => 'nullable|string|max:255',
             'godmother_religion' => 'nullable|string|max:255',
             'remarks' => 'nullable|string',
-            'certificate_number' => 'nullable|string|max:100|unique:baptism_records,certificate_number,' . $baptismRecord->id,
+            'certificate_number' => 'nullable|string|max:100|unique:baptism_records,certificate_number,'.$baptismRecord->id,
         ]);
 
         DB::transaction(function () use ($baptismRecord, $validated) {
@@ -154,13 +155,13 @@ class BaptismRecordController extends Controller
         // Apply filters
         if ($request->filled('member_name')) {
             $query->whereHas('member', function ($q) use ($request) {
-                $q->where('first_name', 'like', '%' . $request->member_name . '%')
-                  ->orWhere('last_name', 'like', '%' . $request->member_name . '%');
+                $q->where('first_name', 'like', '%'.$request->member_name.'%')
+                    ->orWhere('last_name', 'like', '%'.$request->member_name.'%');
             });
         }
 
         if ($request->filled('minister')) {
-            $query->where('minister', 'like', '%' . $request->minister . '%');
+            $query->where('minister', 'like', '%'.$request->minister.'%');
         }
 
         if ($request->filled('date_from')) {
@@ -172,14 +173,14 @@ class BaptismRecordController extends Controller
         }
 
         if ($request->filled('place_of_baptism')) {
-            $query->where('place_of_baptism', 'like', '%' . $request->place_of_baptism . '%');
+            $query->where('place_of_baptism', 'like', '%'.$request->place_of_baptism.'%');
         }
 
         $baptismRecords = $query->orderBy('baptism_date', 'desc')->paginate(50);
 
         return response()->json([
             'baptismRecords' => $baptismRecords,
-            'success' => true
+            'success' => true,
         ]);
     }
 
@@ -190,27 +191,27 @@ class BaptismRecordController extends Controller
     {
         try {
             $baptismRecord->load('member');
-            
+
             // Prepare data for certificate
             $data = [
                 'baptismRecord' => $baptismRecord,
                 'member' => $baptismRecord->member,
                 'parish_name' => config('app.parish_name', 'Sacred Heart Kandara Parish'),
-                'generated_at' => now()
+                'generated_at' => now(),
             ];
-            
+
             // Generate PDF using Dompdf
             $pdf = app('dompdf.wrapper');
             $pdf->loadView('certificates.baptism-card', $data);
             $pdf->setPaper('A4', 'portrait');
-            
-            $filename = 'baptism-certificate-' . $baptismRecord->member->first_name . '-' . $baptismRecord->member->last_name . '-' . now()->format('Y-m-d') . '.pdf';
-            
+
+            $filename = 'baptism-certificate-'.$baptismRecord->member->first_name.'-'.$baptismRecord->member->last_name.'-'.now()->format('Y-m-d').'.pdf';
+
             return $pdf->download($filename);
-            
+
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Failed to generate certificate: ' . $e->getMessage()
+                'error' => 'Failed to generate certificate: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -222,11 +223,11 @@ class BaptismRecordController extends Controller
     {
         try {
             $member = Member::findOrFail($memberId);
-            
+
             // Get baptism record for this member
             $baptismRecord = BaptismRecord::where('member_id', $memberId)->first();
-            
-            if (!$baptismRecord) {
+
+            if (! $baptismRecord) {
                 // Create a basic baptism record from member data if none exists
                 $baptismRecord = new BaptismRecord([
                     'member_id' => $member->id,
@@ -235,27 +236,27 @@ class BaptismRecordController extends Controller
                     'place_of_baptism' => $member->local_church ?? 'Sacred Heart Kandara Parish',
                 ]);
             }
-            
+
             // Prepare comprehensive data for certificate
             $data = [
                 'baptismRecord' => $baptismRecord,
                 'member' => $member,
                 'parish_name' => config('app.parish_name', 'Sacred Heart Kandara Parish'),
-                'generated_at' => now()
+                'generated_at' => now(),
             ];
-            
+
             // Generate PDF using Dompdf
             $pdf = app('dompdf.wrapper');
             $pdf->loadView('certificates.baptism-card', $data);
             $pdf->setPaper('A4', 'portrait');
-            
-            $filename = 'baptism-certificate-' . $member->first_name . '-' . $member->last_name . '-' . now()->format('Y-m-d') . '.pdf';
-            
+
+            $filename = 'baptism-certificate-'.$member->first_name.'-'.$member->last_name.'-'.now()->format('Y-m-d').'.pdf';
+
             return $pdf->download($filename);
-            
+
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Failed to generate baptism certificate: ' . $e->getMessage()
+                'error' => 'Failed to generate baptism certificate: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -267,11 +268,18 @@ class BaptismRecordController extends Controller
     {
         $stats = [
             'total_baptisms' => BaptismRecord::count(),
-            'this_year' => BaptismRecord::whereYear('baptism_date', now()->year)->count(),
-            'this_month' => BaptismRecord::whereYear('baptism_date', now()->year)
-                ->whereMonth('baptism_date', now()->month)->count(),
-            'by_month' => BaptismRecord::selectRaw('MONTH(baptism_date) as month, COUNT(*) as count')
-                ->whereYear('baptism_date', now()->year)
+            'this_year' => DatabaseCompatibilityHelper::whereYear(
+                BaptismRecord::query(), 'baptism_date', now()->year
+            )->count(),
+            'this_month' => DatabaseCompatibilityHelper::whereYear(
+                DatabaseCompatibilityHelper::whereMonth(
+                    BaptismRecord::query(), 'baptism_date', now()->month
+                ), 'baptism_date', now()->year
+            )->count(),
+            'by_month' => BaptismRecord::selectRaw(
+                DatabaseCompatibilityHelper::monthFunction('baptism_date').' as month, COUNT(*) as count'
+            )
+                ->whereRaw(DatabaseCompatibilityHelper::yearFunction('baptism_date').' = ?', [now()->year])
                 ->groupBy('month')
                 ->orderBy('month')
                 ->get(),
@@ -311,7 +319,7 @@ class BaptismRecordController extends Controller
             'Fr. Peter Smith',
             'Fr. Michael Johnson',
             'Bishop Thomas Wilson',
-            'Deacon Paul Brown'
+            'Deacon Paul Brown',
         ];
     }
 
@@ -321,13 +329,13 @@ class BaptismRecordController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:csv,xlsx,xls|max:2048'
+            'file' => 'required|mimes:csv,xlsx,xls|max:2048',
         ]);
 
         // Implementation for bulk import would go here
         return response()->json([
             'success' => true,
-            'message' => 'Bulk import functionality to be implemented'
+            'message' => 'Bulk import functionality to be implemented',
         ]);
     }
 
@@ -341,17 +349,17 @@ class BaptismRecordController extends Controller
 
         // Apply filters and export
         $query = BaptismRecord::with('member');
-        
+
         // Apply same filters as in filter method
         // ... filter logic here ...
 
-        $filename = 'baptism-records-' . now()->format('Y-m-d');
+        $filename = 'baptism-records-'.now()->format('Y-m-d');
 
         // Implementation for export would use Excel package
         return response()->json([
             'success' => true,
             'message' => 'Export functionality to be implemented',
-            'filename' => $filename
+            'filename' => $filename,
         ]);
     }
 }

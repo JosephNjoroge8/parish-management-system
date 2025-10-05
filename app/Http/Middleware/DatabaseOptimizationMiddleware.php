@@ -25,27 +25,27 @@ class DatabaseOptimizationMiddleware
         // Log slow queries in debug mode
         if (config('app.debug')) {
             $queries = DB::getQueryLog();
-            
+
             foreach ($queries as $query) {
                 $time = $query['time'];
-                
+
                 // Log queries that take longer than 100ms
                 if ($time > 100) {
                     Log::warning('Slow database query detected', [
                         'query' => $query['query'],
                         'bindings' => $query['bindings'],
-                        'time' => $time . 'ms',
-                        'url' => $request->url()
+                        'time' => $time.'ms',
+                        'url' => $request->url(),
                     ]);
                 }
             }
-            
+
             // Log if too many queries
             $queryCount = count($queries);
             if ($queryCount > 20) {
                 Log::warning('High number of database queries', [
                     'count' => $queryCount,
-                    'url' => $request->url()
+                    'url' => $request->url(),
                 ]);
             }
         }

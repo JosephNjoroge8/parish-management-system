@@ -2,10 +2,10 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\Facades\Vite;
-use Illuminate\Support\ServiceProvider;
 use App\Models\Member;
 use App\Observers\MemberObserver;
+use Illuminate\Support\Facades\Vite;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -39,7 +39,7 @@ class AppServiceProvider extends ServiceProvider
         } else {
             Vite::prefetch(concurrency: 3);
         }
-        
+
         // Register model observers
         Member::observe(MemberObserver::class);
     }

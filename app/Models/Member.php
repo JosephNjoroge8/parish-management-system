@@ -1,14 +1,28 @@
 <?php
+
 // app/Models/Member.php
+
 namespace App\Models;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class Member extends Model
 {
     use HasFactory;
+
+    // Cache keys for performance optimization
+    const CACHE_STATS_KEY = 'members:stats';
+
+    const CACHE_CHURCHES_KEY = 'members:churches';
+
+    const CACHE_GROUPS_KEY = 'members:groups';
+
+    const CACHE_TTL = 3600; // 1 hour
 
     protected $fillable = [
         // Core personal information
@@ -21,13 +35,13 @@ class Member extends Model
         'phone',
         'email',
         'residence',
-        
+
         // Church information
         'local_church',
         'small_christian_community',
         'church_group',
         'additional_church_groups',
-        
+
         // Membership information
         'membership_status',
         'membership_date',
@@ -35,7 +49,7 @@ class Member extends Model
         'marriage_type',
         'occupation',
         'education_level',
-        
+
         // Family and relationships (main fields - entered once)
         'family_id',
         'parent_id',
@@ -47,24 +61,28 @@ class Member extends Model
         'mother_name',     // Mother's name
         'godparent',       // Legacy string field for godparent name
         'minister',        // Legacy string field for minister/baptized_by name
-        
+
         // Disability information
         'is_differently_abled',
         'disability_description',
-        
+
         // Sacrament information
         'baptism_date',
         'baptism_location',
         'baptized_by',     // Auto-synced from 'minister' field
         'sponsor',         // Auto-synced from 'godparent' field
         'father_name',     // Auto-synced from 'parent' field
+        'father_occupation',
+        'father_residence',
+        'mother_occupation',
+        'mother_residence',
         'confirmation_date',
         'confirmation_location',
         'confirmation_register_number',
         'confirmation_number',
         'eucharist_date',
         'eucharist_location',
-        
+
         // Marriage Certificate fields (essential for certificate generation)
         'marriage_date',
         'marriage_location',
@@ -77,7 +95,8 @@ class Member extends Model
         'marriage_officiant_name',
         'marriage_witness1_name',
         'marriage_witness2_name',
-        
+        'member_marriage_residence',
+
         // Spouse Information (for marriage certificate)
         // Note: Frontend uses 'bridegroom_*' and 'bride_*' terminology for better UX,
         // but these are mapped to spouse_* fields in the database via MemberController
@@ -93,7 +112,7 @@ class Member extends Model
         'spouse_mother_name',
         'spouse_mother_occupation',
         'spouse_mother_residence',
-        
+
         // Legacy marriage fields (for compatibility with existing data)
         'married_by',
         'witness_1_name',
@@ -102,12 +121,12 @@ class Member extends Model
         'marriage_spouse',
         'marriage_number',
         'marriage_church',
-        
+
         // Baptism Card specific fields (for baptism-card.blade.php compatibility)
         'marriage_spouse',           // Same as above, auto-synced from spouse_name
         'marriage_register_number',  // Same as above, auto-synced from marriage_entry_number
         'marriage_number',           // Same as above, auto-synced from marriage_certificate_number
-        
+
         // Marriage Certificate specific fields (for marriage-certificate.blade.php)
         'husband_name',
         'husband_age',
@@ -133,7 +152,7 @@ class Member extends Model
         'wife_mother_name',
         'wife_mother_occupation',
         'wife_mother_residence',
-        
+
         // Marriage Certificate template field mappings (auto-synced from form fields)
         'sub_county',          // Maps to marriage_sub_county for template
         // Note: county field already exists above
@@ -144,17 +163,17 @@ class Member extends Model
         'witness2_name',       // Maps to marriage_witness2_name for template
         'religion',            // Maps to marriage_religion for template
         'license_number',      // Maps to marriage_license_number for template
-        
+
         // Additional location fields
         'birth_village',
         'county',
         'district',
         'province',
-        
+
         // Additional family fields
         'godfather_name',
         'godmother_name',
-        
+
         // Complex marriage record fields (for comprehensive church records)
         'spouse_tribe',
         'spouse_clan',
@@ -185,7 +204,7 @@ class Member extends Model
         'female_witness_clan',
         'other_documents',
         'civil_marriage_certificate_number',
-        
+
         // Notes and additional information
         'notes',
     ];
@@ -208,13 +227,13 @@ class Member extends Model
         'none' => 'No Formal Education',
         'primary' => 'Primary Education',
         'kcpe' => 'KCPE',
-        'secondary' => 'Secondary Education', 
+        'secondary' => 'Secondary Education',
         'kcse' => 'KCSE',
         'certificate' => 'Certificate',
         'diploma' => 'Diploma',
         'degree' => 'Degree',
         'masters' => 'Masters Degree',
-        'phd' => 'PhD/Doctorate'
+        'phd' => 'PhD/Doctorate',
     ];
 
     // Marriage types for better categorization
@@ -222,7 +241,7 @@ class Member extends Model
         'church' => 'Church Wedding',
         'civil' => 'Civil Marriage',
         'customary' => 'Customary Marriage',
-        'come_we_stay' => 'Come We Stay'
+        'come_we_stay' => 'Come We Stay',
     ];
 
     // Membership status options
@@ -230,7 +249,7 @@ class Member extends Model
         'active' => 'Active',
         'inactive' => 'Inactive',
         'transferred' => 'Transferred',
-        'deceased' => 'Deceased'
+        'deceased' => 'Deceased',
     ];
 
     /**
@@ -245,45 +264,45 @@ class Member extends Model
                 'small_christian_community', 'membership_status', 'membership_date',
                 'baptism_date', 'confirmation_date', 'matrimony_status', 'marriage_type',
                 'occupation', 'education_level', 'tribe', 'clan', 'id_number',
-                'additional_church_groups', 'created_at', 'updated_at'
+                'additional_church_groups', 'created_at', 'updated_at',
             ]);
 
         // Apply filters
-        if (!empty($filters['local_church'])) {
+        if (! empty($filters['local_church'])) {
             $query->where('local_church', $filters['local_church']);
         }
 
-        if (!empty($filters['church_group'])) {
+        if (! empty($filters['church_group'])) {
             $query->where('church_group', $filters['church_group']);
         }
 
-        if (!empty($filters['membership_status'])) {
+        if (! empty($filters['membership_status'])) {
             $query->where('membership_status', $filters['membership_status']);
         }
 
-        if (!empty($filters['gender'])) {
+        if (! empty($filters['gender'])) {
             $query->where('gender', $filters['gender']);
         }
 
         // Add calculated fields
         return $query->get()->map(function ($member) {
             // Calculate age
-            $member->age = $member->date_of_birth 
-                ? Carbon::parse($member->date_of_birth)->age 
+            $member->age = $member->date_of_birth
+                ? Carbon::parse($member->date_of_birth)->age
                 : null;
 
             // Create full name
             $member->full_name = collect([
                 $member->first_name,
                 $member->middle_name,
-                $member->last_name
+                $member->last_name,
             ])->filter()->implode(' ');
 
             // Get all church groups (including additional)
             $allGroups = [$member->church_group];
-            if (!empty($member->additional_church_groups)) {
-                $additional = is_string($member->additional_church_groups) 
-                    ? json_decode($member->additional_church_groups, true) 
+            if (! empty($member->additional_church_groups)) {
+                $additional = is_string($member->additional_church_groups)
+                    ? json_decode($member->additional_church_groups, true)
                     : $member->additional_church_groups;
                 if (is_array($additional)) {
                     $allGroups = array_merge($allGroups, $additional);
@@ -313,10 +332,10 @@ class Member extends Model
         'Youth' => 'Youth',
         'Young Parents' => 'Young Parents',
         'C.W.A' => 'C.W.A (Catholic Women Association)',
-        'CMA' => 'CMA (Catholic Men Association)', 
+        'CMA' => 'CMA (Catholic Men Association)',
         'Choir' => 'Choir',
         'Catholic Action' => 'Catholic Action',
-        'Pioneer' => 'Pioneer'
+        'Pioneer' => 'Pioneer',
     ];
 
     // Constants for matrimony status
@@ -324,10 +343,8 @@ class Member extends Model
         'single' => 'Single',
         'married' => 'Married',
         'widowed' => 'Widowed',
-        'separated' => 'Separated'
+        'separated' => 'Separated',
     ];
-
-
 
     // Relationships
     public function family()
@@ -360,18 +377,16 @@ class Member extends Model
         return $this->hasMany(Member::class, 'godparent_id');
     }
 
-
-    
     public function baptismRecord()
     {
         return $this->hasOne(BaptismRecord::class);
     }
-    
+
     public function marriageRecordAsHusband()
     {
         return $this->hasOne(MarriageRecord::class, 'husband_id');
     }
-    
+
     public function marriageRecordAsWife()
     {
         return $this->hasOne(MarriageRecord::class, 'wife_id');
@@ -388,29 +403,29 @@ class Member extends Model
         $names = array_filter([
             $this->first_name,
             $this->middle_name,
-            $this->last_name
+            $this->last_name,
         ]);
-        
+
         return implode(' ', $names);
     }
 
     public function getAgeAttribute()
     {
-        if (!$this->date_of_birth) {
+        if (! $this->date_of_birth) {
             return null;
         }
-        
+
         return $this->date_of_birth->age;
     }
 
     public function getAllChurchGroupsAttribute()
     {
         $groups = [$this->church_group];
-        
+
         if ($this->additional_church_groups && is_array($this->additional_church_groups)) {
             $groups = array_merge($groups, $this->additional_church_groups);
         }
-        
+
         return array_filter(array_unique($groups));
     }
 
@@ -424,10 +439,21 @@ class Member extends Model
         return self::MARRIAGE_TYPES[$this->marriage_type] ?? $this->marriage_type;
     }
 
-    // Mutators
-    public function setGenderAttribute($value)
+    // Enhanced Mutators for Data Consistency
+    public function setGenderAttribute($value): void
     {
         $this->attributes['gender'] = ucfirst(strtolower(trim($value)));
+    }
+
+    public function setPhoneAttribute($value): void
+    {
+        // Normalize phone number format
+        $this->attributes['phone'] = preg_replace('/[^0-9+]/', '', $value);
+    }
+
+    public function setEmailAttribute($value): void
+    {
+        $this->attributes['email'] = strtolower(trim($value));
     }
 
     public function setDateOfBirthAttribute($value)
@@ -445,83 +471,72 @@ class Member extends Model
     }
 
     // Scopes
-    public function scopeSearch($query, $search)
+    public function scopeSearch(Builder $query, ?string $search): Builder
     {
-        if ($search) {
-            return $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('middle_name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('id_number', 'like', "%{$search}%")
-                  ->orWhere('small_christian_community', 'like', "%{$search}%");
-            });
+        if (! $search) {
+            return $query;
         }
-        
-        return $query;
+
+        return $query->where(function ($q) use ($search) {
+            $searchTerm = "%{$search}%";
+            $q->where('first_name', 'like', $searchTerm)
+                ->orWhere('last_name', 'like', $searchTerm)
+                ->orWhere('middle_name', 'like', $searchTerm)
+                ->orWhere('phone', 'like', $searchTerm)
+                ->orWhere('email', 'like', $searchTerm)
+                ->orWhere('id_number', 'like', $searchTerm)
+                ->orWhere('small_christian_community', 'like', $searchTerm)
+                ->orWhere(DB::raw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name)"), 'like', $searchTerm);
+        });
     }
 
-    public function scopeByChurch($query, $church)
+    public function scopeActive(Builder $query): Builder
     {
-        if ($church) {
-            return $query->where('local_church', $church);
-        }
-        
-        return $query;
+        return $query->where('membership_status', 'active');
     }
 
-    public function scopeByGroup($query, $group)
+    public function scopeByChurch(Builder $query, ?string $church): Builder
     {
-        if ($group) {
-            return $query->where(function ($q) use ($group) {
-                $q->where('church_group', $group)
-                  ->orWhereJsonContains('additional_church_groups', $group);
-            });
-        }
-        
-        return $query;
+        return $church ? $query->where('local_church', $church) : $query;
     }
 
-    public function scopeBySmallChristianCommunity($query, $community)
+    public function scopeByGroup(Builder $query, ?string $group): Builder
     {
-        if ($community) {
-            return $query->where('small_christian_community', $community);
+        if (! $group) {
+            return $query;
         }
-        
-        return $query;
+
+        return $query->where(function ($q) use ($group) {
+            $q->where('church_group', $group)
+                ->orWhereJsonContains('additional_church_groups', $group);
+        });
     }
 
-    public function scopeByStatus($query, $status)
+    public function scopeBySmallChristianCommunity(Builder $query, ?string $community): Builder
     {
-        if ($status) {
-            return $query->where('membership_status', $status);
-        }
-        
-        return $query;
+        return $community ? $query->where('small_christian_community', $community) : $query;
     }
 
-    public function scopeByGender($query, $gender)
+    public function scopeByStatus(Builder $query, ?string $status): Builder
     {
-        if ($gender) {
-            // Ensure consistent capitalization
-            $formattedGender = ucfirst(strtolower(trim($gender)));
-            return $query->where('gender', $formattedGender);
-        }
-        
-        return $query;
+        return $status ? $query->where('membership_status', $status) : $query;
+    }
+
+    public function scopeByGender(Builder $query, ?string $gender): Builder
+    {
+        return $gender ? $query->where('gender', ucfirst(strtolower(trim($gender)))) : $query;
     }
 
     public function scopeByAgeGroup($query, $ageGroup)
     {
-        if (!$ageGroup) {
+        if (! $ageGroup) {
             return $query;
         }
 
         // Use database-agnostic age calculation
         $ageSQL = \App\Helpers\DatabaseHelper::getAgeSQL('date_of_birth');
-        
-        return match($ageGroup) {
+
+        return match ($ageGroup) {
             'children' => $query->whereRaw("({$ageSQL}) BETWEEN 0 AND 12"),
             'youth' => $query->whereRaw("({$ageSQL}) BETWEEN 13 AND 24"),
             'adults' => $query->whereRaw("({$ageSQL}) BETWEEN 25 AND 59"),
@@ -535,7 +550,7 @@ class Member extends Model
         if ($level) {
             return $query->where('education_level', $level);
         }
-        
+
         return $query;
     }
 
@@ -544,7 +559,7 @@ class Member extends Model
         if ($tribe) {
             return $query->where('tribe', $tribe);
         }
-        
+
         return $query;
     }
 
@@ -554,7 +569,7 @@ class Member extends Model
         if ($this->church_group === 'C.W.A' && $this->gender !== 'Female') {
             throw new \InvalidArgumentException('C.W.A membership is restricted to female members only.');
         }
-        
+
         if ($this->church_group === 'CMA' && $this->gender !== 'Male') {
             throw new \InvalidArgumentException('CMA membership is restricted to male members only.');
         }
@@ -569,41 +584,74 @@ class Member extends Model
                 ->whereNotNull('tribe')
                 ->whereNotNull('clan')
                 ->first();
-                
+
             if ($familyHead && $this->age && $this->age < 18) {
-                if (!$this->tribe && $familyHead->tribe) {
+                if (! $this->tribe && $familyHead->tribe) {
                     $this->tribe = $familyHead->tribe;
                 }
-                
-                if (!$this->clan && $familyHead->clan) {
+
+                if (! $this->clan && $familyHead->clan) {
                     $this->clan = $familyHead->clan;
                 }
-                
-                if (!$this->small_christian_community && $familyHead->small_christian_community) {
+
+                if (! $this->small_christian_community && $familyHead->small_christian_community) {
                     $this->small_christian_community = $familyHead->small_christian_community;
                 }
             }
         }
     }
 
+    /**
+     * CACHED STATISTICS FOR PERFORMANCE AT SCALE
+     */
+    public static function getCachedStats(): array
+    {
+        return Cache::remember(self::CACHE_STATS_KEY, self::CACHE_TTL, function () {
+            return [
+                'total_members' => self::count(),
+                'active_members' => self::active()->count(),
+                'male_members' => self::where('gender', 'Male')->count(),
+                'female_members' => self::where('gender', 'Female')->count(),
+                'baptized_members' => self::whereNotNull('baptism_date')->count(),
+                'confirmed_members' => self::whereNotNull('confirmation_date')->count(),
+                'married_members' => self::where('matrimony_status', 'married')->count(),
+                'church_distribution' => self::select('local_church', DB::raw('count(*) as count'))
+                    ->groupBy('local_church')
+                    ->pluck('count', 'local_church')
+                    ->toArray(),
+                'group_distribution' => self::select('church_group', DB::raw('count(*) as count'))
+                    ->groupBy('church_group')
+                    ->pluck('count', 'church_group')
+                    ->toArray(),
+            ];
+        });
+    }
+
+    public static function clearStatsCache(): void
+    {
+        Cache::forget(self::CACHE_STATS_KEY);
+        Cache::forget(self::CACHE_CHURCHES_KEY);
+        Cache::forget(self::CACHE_GROUPS_KEY);
+    }
+
     // Helper methods for reporting
     public static function getChurchGroupOptions()
     {
-        return array_map(function($key, $value) {
+        return array_map(function ($key, $value) {
             return ['value' => $key, 'label' => $value];
         }, array_keys(self::CHURCH_GROUPS), self::CHURCH_GROUPS);
     }
 
     public static function getEducationLevelOptions()
     {
-        return array_map(function($key, $value) {
+        return array_map(function ($key, $value) {
             return ['value' => $key, 'label' => $value];
         }, array_keys(self::EDUCATION_LEVELS), self::EDUCATION_LEVELS);
     }
 
     public static function getMembershipStatusOptions()
     {
-        return array_map(function($key, $value) {
+        return array_map(function ($key, $value) {
             return ['value' => $key, 'label' => $value];
         }, array_keys(self::MEMBERSHIP_STATUSES), self::MEMBERSHIP_STATUSES);
     }
@@ -613,103 +661,192 @@ class Member extends Model
     {
         return self::where('membership_status', 'active')->count();
     }
-    
+
     public static function getInactiveMembers()
     {
         return self::where('membership_status', 'inactive')->count();
     }
-    
+
     public static function getTransferredMembers()
     {
         return self::where('membership_status', 'transferred')->count();
     }
-    
+
     public static function getDeceasedMembers()
     {
         return self::where('membership_status', 'deceased')->count();
     }
-    
+
     public static function getMembersByChurch($church = null)
     {
         $query = self::query();
         if ($church) {
             $query->where('local_church', $church);
         }
+
         return $query->get()->groupBy('local_church');
     }
-    
+
     public static function getMembersByGroup($group = null)
     {
         $query = self::query();
         if ($group) {
             $query->byGroup($group);
         }
+
         return $query->get()->groupBy('church_group');
     }
-    
+
     public static function getMembersBySmallCommunity($community = null)
     {
         $query = self::query();
         if ($community) {
             $query->where('small_christian_community', $community);
         }
+
         return $query->get()->groupBy('small_christian_community');
     }
-    
+
     public static function getMembersByAgeGroup($ageGroup = null)
     {
         $now = now();
         $query = self::query();
-        
+
         if ($ageGroup) {
-            switch($ageGroup) {
+            switch ($ageGroup) {
                 case 'children':
-                    $query->whereRaw(DatabaseHelper::getAgeSQL('date_of_birth', '?') . ' BETWEEN 0 AND 12', [$now]);
+                    $query->whereRaw(DatabaseHelper::getAgeSQL('date_of_birth', '?').' BETWEEN 0 AND 12', [$now]);
                     break;
                 case 'youth':
-                    $query->whereRaw(DatabaseHelper::getAgeSQL('date_of_birth', '?') . ' BETWEEN 13 AND 24', [$now]);
+                    $query->whereRaw(DatabaseHelper::getAgeSQL('date_of_birth', '?').' BETWEEN 13 AND 24', [$now]);
                     break;
                 case 'adults':
-                    $query->whereRaw(DatabaseHelper::getAgeSQL('date_of_birth', '?') . ' BETWEEN 25 AND 59', [$now]);
+                    $query->whereRaw(DatabaseHelper::getAgeSQL('date_of_birth', '?').' BETWEEN 25 AND 59', [$now]);
                     break;
                 case 'seniors':
-                    $query->whereRaw(DatabaseHelper::getAgeSQL('date_of_birth', '?') . ' >= 60', [$now]);
+                    $query->whereRaw(DatabaseHelper::getAgeSQL('date_of_birth', '?').' >= 60', [$now]);
                     break;
             }
         }
-        
+
         return $query->get();
     }
-    
+
     public static function getMembersByGender($gender = null)
     {
         $query = self::query();
         if ($gender) {
             $query->where('gender', ucfirst(strtolower($gender)));
         }
+
         return $query->get()->groupBy('gender');
     }
-    
+
     public static function getMembersByEducationLevel($level = null)
     {
         $query = self::query();
         if ($level) {
             $query->where('education_level', $level);
         }
+
         return $query->get()->groupBy('education_level');
     }
-    
+
     public static function getMembersByTribe($tribe = null)
     {
         $query = self::query();
         if ($tribe) {
             $query->where('tribe', $tribe);
         }
+
         return $query->get()->groupBy('tribe');
     }
-    
 
-    
+    /**
+     * BAPTISM AND CONFIRMATION DATA SHARING
+     * This addresses your requirement for baptism and confirmation to share common data
+     */
+    public function syncSacramentData(): void
+    {
+        // Auto-sync common fields between baptism and confirmation
+        if ($this->baptism_location && ! $this->confirmation_location) {
+            $this->confirmation_location = $this->baptism_location;
+        }
+
+        // Sync minister/baptized_by fields (both directions)
+        if ($this->minister && ! $this->baptized_by) {
+            $this->baptized_by = $this->minister;
+        } elseif ($this->baptized_by && ! $this->minister) {
+            $this->minister = $this->baptized_by;
+        }
+
+        // Sync godparent/sponsor fields (both directions)
+        if ($this->godparent && ! $this->sponsor) {
+            $this->sponsor = $this->godparent;
+        } elseif ($this->sponsor && ! $this->godparent) {
+            $this->godparent = $this->sponsor;
+        }
+    }
+
+    /**
+     * MARRIAGE STATUS VALIDATION
+     * Only those with church marriage need to fill marriage details
+     */
+    public function validateMarriageData(): array
+    {
+        $errors = [];
+
+        if ($this->matrimony_status === 'married' && $this->marriage_type === 'church') {
+            $requiredFields = [
+                'marriage_date', 'marriage_location', 'spouse_name',
+                'marriage_officiant_name', 'marriage_witness1_name', 'marriage_witness2_name',
+            ];
+
+            foreach ($requiredFields as $field) {
+                if (empty($this->$field)) {
+                    $errors[$field] = 'This field is required for church marriages.';
+                }
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * VALIDATION RULES FOR FORM REQUESTS
+     */
+    public static function getValidationRules(): array
+    {
+        return [
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'date_of_birth' => 'required|date|before:today',
+            'gender' => 'required|in:Male,Female',
+            'phone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'id_number' => 'nullable|string|max:20|unique:members,id_number',
+            'local_church' => 'required|string|max:255',
+            'church_group' => 'required|string|max:255',
+            'membership_status' => 'required|in:active,inactive,transferred,deceased',
+            'matrimony_status' => 'required|in:single,married,widowed,separated',
+        ];
+    }
+
+    /**
+     * EVENT HANDLERS FOR CACHE INVALIDATION
+     */
+    protected static function booted(): void
+    {
+        static::saved(function () {
+            self::clearStatsCache();
+        });
+
+        static::deleted(function () {
+            self::clearStatsCache();
+        });
+    }
+
     // Get downloadable baptism certificate data
     public function getBaptismCertificateData()
     {

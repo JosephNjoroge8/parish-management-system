@@ -16,9 +16,9 @@ return new class extends Migration
             $table->unsignedBigInteger('family_id');
             $table->unsignedBigInteger('member_id');
             $table->enum('relationship_type', [
-                'head', 'spouse', 'child', 'parent', 'sibling', 
-                'grandparent', 'grandchild', 'uncle_aunt', 
-                'nephew_niece', 'cousin', 'other'
+                'head', 'spouse', 'child', 'parent', 'sibling',
+                'grandparent', 'grandchild', 'uncle_aunt',
+                'nephew_niece', 'cousin', 'other',
             ]);
             $table->boolean('primary_contact')->default(false);
             $table->boolean('emergency_contact')->default(false);

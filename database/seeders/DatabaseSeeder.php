@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -18,7 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             // 1. Users (simple is_admin flag authentication)
             UserSeeder::class,
-            
+
             // 2. Sample data (depends on users)
             SampleDataSeeder::class,
         ]);

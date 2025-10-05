@@ -1,14 +1,15 @@
 <?php
+
 // app/Models/User.php
+
 namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -89,15 +90,15 @@ class User extends Authenticatable implements MustVerifyEmail
         if (isset($this->attributes['is_admin'])) {
             return (bool) $this->attributes['is_admin'];
         }
-        
+
         // Second priority: Check by admin email patterns
         $adminEmails = [
             'admin@parish.com',
             'admin@parishmanagement.com',
             'administrator@parish.com',
         ];
-        
-        return in_array($this->email, $adminEmails) || 
+
+        return in_array($this->email, $adminEmails) ||
                str_contains(strtolower($this->email), 'admin') ||
                $this->id === 1; // First user is admin
     }
@@ -107,13 +108,13 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         // In simplified system, return admin role for admin users
         if ($this->isSuperAdminByEmail()) {
-            return collect([(object)['id' => 1, 'name' => 'admin']]);
+            return collect([(object) ['id' => 1, 'name' => 'admin']]);
         }
-        
+
         return collect([]);
     }
 
-    // SIMPLIFIED: Admin by database flag only  
+    // SIMPLIFIED: Admin by database flag only
     public function getIsSuperAdminAttribute(): bool
     {
         return (bool) $this->attributes['is_admin'] ?? false;
@@ -134,8 +135,8 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $query->whereIn('email', [
             'admin@parish.com',
-            'superadmin@parish.com', 
-            'administrator@parish.com'
+            'superadmin@parish.com',
+            'administrator@parish.com',
         ]);
     }
 

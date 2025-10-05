@@ -1,5 +1,7 @@
 <?php
+
 // app/Http/Resources/SacramentResource.php
+
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -23,6 +25,7 @@ class SacramentResource extends JsonResource
 }
 
 // app/Http/Resources/ActivityResource.php
+
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -48,6 +51,7 @@ class ActivityResource extends JsonResource
 }
 
 // app/Http/Resources/CommunityGroupResource.php
+
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;

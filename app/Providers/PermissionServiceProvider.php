@@ -2,18 +2,19 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
-use Spatie\Permission\Models\Role;
+use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class PermissionServiceProvider extends ServiceProvider
 {
     private $permissionsCached = false;
+
     private $userPermissions = [];
 
     public function register(): void
@@ -38,21 +39,23 @@ class PermissionServiceProvider extends ServiceProvider
         try {
             // Check database connection
             DB::connection()->getPdo();
-            
+
             // Check if required tables exist
             $requiredTables = ['users', 'permissions', 'roles', 'model_has_permissions', 'model_has_roles', 'role_has_permissions'];
-            
+
             foreach ($requiredTables as $table) {
-                if (!Schema::hasTable($table)) {
+                if (! Schema::hasTable($table)) {
                     Log::info("Permission system not ready: Table '{$table}' does not exist");
+
                     return false;
                 }
             }
-            
+
             return true;
-            
+
         } catch (\Exception $e) {
-            Log::info('Permission system not ready: ' . $e->getMessage());
+            Log::info('Permission system not ready: '.$e->getMessage());
+
             return false;
         }
     }
@@ -64,7 +67,7 @@ class PermissionServiceProvider extends ServiceProvider
             $this->createRolesIfNotExist();
             $this->assignPermissionsToRoles();
         } catch (\Exception $e) {
-            Log::error('Error initializing default permissions: ' . $e->getMessage());
+            Log::error('Error initializing default permissions: '.$e->getMessage());
         }
     }
 
@@ -73,7 +76,7 @@ class PermissionServiceProvider extends ServiceProvider
         // Only share with specific views that need permissions, not all views
         $viewsNeedingPermissions = [
             'members.*',
-            'families.*', 
+            'families.*',
             'sacraments.*',
             'tithes.*',
             'activities.*',
@@ -81,12 +84,12 @@ class PermissionServiceProvider extends ServiceProvider
             'community-groups.*',
             'users.*',
             'dashboard',
-            'layouts.app'
+            'layouts.app',
         ];
 
         foreach ($viewsNeedingPermissions as $viewPattern) {
             View::composer($viewPattern, function ($view) {
-                if (!$this->permissionsCached) {
+                if (! $this->permissionsCached) {
                     $this->userPermissions = $this->getUserPermissions();
                     $this->permissionsCached = true;
                 }
@@ -105,18 +108,19 @@ class PermissionServiceProvider extends ServiceProvider
     {
         try {
             // Return guest permissions if not authenticated
-            if (!Auth::check()) {
+            if (! Auth::check()) {
                 return $this->getDefaultPermissions(false);
             }
 
             $user = Auth::user();
-            if (!$user) {
+            if (! $user) {
                 return $this->getDefaultPermissions(false);
             }
 
             // Check if user model has Spatie permission support
-            if (!$this->userSupportsPermissions($user)) {
+            if (! $this->userSupportsPermissions($user)) {
                 Log::warning('User model does not support Spatie permissions');
+
                 return $this->getDefaultPermissions(true); // Give full access as fallback
             }
 
@@ -124,7 +128,8 @@ class PermissionServiceProvider extends ServiceProvider
             return $this->getUserPermissionsWithFallback($user);
 
         } catch (\Exception $e) {
-            Log::error('Error getting user permissions: ' . $e->getMessage());
+            Log::error('Error getting user permissions: '.$e->getMessage());
+
             return $this->getDefaultPermissions(true); // Default to full access on error
         }
     }
@@ -132,13 +137,13 @@ class PermissionServiceProvider extends ServiceProvider
     private function userSupportsPermissions($user): bool
     {
         $requiredMethods = ['roles', 'permissions', 'can', 'hasRole', 'assignRole'];
-        
+
         foreach ($requiredMethods as $method) {
-            if (!method_exists($user, $method)) {
+            if (! method_exists($user, $method)) {
                 return false;
             }
         }
-        
+
         return true;
     }
 
@@ -152,10 +157,12 @@ class PermissionServiceProvider extends ServiceProvider
 
             // Strategy 2: Auto-assign super-admin role if user has no roles
             $this->ensureUserHasRole($user);
+
             return $this->buildSpatieLaravelPermissions($user);
 
         } catch (\Exception $e) {
-            Log::error('Error in getUserPermissionsWithFallback: ' . $e->getMessage());
+            Log::error('Error in getUserPermissionsWithFallback: '.$e->getMessage());
+
             return $this->getDefaultPermissions(true);
         }
     }
@@ -165,19 +172,20 @@ class PermissionServiceProvider extends ServiceProvider
         try {
             // Simple database check - most reliable
             $hasRoles = DB::table('model_has_roles')
-                         ->where('model_type', get_class($user))
-                         ->where('model_id', $user->id)
-                         ->exists();
+                ->where('model_type', get_class($user))
+                ->where('model_id', $user->id)
+                ->exists();
 
             $hasPermissions = DB::table('model_has_permissions')
-                            ->where('model_type', get_class($user))
-                            ->where('model_id', $user->id)
-                            ->exists();
+                ->where('model_type', get_class($user))
+                ->where('model_id', $user->id)
+                ->exists();
 
             return $hasRoles || $hasPermissions;
 
         } catch (\Exception $e) {
-            Log::error('Error checking user roles/permissions: ' . $e->getMessage());
+            Log::error('Error checking user roles/permissions: '.$e->getMessage());
+
             return false;
         }
     }
@@ -185,7 +193,7 @@ class PermissionServiceProvider extends ServiceProvider
     private function buildSpatieLaravelPermissions($user): array
     {
         $permissions = [];
-        
+
         $permissionList = [
             'can_manage_users' => 'manage users',
             'can_access_members' => 'access members',
@@ -227,25 +235,25 @@ class PermissionServiceProvider extends ServiceProvider
         try {
             // Check if user already has roles
             $hasRoles = DB::table('model_has_roles')
-                         ->where('model_type', get_class($user))
-                         ->where('model_id', $user->id)
-                         ->exists();
+                ->where('model_type', get_class($user))
+                ->where('model_id', $user->id)
+                ->exists();
 
-            if (!$hasRoles) {
+            if (! $hasRoles) {
                 // Find or create super-admin role
                 $superAdminRole = Role::firstOrCreate([
                     'name' => 'super-admin',
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ]);
 
                 // Assign role to user
                 $user->assignRole($superAdminRole);
-                
+
                 Log::info("Auto-assigned super-admin role to user ID: {$user->id}");
             }
 
         } catch (\Exception $e) {
-            Log::error('Error ensuring user has role: ' . $e->getMessage());
+            Log::error('Error ensuring user has role: '.$e->getMessage());
         }
     }
 
@@ -266,10 +274,10 @@ class PermissionServiceProvider extends ServiceProvider
             try {
                 Permission::firstOrCreate([
                     'name' => $permission,
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ]);
             } catch (\Exception $e) {
-                Log::error("Error creating permission '{$permission}': " . $e->getMessage());
+                Log::error("Error creating permission '{$permission}': ".$e->getMessage());
             }
         }
     }
@@ -278,19 +286,19 @@ class PermissionServiceProvider extends ServiceProvider
     {
         $roles = [
             'super-admin' => 'Super Administrator',
-            'admin' => 'Administrator', 
+            'admin' => 'Administrator',
             'secretary' => 'Secretary',
-            'treasurer' => 'Treasurer'
+            'treasurer' => 'Treasurer',
         ];
 
         foreach ($roles as $roleName => $description) {
             try {
                 Role::firstOrCreate([
                     'name' => $roleName,
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ]);
             } catch (\Exception $e) {
-                Log::error("Error creating role '{$roleName}': " . $e->getMessage());
+                Log::error("Error creating role '{$roleName}': ".$e->getMessage());
             }
         }
     }
@@ -343,7 +351,7 @@ class PermissionServiceProvider extends ServiceProvider
             }
 
         } catch (\Exception $e) {
-            Log::error('Error assigning permissions to roles: ' . $e->getMessage());
+            Log::error('Error assigning permissions to roles: '.$e->getMessage());
         }
     }
 
@@ -357,7 +365,7 @@ class PermissionServiceProvider extends ServiceProvider
             'can_access_tithes', 'can_manage_tithes', 'can_delete_tithes',
             'can_access_activities', 'can_manage_activities', 'can_delete_activities',
             'can_access_reports', 'can_view_financial_reports', 'can_export_reports',
-            'can_access_community_groups', 'can_manage_community_groups'
+            'can_access_community_groups', 'can_manage_community_groups',
         ];
 
         // Authenticated users get all permissions by default, guests get none

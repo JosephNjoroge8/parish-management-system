@@ -3,13 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Activity;
-use App\Models\Member;
 use App\Models\CommunityGroup;
+use App\Models\Member;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 
 class ActivityController extends Controller
 {
@@ -20,14 +19,14 @@ class ActivityController extends Controller
     {
         try {
             $perPage = $request->get('per_page', 15);
-            
+
             $query = Activity::with(['communityGroup', 'participants'])
                 ->when($request->search, function ($query, $search) {
                     $query->where(function ($q) use ($search) {
                         $q->where('title', 'like', "%{$search}%")
-                          ->orWhere('description', 'like', "%{$search}%")
-                          ->orWhere('location', 'like', "%{$search}%")
-                          ->orWhere('organizer', 'like', "%{$search}%");
+                            ->orWhere('description', 'like', "%{$search}%")
+                            ->orWhere('location', 'like', "%{$search}%")
+                            ->orWhere('organizer', 'like', "%{$search}%");
                     });
                 })
                 ->when($request->activity_type, function ($query, $type) {
@@ -67,11 +66,12 @@ class ActivityController extends Controller
                 'activityTypes' => $activityTypes,
                 'statuses' => $statuses,
                 'communityGroups' => $communityGroups,
-                'filters' => $request->only(['search', 'activity_type', 'status', 'date_from', 'date_to'])
+                'filters' => $request->only(['search', 'activity_type', 'status', 'date_from', 'date_to']),
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Failed to load activities index: ' . $e->getMessage());
+            Log::error('Failed to load activities index: '.$e->getMessage());
+
             return back()->with('error', 'Failed to load activities. Please try again.');
         }
     }
@@ -82,7 +82,7 @@ class ActivityController extends Controller
     public function create()
     {
         $communityGroups = CommunityGroup::select('id', 'name')->orderBy('name')->get();
-        
+
         return Inertia::render('Activities/Create', [
             'activityTypes' => Activity::ACTIVITY_TYPES,
             'statuses' => Activity::STATUSES,
@@ -99,7 +99,7 @@ class ActivityController extends Controller
             $validated = $request->validate([
                 'title' => 'required|string|max:255',
                 'description' => 'nullable|string',
-                'activity_type' => 'required|string|in:' . implode(',', array_keys(Activity::ACTIVITY_TYPES)),
+                'activity_type' => 'required|string|in:'.implode(',', array_keys(Activity::ACTIVITY_TYPES)),
                 'start_date' => 'required|date',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
                 'start_time' => 'nullable|date_format:H:i',
@@ -110,7 +110,7 @@ class ActivityController extends Controller
                 'max_participants' => 'nullable|integer|min:1',
                 'registration_required' => 'boolean',
                 'registration_deadline' => 'nullable|date|before_or_equal:start_date',
-                'status' => 'required|string|in:' . implode(',', array_keys(Activity::STATUSES)),
+                'status' => 'required|string|in:'.implode(',', array_keys(Activity::STATUSES)),
                 'notes' => 'nullable|string',
             ]);
 
@@ -120,7 +120,8 @@ class ActivityController extends Controller
                 ->with('success', 'Activity created successfully!');
 
         } catch (\Exception $e) {
-            Log::error('Failed to create activity: ' . $e->getMessage());
+            Log::error('Failed to create activity: '.$e->getMessage());
+
             return back()->withInput()->with('error', 'Failed to create activity. Please try again.');
         }
     }
@@ -131,7 +132,7 @@ class ActivityController extends Controller
     public function show(Activity $activity)
     {
         $activity->load(['communityGroup', 'participants.member']);
-        
+
         return Inertia::render('Activities/Show', [
             'activity' => $activity,
             'activityTypes' => Activity::ACTIVITY_TYPES,
@@ -145,7 +146,7 @@ class ActivityController extends Controller
     public function edit(Activity $activity)
     {
         $communityGroups = CommunityGroup::select('id', 'name')->orderBy('name')->get();
-        
+
         return Inertia::render('Activities/Edit', [
             'activity' => $activity,
             'activityTypes' => Activity::ACTIVITY_TYPES,
@@ -163,7 +164,7 @@ class ActivityController extends Controller
             $validated = $request->validate([
                 'title' => 'required|string|max:255',
                 'description' => 'nullable|string',
-                'activity_type' => 'required|string|in:' . implode(',', array_keys(Activity::ACTIVITY_TYPES)),
+                'activity_type' => 'required|string|in:'.implode(',', array_keys(Activity::ACTIVITY_TYPES)),
                 'start_date' => 'required|date',
                 'end_date' => 'nullable|date|after_or_equal:start_date',
                 'start_time' => 'nullable|date_format:H:i',
@@ -174,7 +175,7 @@ class ActivityController extends Controller
                 'max_participants' => 'nullable|integer|min:1',
                 'registration_required' => 'boolean',
                 'registration_deadline' => 'nullable|date|before_or_equal:start_date',
-                'status' => 'required|string|in:' . implode(',', array_keys(Activity::STATUSES)),
+                'status' => 'required|string|in:'.implode(',', array_keys(Activity::STATUSES)),
                 'notes' => 'nullable|string',
             ]);
 
@@ -184,7 +185,8 @@ class ActivityController extends Controller
                 ->with('success', 'Activity updated successfully!');
 
         } catch (\Exception $e) {
-            Log::error('Failed to update activity: ' . $e->getMessage());
+            Log::error('Failed to update activity: '.$e->getMessage());
+
             return back()->withInput()->with('error', 'Failed to update activity. Please try again.');
         }
     }
@@ -196,12 +198,13 @@ class ActivityController extends Controller
     {
         try {
             $activity->delete();
-            
+
             return redirect()->route('activities.index')
                 ->with('success', 'Activity deleted successfully!');
 
         } catch (\Exception $e) {
-            Log::error('Failed to delete activity: ' . $e->getMessage());
+            Log::error('Failed to delete activity: '.$e->getMessage());
+
             return back()->with('error', 'Failed to delete activity. Please try again.');
         }
     }
@@ -245,15 +248,15 @@ class ActivityController extends Controller
     public function search(Request $request)
     {
         $search = $request->get('q', '');
-        
+
         $activities = Activity::where(function ($query) use ($search) {
             $query->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('location', 'like', "%{$search}%");
+                ->orWhere('description', 'like', "%{$search}%")
+                ->orWhere('location', 'like', "%{$search}%");
         })
-        ->with(['communityGroup'])
-        ->limit(20)
-        ->get();
+            ->with(['communityGroup'])
+            ->limit(20)
+            ->get();
 
         return response()->json($activities);
     }
@@ -282,7 +285,7 @@ class ActivityController extends Controller
         try {
             $validated = $request->validate([
                 'activity_ids' => 'required|array',
-                'activity_ids.*' => 'exists:activities,id'
+                'activity_ids.*' => 'exists:activities,id',
             ]);
 
             $deletedCount = Activity::whereIn('id', $validated['activity_ids'])->delete();
@@ -290,7 +293,8 @@ class ActivityController extends Controller
             return back()->with('success', "Successfully deleted {$deletedCount} activities.");
 
         } catch (\Exception $e) {
-            Log::error('Failed to bulk delete activities: ' . $e->getMessage());
+            Log::error('Failed to bulk delete activities: '.$e->getMessage());
+
             return back()->with('error', 'Failed to delete activities. Please try again.');
         }
     }

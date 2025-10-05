@@ -12,14 +12,12 @@ class ProductionSecurityMiddleware
     /**
      * Handle an incoming request.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     * @return \Symfony\Component\HttpFoundation\Response
      */
     public function handle(Request $request, Closure $next): Response
     {
         // Force HTTPS in production
-        if (config('production.security.force_https', false) && !$request->secure() && app()->environment('production')) {
+        if (config('production.security.force_https', false) && ! $request->secure() && app()->environment('production')) {
             return redirect()->secure($request->getRequestUri(), 301);
         }
 
@@ -55,12 +53,12 @@ class ProductionSecurityMiddleware
 
         // Content Security Policy (disabled in local development by default)
         $cspEnabled = config('production.security.csp_enabled', false);
-        
+
         // Auto-disable CSP in local development unless explicitly enabled
-        if (app()->environment('local') && !config('production.security.csp_enabled')) {
+        if (app()->environment('local') && ! config('production.security.csp_enabled')) {
             $cspEnabled = false;
         }
-        
+
         if ($cspEnabled) {
             $csp = $this->buildContentSecurityPolicy();
             $headers['Content-Security-Policy'] = $csp;
@@ -79,7 +77,7 @@ class ProductionSecurityMiddleware
     {
         $isProduction = app()->environment('production');
         $isDevelopment = app()->environment(['local', 'development', 'testing']);
-        
+
         // Base policies
         $policies = [
             "default-src 'self'",
@@ -92,7 +90,7 @@ class ProductionSecurityMiddleware
             $scriptSources[] = 'http://localhost:5173';
             $scriptSources[] = 'ws://localhost:5173';
         }
-        $policies[] = "script-src " . implode(' ', $scriptSources);
+        $policies[] = 'script-src '.implode(' ', $scriptSources);
 
         // Style sources
         $styleSources = ["'self'", "'unsafe-inline'"];
@@ -102,13 +100,13 @@ class ProductionSecurityMiddleware
             // Allow Vite development server styles
             $styleSources[] = 'http://localhost:5173';
         }
-        $policies[] = "style-src " . implode(' ', $styleSources);
+        $policies[] = 'style-src '.implode(' ', $styleSources);
 
         // Font sources
         $fontSources = ["'self'", 'data:'];
         $fontSources[] = 'https://fonts.gstatic.com';
         $fontSources[] = 'https://fonts.bunny.net'; // Add support for Bunny Fonts
-        $policies[] = "font-src " . implode(' ', $fontSources);
+        $policies[] = 'font-src '.implode(' ', $fontSources);
 
         // Connect sources
         $connectSources = ["'self'"];
@@ -117,7 +115,7 @@ class ProductionSecurityMiddleware
             $connectSources[] = 'http://localhost:5173';
             $connectSources[] = 'ws://localhost:5173';
         }
-        $policies[] = "connect-src " . implode(' ', $connectSources);
+        $policies[] = 'connect-src '.implode(' ', $connectSources);
 
         // Other policies
         $policies[] = "img-src 'self' data: https:";
@@ -143,7 +141,7 @@ class ProductionSecurityMiddleware
         if ($request->is('login') && $request->isMethod('POST')) {
             $ip = $request->ip();
             $userAgent = $request->userAgent();
-            
+
             Log::channel('security')->info('Login attempt', [
                 'ip' => $ip,
                 'user_agent' => $userAgent,

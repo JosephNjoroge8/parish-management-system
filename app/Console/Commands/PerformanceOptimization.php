@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Services\PerformanceMonitorService;
 use App\Services\CacheOptimizationService;
+use App\Services\PerformanceMonitorService;
 use Illuminate\Console\Command;
 
 class PerformanceOptimization extends Command
@@ -60,32 +60,32 @@ class PerformanceOptimization extends Command
         $this->info('📊 Analyzing performance...');
 
         PerformanceMonitorService::startMonitoring();
-        
+
         // Simulate some queries to gather metrics
         \App\Models\Member::count();
         \App\Models\Family::count();
-        
+
         $report = PerformanceMonitorService::generateReport();
-        
+
         $this->table(
             ['Metric', 'Value'],
             [
                 ['Total Queries', $report['metrics']['queries']['total_count']],
-                ['Query Time', $report['metrics']['queries']['total_time'] . 'ms'],
+                ['Query Time', $report['metrics']['queries']['total_time'].'ms'],
                 ['Memory Usage', $report['metrics']['memory']['current_usage']],
                 ['Peak Memory', $report['metrics']['memory']['peak_usage']],
                 ['Slow Queries', $report['metrics']['queries']['slow_queries']],
             ]
         );
 
-        if (!empty($report['recommendations'])) {
+        if (! empty($report['recommendations'])) {
             $this->warn('⚠️  Performance Recommendations:');
             foreach ($report['recommendations'] as $rec) {
                 $this->line("• {$rec['message']} ({$rec['time']}ms)");
             }
         }
 
-        if (!empty($report['database_optimizations'])) {
+        if (! empty($report['database_optimizations'])) {
             $this->warn('💾 Database Optimization Suggestions:');
             foreach ($report['database_optimizations'] as $opt) {
                 $this->line("• {$opt['suggestion']}");
@@ -122,7 +122,7 @@ class PerformanceOptimization extends Command
         $this->call('logs:optimize', [
             '--days' => 7,
             '--size' => 5,
-            '--archive' => true
+            '--archive' => true,
         ]);
 
         $this->info('✅ Log optimization completed');

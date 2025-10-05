@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('marriage_records', function (Blueprint $table) {
             $table->id();
             $table->string('record_number')->unique();
-            
+
             // HUSBAND INFORMATION (Comprehensive as per marriage record specification)
             $table->string('husband_name');
             $table->string('husband_father_name');
@@ -27,7 +27,7 @@ return new class extends Migration
             $table->date('husband_baptism_date');
             $table->string('husband_widower_of')->nullable();
             $table->enum('husband_parent_consent', ['Yes', 'No'])->default('No');
-            
+
             // WIFE INFORMATION (Comprehensive as per marriage record specification)
             $table->string('wife_name');
             $table->string('wife_father_name');
@@ -40,7 +40,7 @@ return new class extends Migration
             $table->date('wife_baptism_date');
             $table->string('wife_widow_of')->nullable();
             $table->enum('wife_parent_consent', ['Yes', 'No'])->default('No');
-            
+
             // BANNS INFORMATION
             $table->string('banns_number')->nullable();
             $table->string('banns_church_1')->nullable();
@@ -49,12 +49,12 @@ return new class extends Migration
             $table->date('banns_date_2')->nullable();
             $table->string('dispensation_from')->nullable();
             $table->string('dispensation_given_by')->nullable();
-            
+
             // DISPENSATION INFORMATION
             $table->string('dispensation_impediment')->nullable();
             $table->string('dispensation_authority')->nullable();
             $table->date('dispensation_date')->nullable();
-            
+
             // MARRIAGE CONTRACT INFORMATION
             $table->date('marriage_date');
             $table->string('marriage_month');
@@ -65,11 +65,11 @@ return new class extends Migration
             $table->string('presence_of'); // Who officiated
             $table->string('delegated_by')->nullable();
             $table->date('delegation_date')->nullable();
-            
+
             // SIGNATURES
             $table->string('husband_signature')->nullable();
             $table->string('wife_signature')->nullable();
-            
+
             // WITNESS INFORMATION (Comprehensive)
             $table->string('male_witness_full_name');
             $table->string('male_witness_father');
@@ -79,19 +79,19 @@ return new class extends Migration
             $table->string('female_witness_clan');
             $table->string('male_witness_signature')->nullable();
             $table->string('female_witness_signature')->nullable();
-            
+
             // ADDITIONAL DOCUMENTS AND SIGNATURES
             $table->text('other_documents')->nullable();
             $table->string('parish_priest_signature')->nullable();
             $table->string('civil_marriage_certificate_number')->nullable();
             $table->string('parish_stamp')->nullable();
-            
+
             // SYSTEM RELATIONSHIPS
             $table->unsignedBigInteger('parish_priest_id')->nullable();
             $table->unsignedBigInteger('husband_id')->nullable();
             $table->unsignedBigInteger('wife_id')->nullable();
             $table->unsignedBigInteger('sacrament_id')->nullable();
-            
+
             $table->timestamps();
 
             // Foreign key constraints

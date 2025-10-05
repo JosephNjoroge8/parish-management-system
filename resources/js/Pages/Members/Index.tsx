@@ -1,50 +1,35 @@
-// resources/js/Pages/Members/Index.tsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Head, Link, useForm, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { debounce } from 'lodash';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { 
-    Search, 
     Plus, 
-    Filter, 
     Download, 
     Upload, 
-    Eye, 
-    Edit, 
-    Trash2,
-    Users,
-    UserCheck,
-    UserPlus,
-    Calendar,
-    MapPin,
-    Phone,
-    Mail,
-    ChevronLeft,
-    ChevronRight,
-    ChevronsLeft,
-    ChevronsRight,
-    RefreshCw,
-    X,
-    FileText,
-    FileSpreadsheet,
+    Trash2, 
+    FileText, 
+    FileSpreadsheet, 
     Loader2,
-    AlertCircle,
-    CheckCircle,
-    Info
+    X
 } from 'lucide-react';
-import { PageProps } from '@/types';
 import { showNotification } from '@/Utils/notifications';
+
+// Import optimized components
+import MembersStats from '@/Components/Members/MembersStats';
+import MembersSearchAndFilters from '@/Components/Members/MembersSearchAndFilters';
+import MembersGrid from '@/Components/Members/MembersGrid';
+import MembersPagination from '@/Components/Members/MembersPagination';
+import { MembersIndexProps, Member, Filters } from '@/Components/Members/types';
 
 // Type for Inertia errors
 interface InertiaErrors {
     [key: string]: string | string[];
 }
 
-// Enhanced debounced search function optimized for UX - prevents focus loss
+// Enhanced debounced search function optimized for UX
 const createDebouncedSearch = () => {
-    return debounce((query: string, currentFilters: any, getFunction: any, setLoadingFunction: any) => {
+    return debounce((query: string, currentFilters: Filters, setLoadingFunction: (loading: boolean) => void) => {
         try {
-            // Clean query and validate
             const cleanQuery = typeof query === 'string' ? query.trim() : '';
             
             const searchParams = {
@@ -65,7 +50,6 @@ const createDebouncedSearch = () => {
                     return acc;
                 }, {} as Record<string, string>);
             
-            // Use router.get instead of form get to prevent focus loss
             router.get(route('members.index', cleanParams), undefined, {
                 preserveScroll: true,
                 preserveState: true,
@@ -73,7 +57,7 @@ const createDebouncedSearch = () => {
                 onStart: () => setLoadingFunction(true),
                 onFinish: () => setLoadingFunction(false),
                 onError: (errors: InertiaErrors) => {
-                    console.error('Debounced search error:', errors);
+                    console.error('Search error:', errors);
                     setLoadingFunction(false);
                     if (typeof showNotification === 'function') {
                         showNotification('Search Error', 'Search failed. Please try again.', 'error', 4000);
@@ -81,110 +65,14 @@ const createDebouncedSearch = () => {
                 }
             });
         } catch (error) {
-            console.error('Debounced search error:', error);
+            console.error('Search error:', error);
             setLoadingFunction(false);
             if (typeof showNotification === 'function') {
                 showNotification('Search Error', 'Search error occurred. Please try again.', 'error', 4000);
             }
         }
-    }, 300); // Reduced debounce for better responsiveness
+    }, 300);
 };
-
-// Define interfaces for type safety
-interface Member {
-    id: number;
-    first_name: string;
-    middle_name?: string;
-    last_name: string;
-    full_name: string;
-    date_of_birth: string;
-    age: number;
-    gender: string;
-    phone?: string;
-    email?: string;
-    id_number?: string;
-    local_church: string;
-    church_group: string;
-    membership_status: string;
-    membership_date: string;
-    residence?: string;
-    occupation?: string;
-    family?: {
-        id: number;
-        family_name: string;
-        head_of_family: string;
-    };
-    created_at: string;
-    updated_at: string;
-}
-
-interface PaginatedMembers {
-    data: Member[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number;
-    to: number;
-    links: Array<{
-        url: string | null;
-        label: string;
-        active: boolean;
-    }>;
-}
-
-interface Stats {
-    total_members: number;
-    active_members: number;
-    new_this_month: number;
-    by_church: Record<string, number>;
-    by_group: Record<string, number>;
-    by_status: Record<string, number>;
-    by_gender: Record<string, number>;
-    statistics?: {
-        total_members: number;
-        active_members: number;
-        inactive_members: number;
-        transferred_members: number;
-        deceased_members: number;
-        active_percentage: number;
-        new_this_month: number;
-        male_members: number;
-        female_members: number;
-    };
-}
-
-interface FilterOption {
-    value: string;
-    label: string;
-}
-
-interface FilterOptions {
-    local_churches?: string[];
-    church_groups?: FilterOption[];
-    membership_statuses?: FilterOption[];
-    genders?: FilterOption[];
-    age_groups?: FilterOption[];
-}
-
-interface Filters {
-    search?: string;
-    local_church?: string;
-    church_group?: string;
-    membership_status?: string;
-    gender?: string;
-    age_group?: string;
-    sort?: string;
-    direction?: string;
-    per_page?: number;
-}
-
-interface MembersIndexProps extends PageProps {
-    members: PaginatedMembers;
-    stats: Stats;
-    filters: Filters;
-    filterOptions: FilterOptions;
-}
 
 export default function MembersIndex({ 
     auth, 
@@ -194,576 +82,230 @@ export default function MembersIndex({
     filterOptions,
     flash 
 }: MembersIndexProps) {
+    // State management
     const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
     const [showFilters, setShowFilters] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
     const [isImporting, setIsImporting] = useState(false);
-    const [isExporting, setIsExporting] = useState(false);
-    const [importProgress, setImportProgress] = useState(0);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
-    const [searchQuery, setSearchQuery] = useState(filters.search || '');
-    
-    // Ref for search input to maintain focus
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Handle flash messages
-    useEffect(() => {
-        if (flash?.success) {
-            showNotification('Success', flash.success, 'success', 6000);
-        }
-        if (flash?.error) {
-            showNotification('Error', flash.error, 'error', 6000);
-        }
-    }, [flash]);
-
-    // Form for handling filters
-    const { data, setData, get, processing } = useForm({
-        search: filters.search || '',
-        local_church: filters.local_church || '',
-        church_group: filters.church_group || '',
-        membership_status: filters.membership_status || '',
-        gender: filters.gender || '',
-        age_group: filters.age_group || '',
-        sort: filters.sort || 'last_name',
-        direction: filters.direction || 'asc',
-        per_page: filters.per_page || 15,
-    });
-
-    // Safe access to data with fallbacks and better performance
-    const membersData = useMemo(() => members?.data || [], [members?.data]);
-    const currentPage = useMemo(() => members?.current_page || 1, [members?.current_page]);
-    const lastPage = useMemo(() => members?.last_page || 1, [members?.last_page]);
-    const total = useMemo(() => members?.total || 0, [members?.total]);
-    const from = useMemo(() => members?.from || 0, [members?.from]);
-    const to = useMemo(() => members?.to || 0, [members?.to]);
-
-    const safeStats = useMemo(() => {
-        // Ensure stats object exists and has proper fallbacks
-        const statsData = stats || {};
-        
-        return {
-            total_members: statsData.total_members || 0,
-            active_members: statsData.active_members || (statsData.by_status?.active || 0),
-            new_this_month: statsData.new_this_month || 0,
-            by_church: statsData.by_church || {},
-            by_group: statsData.by_group || {},
-            by_status: {
-                active: statsData.by_status?.active || 0,
-                inactive: statsData.by_status?.inactive || 0,
-                transferred: statsData.by_status?.transferred || 0,
-                deceased: statsData.by_status?.deceased || 0,
-                ...statsData.by_status,
-            },
-            by_gender: statsData.by_gender || {},
-            statistics: {
-                total_members: statsData.statistics?.total_members || statsData.total_members || 0,
-                active_members: statsData.statistics?.active_members || statsData.active_members || (statsData.by_status?.active || 0),
-                inactive_members: statsData.statistics?.inactive_members || (statsData.by_status?.inactive || 0),
-                transferred_members: statsData.statistics?.transferred_members || (statsData.by_status?.transferred || 0),
-                deceased_members: statsData.statistics?.deceased_members || (statsData.by_status?.deceased || 0),
-                active_percentage: statsData.statistics?.active_percentage || 0,
-                new_this_month: statsData.statistics?.new_this_month || statsData.new_this_month || 0,
-                male_members: statsData.statistics?.male_members || (statsData.by_gender?.MALE || statsData.by_gender?.male || statsData.by_gender?.Male || 0),
-                female_members: statsData.statistics?.female_members || (statsData.by_gender?.FEMALE || statsData.by_gender?.female || statsData.by_gender?.Female || 0),
-                ...statsData.statistics,
-            },
-        };
-    }, [stats]);
-
-    const safeFilterOptions = useMemo(() => ({
-        local_churches: filterOptions?.local_churches || [],
-        church_groups: filterOptions?.church_groups || [],
-        membership_statuses: filterOptions?.membership_statuses || [],
-        genders: filterOptions?.genders || [],
-        age_groups: filterOptions?.age_groups || [],
-    }), [filterOptions]);
-
-    // Create stable debounced search function - no dependencies to prevent re-creation
+    // Memoized debounced search function
     const debouncedSearch = useMemo(() => createDebouncedSearch(), []);
 
-    // Optimized search input handler - prevents focus loss
+    // Search handler
     const handleSearchChange = useCallback((value: string) => {
-        setSearchQuery(value);
-        
-        // Don't update form data immediately to prevent re-renders
-        // Only sync on actual search execution
-        
-        // Create current filters snapshot without dependencies
-        const currentFilters = {
-            local_church: filters.local_church || '',
-            church_group: filters.church_group || '',
-            membership_status: filters.membership_status || '',
-            gender: filters.gender || '',
-            age_group: filters.age_group || '',
-            sort: filters.sort || 'last_name',
-            direction: filters.direction || 'asc',
-            per_page: filters.per_page || 15,
-        };
-        
-        // Execute debounced search with minimal dependencies
-        debouncedSearch(value, currentFilters, get, setIsLoading);
-    }, [debouncedSearch, filters, get, setIsLoading]);
+        debouncedSearch(value, filters, setIsLoading);
+    }, [debouncedSearch, filters]);
 
-    // Enhanced search form submission - maintains focus and syncs state
-    const handleSearch = useCallback((e: React.FormEvent) => {
-        e.preventDefault();
-        
-        // Prevent multiple simultaneous searches
-        if (processing || isLoading) {
-            return;
-        }
-        
-        try {
-            // Sync form data with current search query
-            setData('search', searchQuery);
+    // Filter change handler
+    const handleFilterChange = useCallback((key: string) => {
+        return (e: React.ChangeEvent<HTMLSelectElement>) => {
+            const value = e.target.value;
+            const newFilters = { ...filters, [key]: value, page: 1 };
             
-            // Clean and validate search query
-            const cleanQuery = searchQuery.trim();
-            
-            const searchParams = {
-                search: cleanQuery,
-                local_church: filters.local_church || '',
-                church_group: filters.church_group || '',
-                membership_status: filters.membership_status || '',
-                gender: filters.gender || '',
-                age_group: filters.age_group || '',
-                sort: filters.sort || 'last_name',
-                direction: filters.direction || 'asc',
-                per_page: filters.per_page || 15,
-                page: 1 // Reset to first page
-            };
-            
-            // Filter out empty values
-            const filteredParams = Object.entries(searchParams)
-                .filter(([key, value]) => {
-                    if (value === null || value === undefined) return false;
-                    if (typeof value === 'string' && value.trim() === '') return false;
-                    return true;
-                })
-                .reduce((acc, [key, value]) => {
-                    acc[key] = String(value).trim();
+            // Clean empty values
+            const cleanParams = Object.entries(newFilters)
+                .filter(([_, val]) => val && val !== '')
+                .reduce((acc, [k, val]) => {
+                    acc[k] = String(val).trim();
                     return acc;
                 }, {} as Record<string, string>);
 
-            // Use router.get to prevent focus loss
-            router.get(route('members.index', filteredParams), undefined, {
-                preserveState: true,
+            router.get(route('members.index', cleanParams), undefined, {
                 preserveScroll: true,
+                preserveState: true,
                 only: ['members', 'stats'],
                 onStart: () => setIsLoading(true),
                 onFinish: () => setIsLoading(false),
-                onError: (errors: InertiaErrors) => {
-                    console.error('Search submission error:', errors);
-                    setIsLoading(false);
-                    showNotification('Search Error', 'Search failed. Please check your connection and try again.', 'error', 6000);
-                }
             });
-        } catch (error) {
-            console.error('Search submission error:', error);
-            setIsLoading(false);
-            showNotification('Search Error', 'An unexpected error occurred. Please try again.', 'error', 6000);
-        }
-    }, [searchQuery, filters, processing, isLoading, setData]);
-
-    // Enhanced filter changes - maintains search input focus
-    const handleFilterChange = useCallback((key: string, value: string) => {
-        // Prevent changes during loading
-        if (processing || isLoading) {
-            return;
-        }
-        
-        // Update form data for consistency
-        setData(key as keyof typeof data, value);
-        
-        // Build clean filter parameters using current state
-        const filterParams = {
-            search: searchQuery, // Use current search query
-            local_church: key === 'local_church' ? value : (filters.local_church || ''),
-            church_group: key === 'church_group' ? value : (filters.church_group || ''),
-            membership_status: key === 'membership_status' ? value : (filters.membership_status || ''),
-            gender: key === 'gender' ? value : (filters.gender || ''),
-            age_group: key === 'age_group' ? value : (filters.age_group || ''),
-            sort: key === 'sort' ? value : (filters.sort || 'last_name'),
-            direction: key === 'direction' ? value : (filters.direction || 'asc'),
-            per_page: key === 'per_page' ? value : (filters.per_page || 15),
-            page: 1 // Reset pagination on filter change
         };
-        
-        const cleanParams = Object.entries(filterParams)
-            .filter(([k, v]) => v !== null && v !== undefined && v !== '')
-            .reduce((acc, [k, v]) => ({ ...acc, [k]: String(v).trim() }), {});
-            
-        // Use router.get to prevent focus loss
-        router.get(route('members.index', cleanParams), undefined, {
+    }, [filters]);
+
+    // Clear filters
+    const handleClearFilters = useCallback(() => {
+        router.get(route('members.index'), undefined, {
             preserveScroll: true,
             preserveState: true,
             only: ['members', 'stats'],
             onStart: () => setIsLoading(true),
             onFinish: () => setIsLoading(false),
-            onError: (errors: InertiaErrors) => {
-                console.error('Filter change error:', errors);
-                setIsLoading(false);
-                showNotification('Filter Error', 'Failed to apply filter. Please try again.', 'error', 4000);
-            }
         });
-    }, [setData, filters, searchQuery, processing, isLoading]);
+    }, []);
 
-    // Handle sorting
-    const handleSort = useCallback((field: string) => {
-        const newDirection = data.sort === field && data.direction === 'asc' ? 'desc' : 'asc';
-        setData({
-            ...data,
-            sort: field,
-            direction: newDirection,
-        });
-        setIsLoading(true);
-        get(route('members.index'), {
-            preserveState: true,
+    // Refresh data
+    const handleRefresh = useCallback(() => {
+        router.reload({
+            only: ['members', 'stats'],
+            onStart: () => setIsLoading(true),
             onFinish: () => setIsLoading(false),
         });
-    }, [data, setData, get]);
+    }, []);
 
-    // Handle pagination
-    const handlePageChange = useCallback((page: number) => {
-        if (page >= 1 && page <= lastPage) {
-            setIsLoading(true);
-            get(route('members.index', { ...data, page }), {
-                onFinish: () => setIsLoading(false),
-            });
-        }
-    }, [data, lastPage, get]);
+    // Toggle filters panel
+    const handleToggleFilters = useCallback(() => {
+        setShowFilters(prev => !prev);
+    }, []);
 
-    // Handle member selection
-    const handleSelectMember = useCallback((memberId: number) => {
+    // Selection handlers
+    const handleToggleSelection = useCallback((id: number) => {
         setSelectedMembers(prev => 
-            prev.includes(memberId) 
-                ? prev.filter(id => id !== memberId)
-                : [...prev, memberId]
+            prev.includes(id) 
+                ? prev.filter(memberId => memberId !== id)
+                : [...prev, id]
         );
     }, []);
 
     const handleSelectAll = useCallback(() => {
-        if (selectedMembers.length === membersData.length && membersData.length > 0) {
+        if (selectedMembers.length === members.data.length) {
             setSelectedMembers([]);
         } else {
-            setSelectedMembers(membersData.map(member => member.id));
+            setSelectedMembers(members.data.map(member => member.id));
         }
-    }, [selectedMembers.length, membersData]);
+    }, [selectedMembers.length, members.data]);
 
-    // Clear filters with proper state reset
-    const clearFilters = useCallback(() => {
-        setSearchQuery('');
-        const resetData = {
-            search: '',
-            local_church: '',
-            church_group: '',
-            membership_status: '',
-            gender: '',
-            age_group: '',
-            sort: 'last_name',
-            direction: 'asc',
-            per_page: 15,
-        };
-        setData(resetData);
-        setIsLoading(true);
-        
-        // Build clean URL
-        const url = route('members.index') + '?' + new URLSearchParams({
-            sort: 'last_name',
-            direction: 'asc',
-            per_page: '15'
-        }).toString();
-        
-        get(url, {
-            preserveState: true,
-            onFinish: () => setIsLoading(false),
+    // Delete handlers
+    const handleDeleteMember = useCallback((member: Member) => {
+        setMemberToDelete(member);
+        setShowDeleteModal(true);
+    }, []);
+
+    const confirmDelete = useCallback(() => {
+        if (!memberToDelete) return;
+
+        setIsDeleting(true);
+        router.delete(route('members.destroy', memberToDelete.id), {
+            onSuccess: () => {
+                setShowDeleteModal(false);
+                setMemberToDelete(null);
+                if (typeof showNotification === 'function') {
+                    showNotification('Success', 'Member deleted successfully', 'success');
+                }
+            },
+            onError: () => {
+                if (typeof showNotification === 'function') {
+                    showNotification('Error', 'Failed to delete member', 'error');
+                }
+            },
+            onFinish: () => setIsDeleting(false)
         });
-    }, [setData, get, setIsLoading]);
+    }, [memberToDelete]);
 
-    // Export functionality
-    const handleExport = useCallback(async (format: 'csv' | 'excel' | 'pdf') => {
-        setIsExporting(true);
-        
+    // Status change handler
+    const handleStatusChange = useCallback(async (memberId: number, newStatus: string) => {
         try {
-            // Create clean parameters object
-            const exportParams = {
-                format,
-                search: filters?.search || '',
-                local_church: filters?.local_church || '',
-                church_group: filters?.church_group || '',
-                membership_status: filters?.membership_status || '',
-                gender: filters?.gender || '',
-                age_group: filters?.age_group || '',
-                // Use proper sort field names instead of the sort function
-                sort_by: filters?.sort || 'last_name',
-                sort_direction: filters?.direction || 'asc',
-                selected_members: selectedMembers.join(','),
-            };
-
-            // Build query string manually to ensure proper encoding
-            const queryString = Object.entries(exportParams)
-                .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-                .join('&');
-
-            const response = await fetch(`/members/export?${queryString}`, {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/octet-stream',
-                },
+            await new Promise((resolve, reject) => {
+                router.patch(route('members.update-status', memberId), 
+                    { membership_status: newStatus },
+                    {
+                        preserveState: true,
+                        preserveScroll: true,
+                        onSuccess: () => {
+                            if (typeof showNotification === 'function') {
+                                showNotification('Success', `Member status updated to ${newStatus} successfully`, 'success');
+                            }
+                            resolve(true);
+                        },
+                        onError: (errors) => {
+                            console.error('Status update errors:', errors);
+                            if (typeof showNotification === 'function') {
+                                showNotification('Error', 'Failed to update member status', 'error');
+                            }
+                            reject(errors);
+                        }
+                    }
+                );
             });
-
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `members_export_${new Date().toISOString().split('T')[0]}.${format}`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            } else {
-                const errorText = await response.text();
-                console.error('Export failed:', errorText);
-                throw new Error('Export failed');
-            }
         } catch (error) {
-            console.error('Export error:', error);
-            alert('Export failed. Please try again.');
-        } finally {
-            setIsExporting(false);
+            console.error('Status change error:', error);
+            throw error;
         }
-    }, [filters, selectedMembers]);
+    }, []);
 
-    // Import functionality
-    const handleImport = useCallback(async () => {
+    // Bulk delete handler
+    const handleBulkDelete = useCallback(() => {
+        if (selectedMembers.length === 0) return;
+        setShowBulkDeleteModal(true);
+    }, [selectedMembers.length]);
+
+    const confirmBulkDelete = useCallback(() => {
+        router.post(route('members.bulk-delete'), {
+            member_ids: selectedMembers
+        }, {
+            onSuccess: () => {
+                setSelectedMembers([]);
+                setShowBulkDeleteModal(false);
+                if (typeof showNotification === 'function') {
+                    showNotification('Success', `${selectedMembers.length} members deleted successfully`, 'success');
+                }
+            },
+            onError: () => {
+                if (typeof showNotification === 'function') {
+                    showNotification('Error', 'Failed to delete selected members', 'error');
+                }
+            }
+        });
+    }, [selectedMembers]);
+
+    // Export handlers
+    const handleExport = useCallback((format: 'excel' | 'pdf') => {
+        const exportParams = new URLSearchParams();
+        
+        // Add current filters to export
+        Object.entries(filters).forEach(([key, value]) => {
+            if (value && value !== '') {
+                exportParams.append(key, String(value));
+            }
+        });
+        
+        exportParams.append('format', format);
+        
+        const url = route('members.export') + '?' + exportParams.toString();
+        window.open(url, '_blank');
+    }, [filters]);
+
+    // Import handlers
+    const handleImport = useCallback(() => {
         if (!importFile) return;
-
-        setIsImporting(true);
-        setImportProgress(0);
 
         const formData = new FormData();
         formData.append('file', importFile);
 
-        try {
-            const response = await fetch(route('members.import'), {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                setImportProgress(100);
-                setTimeout(() => {
-                    setShowImportModal(false);
-                    setImportFile(null);
-                    setImportProgress(0);
-                    refreshData();
-                    showNotification('Import Success', `Successfully imported ${result.imported || 0} members!`, 'success', 6000);
-                }, 1000);
-            } else {
-                throw new Error(result.message || 'Import failed');
-            }
-        } catch (error) {
-            showNotification('Import Error', error instanceof Error ? error.message : 'Import failed. Please try again.', 'error', 6000);
-        } finally {
-            setIsImporting(false);
-        }
+        setIsImporting(true);
+        
+        router.post(route('members.import'), formData, {
+            onSuccess: () => {
+                setShowImportModal(false);
+                setImportFile(null);
+                if (typeof showNotification === 'function') {
+                    showNotification('Success', 'Members imported successfully', 'success');
+                }
+            },
+            onError: (errors) => {
+                console.error('Import errors:', errors);
+                if (typeof showNotification === 'function') {
+                    showNotification('Error', 'Failed to import members', 'error');
+                }
+            },
+            onFinish: () => setIsImporting(false)
+        });
     }, [importFile]);
 
-    // Handle status change with immediate stats update
-    const handleStatusChange = useCallback(async (memberId: number, newStatus: string) => {
-        // Optimistically update UI
-        const updatedMembers = membersData.map(member => 
-            member.id === memberId 
-                ? { ...member, membership_status: newStatus }
-                : member
-        );
-
-        try {
-            const response = await fetch(route('members.update-status', memberId), {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify({
-                    membership_status: newStatus
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                // Show success message
-                showNotification('Status Update', result.message, 'success', 6000);
-
-                // Force immediate refresh of both members and stats data
-                router.reload({ 
-                    only: ['members', 'stats'],
-                    onSuccess: () => {
-                        // Additional stats refresh to ensure accuracy
-                        refreshStats();
-                    }
-                });
-            } else {
-                throw new Error(result.message || 'Failed to update status');
-            }
-        } catch (error) {
-            // Revert optimistic update on error
-            showNotification('Status Update Error', error instanceof Error ? error.message : 'Failed to update member status', 'error', 6000);
-            
-            // Force refresh to revert any optimistic changes
-            router.reload({ only: ['members', 'stats'] });
-        }
-    }, [membersData]);
-
-    // Create stable status change handler to prevent re-renders
-    const createStatusChangeHandler = useCallback((member: Member) => {
-        return (e: React.ChangeEvent<HTMLSelectElement>) => {
-            const newStatus = e.target.value;
-            if (newStatus !== member.membership_status) {
-                if (confirm(`Change ${member.full_name}'s status to ${newStatus}?`)) {
-                    handleStatusChange(member.id, newStatus);
-                } else {
-                    // Reset the select to original value
-                    e.target.value = member.membership_status;
-                }
-            }
-        };
-    }, [handleStatusChange]);
-
-    // Enhanced refresh stats function for real-time updates
-    const refreshStats = useCallback(async () => {
-        try {
-            const response = await fetch(route('members.stats.live'), {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                }
-            });
-            const result = await response.json();
-            
-            if (result.success) {
-                // Update stats in the current page props through router reload
-                router.reload({ 
-                    only: ['stats']
-                });
-            }
-        } catch (error) {
-            console.error('Failed to refresh stats:', error);
-        }
-    }, []);
-
-    // Auto-refresh stats every 30 seconds for real-time updates
+    // Show flash messages
     useEffect(() => {
-        const interval = setInterval(refreshStats, 30000);
-        return () => clearInterval(interval);
-    }, [refreshStats]);
-
-    // Delete member
-    const handleDeleteMember = useCallback((member: Member) => {
-        router.delete(route('members.destroy', member.id), {
-            onSuccess: () => {
-                setShowDeleteModal(false);
-                setMemberToDelete(null);
-                showNotification('Delete Success', 'Member deleted successfully!', 'success', 6000);
-            },
-            onError: () => {
-                showNotification('Delete Error', 'Failed to delete member. Please try again.', 'error', 6000);
-            }
-        });
-    }, []);
-
-    // Bulk delete
-    const handleBulkDelete = useCallback(() => {
-        if (selectedMembers.length === 0) return;
-
-        if (!confirm(`Are you sure you want to delete ${selectedMembers.length} selected members?`)) {
-            return;
+        if (flash?.success && typeof showNotification === 'function') {
+            showNotification('Success', flash.success, 'success');
         }
-
-        router.post(route('members.bulk-delete'), 
-            { member_ids: selectedMembers },
-            {
-                onSuccess: () => {
-                    setSelectedMembers([]);
-                    showNotification('Bulk Delete Success', `Successfully deleted ${selectedMembers.length} members!`, 'success', 6000);
-                },
-                onError: () => {
-                    showNotification('Bulk Delete Error', 'Failed to delete selected members. Please try again.', 'error', 6000);
-                }
-            }
-        );
-    }, [selectedMembers]);
-
-    // Utility functions
-    const getStatusBadgeColor = useCallback((status: string) => {
-        switch (status) {
-            case 'active': return 'bg-green-100 text-green-800 border-green-200';
-            case 'inactive': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-            case 'transferred': return 'bg-blue-100 text-blue-800 border-blue-200';
-            case 'deceased': return 'bg-gray-100 text-gray-800 border-gray-200';
-            default: return 'bg-gray-100 text-gray-800 border-gray-200';
+        if (flash?.error && typeof showNotification === 'function') {
+            showNotification('Error', flash.error, 'error');
         }
-    }, []);
-
-    const getGroupBadgeColor = useCallback((group: string) => {
-        switch (group) {
-            case 'PMC': return 'bg-purple-100 text-purple-800 border-purple-200';
-            case 'Youth': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-            case 'Young Parents': return 'bg-pink-100 text-pink-800 border-pink-200';
-            case 'C.W.A': return 'bg-rose-100 text-rose-800 border-rose-200';
-            case 'CMA': return 'bg-orange-100 text-orange-800 border-orange-200';
-            case 'Choir': return 'bg-teal-100 text-teal-800 border-teal-200';
-            default: return 'bg-gray-100 text-gray-800 border-gray-200';
-        }
-    }, []);
-
-    // Refresh data
-    const refreshData = useCallback(() => {
-        setIsLoading(true);
-        router.reload({
-            onFinish: () => setIsLoading(false),
-        });
-    }, []);
-
-    // Download import template
-    const downloadTemplate = useCallback(async () => {
-        try {
-            const response = await fetch(route('members.import-template'), {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
-
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'members_import_template.csv';
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            }
-        } catch (error) {
-            console.error('Failed to download template:', error);
-        }
-    }, []);
+    }, [flash]);
 
     return (
         <AuthenticatedLayout
@@ -774,31 +316,55 @@ export default function MembersIndex({
                             Parish Members
                         </h2>
                         <p className="text-sm text-gray-600 mt-1">
-                            Manage and view all parish members ({total.toLocaleString()} total)
+                            Manage and organize parish member information
                         </p>
                     </div>
                     <div className="flex items-center space-x-3">
+                        {/* Bulk Actions */}
+                        {selectedMembers.length > 0 && (
+                            <div className="flex items-center space-x-2">
+                                <span className="text-sm text-gray-600">
+                                    {selectedMembers.length} selected
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={handleBulkDelete}
+                                    className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Delete Selected
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Export Dropdown */}
+                        <div className="relative inline-block text-left">
+                            <button
+                                type="button"
+                                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                onClick={() => handleExport('excel')}
+                            >
+                                <Download className="h-4 w-4 mr-2" />
+                                Export
+                            </button>
+                        </div>
+
+                        {/* Import Button */}
                         <button
-                            onClick={refreshStats}
-                            className="inline-flex items-center px-3 py-2 border border-green-300 rounded-lg text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 transition-colors"
-                            title="Refresh Statistics"
+                            type="button"
+                            onClick={() => setShowImportModal(true)}
+                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            Refresh Stats
+                            <Upload className="h-4 w-4 mr-2" />
+                            Import
                         </button>
-                        <button
-                            onClick={refreshData}
-                            disabled={isLoading}
-                            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                        >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                            Refresh Data
-                        </button>
+
+                        {/* Add Member Button */}
                         <Link
                             href={route('members.create')}
-                            className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 transition-colors"
+                            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
-                            <Plus className="w-4 h-4 mr-2" />
+                            <Plus className="h-4 w-4 mr-2" />
                             Add Member
                         </Link>
                     </div>
@@ -807,998 +373,126 @@ export default function MembersIndex({
         >
             <Head title="Members" />
 
-            <div className="py-8">
+            <div className="py-12">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                    {/* Enhanced Statistics Cards with Status Breakdown */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
-                            <div className="p-6">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <Users className="h-8 w-8 text-blue-600" />
-                                    </div>
-                                    <div className="ml-5 w-0 flex-1">
-                                        <dl>
-                                            <dt className="text-sm font-medium text-gray-500 truncate">
-                                                Total Members
-                                            </dt>
-                                            <dd className="text-2xl font-bold text-gray-900">
-                                                {safeStats.total_members.toLocaleString()}
-                                            </dd>
-                                        </dl>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    {/* Statistics Cards */}
+                    <MembersStats stats={stats} isLoading={isLoading} />
 
-                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
-                            <div className="p-6">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <UserCheck className="h-8 w-8 text-green-600" />
-                                    </div>
-                                    <div className="ml-5 w-0 flex-1">
-                                        <dl>
-                                            <dt className="text-sm font-medium text-gray-500 truncate">
-                                                Active Members
-                                            </dt>
-                                            <dd className="text-2xl font-bold text-gray-900">
-                                                {(safeStats.by_status?.active || safeStats.active_members || 0).toLocaleString()}
-                                            </dd>
-                                            <dd className="text-xs text-green-600 font-medium">
-                                                {safeStats.total_members > 0 
-                                                    ? `${Math.round(((safeStats.by_status?.active || safeStats.active_members || 0) / safeStats.total_members) * 100)}% active` 
-                                                    : '0% active'
-                                                }
-                                            </dd>
-                                        </dl>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    {/* Search and Filters */}
+                    <MembersSearchAndFilters
+                        filters={filters}
+                        filterOptions={filterOptions}
+                        showFilters={showFilters}
+                        isLoading={isLoading}
+                        searchInputRef={searchInputRef}
+                        onSearchChange={handleSearchChange}
+                        onFilterChange={handleFilterChange}
+                        onToggleFilters={handleToggleFilters}
+                        onClearFilters={handleClearFilters}
+                        onRefresh={handleRefresh}
+                    />
 
-                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
-                            <div className="p-6">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <Users className="h-8 w-8 text-yellow-600" />
-                                    </div>
-                                    <div className="ml-5 w-0 flex-1">
-                                        <dl>
-                                            <dt className="text-sm font-medium text-gray-500 truncate">
-                                                Inactive Members
-                                            </dt>
-                                            <dd className="text-2xl font-bold text-gray-900">
-                                                {(safeStats.by_status?.inactive || 0).toLocaleString()}
-                                            </dd>
-                                        </dl>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
-                            <div className="p-6">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <Users className="h-8 w-8 text-blue-600" />
-                                    </div>
-                                    <div className="ml-5 w-0 flex-1">
-                                        <dl>
-                                            <dt className="text-sm font-medium text-gray-500 truncate">
-                                                Transferred
-                                            </dt>
-                                            <dd className="text-2xl font-bold text-gray-900">
-                                                {(safeStats.by_status?.transferred || 0).toLocaleString()}
-                                            </dd>
-                                        </dl>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
-                            <div className="p-6">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <Users className="h-8 w-8 text-gray-600" />
-                                    </div>
-                                    <div className="ml-5 w-0 flex-1">
-                                        <dl>
-                                            <dt className="text-sm font-medium text-gray-500 truncate">
-                                                Deceased
-                                            </dt>
-                                            <dd className="text-2xl font-bold text-gray-900">
-                                                {(safeStats.by_status?.deceased || 0).toLocaleString()}
-                                            </dd>
-                                        </dl>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Church Groups and Churches Statistics */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                        {/* Church Groups Stats */}
-                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
-                            <div className="p-6">
-                                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                                    <Calendar className="h-5 w-5 text-orange-600 mr-2" />
-                                    Church Groups ({Object.keys(safeStats.by_group).length})
-                                </h3>
-                                <div className="space-y-3">
-                                    {Object.entries(safeStats.by_group)
-                                        .sort(([,a], [,b]) => (b as number) - (a as number))
-                                        .map(([group, count]) => (
-                                        <div key={group} className="flex items-center justify-between">
-                                            <div className="flex items-center">
-                                                <span className={`inline-flex px-2 py-1 text-xs rounded-full border ${getGroupBadgeColor(group)}`}>
-                                                    {group}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <span className="text-sm font-medium text-gray-900">
-                                                    {(count as number).toLocaleString()}
-                                                </span>
-                                                <div className="w-16 bg-gray-200 rounded-full h-2">
-                                                    <div 
-                                                        className="bg-orange-600 h-2 rounded-full" 
-                                                        style={{ 
-                                                            width: `${safeStats.total_members > 0 ? ((count as number) / safeStats.total_members) * 100 : 0}%` 
-                                                        }}
-                                                    ></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Local Churches Stats */}
-                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
-                            <div className="p-6">
-                                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                                    <MapPin className="h-5 w-5 text-indigo-600 mr-2" />
-                                    Local Churches ({Object.keys(safeStats.by_church).length})
-                                </h3>
-                                <div className="space-y-3">
-                                    {Object.entries(safeStats.by_church)
-                                        .sort(([,a], [,b]) => (b as number) - (a as number))
-                                        .map(([church, count]) => (
-                                        <div key={church} className="flex items-center justify-between">
-                                            <div className="flex items-center">
-                                                <span className="text-sm text-gray-700 truncate max-w-[200px]" title={church}>
-                                                    {church}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <span className="text-sm font-medium text-gray-900">
-                                                    {(count as number).toLocaleString()}
-                                                </span>
-                                                <div className="w-16 bg-gray-200 rounded-full h-2">
-                                                    <div 
-                                                        className="bg-indigo-600 h-2 rounded-full" 
-                                                        style={{ 
-                                                            width: `${safeStats.total_members > 0 ? ((count as number) / safeStats.total_members) * 100 : 0}%` 
-                                                        }}
-                                                    ></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Additional Quick Stats Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
-                            <div className="p-6">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <UserPlus className="h-8 w-8 text-purple-600" />
-                                    </div>
-                                    <div className="ml-5 w-0 flex-1">
-                                        <dl>
-                                            <dt className="text-sm font-medium text-gray-500 truncate">
-                                                New This Month
-                                            </dt>
-                                            <dd className="text-2xl font-bold text-gray-900">
-                                                {safeStats.new_this_month.toLocaleString()}
-                                            </dd>
-                                        </dl>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
-                            <div className="p-6">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <Calendar className="h-8 w-8 text-orange-600" />
-                                    </div>
-                                    <div className="ml-5 w-0 flex-1">
-                                        <dl>
-                                            <dt className="text-sm font-medium text-gray-500 truncate">
-                                                Church Groups
-                                            </dt>
-                                            <dd className="text-2xl font-bold text-gray-900">
-                                                {Object.keys(safeStats.by_group).length}
-                                            </dd>
-                                            <dd className="text-xs text-orange-600 font-medium">
-                                                Active groups
-                                            </dd>
-                                        </dl>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
-                            <div className="p-6">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <Users className="h-8 w-8 text-indigo-600" />
-                                    </div>
-                                    <div className="ml-5 w-0 flex-1">
-                                        <dl>
-                                            <dt className="text-sm font-medium text-gray-500 truncate">
-                                                Churches
-                                            </dt>
-                                            <dd className="text-2xl font-bold text-gray-900">
-                                                {Object.keys(safeStats.by_church).length}
-                                            </dd>
-                                            <dd className="text-xs text-indigo-600 font-medium">
-                                                Local churches
-                                            </dd>
-                                        </dl>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Main Content */}
-                    <div className="bg-white shadow-sm rounded-lg border border-gray-200">
-                        {/* Search and Filters */}
-                        <div className="p-6 border-b border-gray-200 bg-gray-50">
-                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-                                {/* Enhanced Search */}
-                                <div className="flex-1 max-w-lg">
-                                    <form onSubmit={handleSearch} className="flex">
-                                        <div className="relative flex-grow">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <Search className={`h-5 w-5 transition-colors duration-200 ${
-                                                    isLoading ? 'text-blue-500 animate-pulse' : 'text-gray-400'
-                                                }`} />
-                                            </div>
-                                            <input
-                                                ref={searchInputRef}
-                                                type="text"
-                                                value={searchQuery}
-                                                onChange={(e) => handleSearchChange(e.target.value)}
-                                                placeholder="Search by name, phone, email, ID number..."
-                                                className={`block w-full pl-10 pr-10 py-2 border rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ${
-                                                    isLoading 
-                                                        ? 'border-blue-300 bg-blue-50' 
-                                                        : 'border-gray-300 bg-white hover:border-gray-400'
-                                                }`}
-                                                autoComplete="off"
-                                                disabled={processing}
-                                                maxLength={255}
-                                                aria-label="Search members"
-                                                spellCheck={false}
-                                            />
-                                            {/* Search status indicator */}
-                                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                                                {isLoading ? (
-                                                    <div className="flex items-center space-x-1">
-                                                        <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
-                                                        <span className="text-xs text-blue-600 font-medium">Searching...</span>
-                                                    </div>
-                                                ) : searchQuery && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSearchQuery('');
-                                                            // Clear search immediately using router
-                                                            const currentFilters = {
-                                                                local_church: filters.local_church || '',
-                                                                church_group: filters.church_group || '',
-                                                                membership_status: filters.membership_status || '',
-                                                                gender: filters.gender || '',
-                                                                age_group: filters.age_group || '',
-                                                                sort: filters.sort || 'last_name',
-                                                                direction: filters.direction || 'asc',
-                                                                per_page: filters.per_page || 15,
-                                                            };
-                                                            const cleanParams = Object.entries(currentFilters)
-                                                                .filter(([k, v]) => v !== null && v !== undefined && v !== '')
-                                                                .reduce((acc, [k, v]) => ({ ...acc, [k]: String(v).trim() }), {});
-                                                            router.get(route('members.index', cleanParams), undefined, {
-                                                                preserveState: true,
-                                                                preserveScroll: true,
-                                                                only: ['members', 'stats']
-                                                            });
-                                                        }}
-                                                        className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded"
-                                                        title="Clear search"
-                                                    >
-                                                        <X className="h-4 w-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <button
-                                            type="submit"
-                                            disabled={processing || isLoading}
-                                            className={`px-6 py-2 text-white rounded-r-lg font-medium transition-all duration-200 flex items-center min-w-[100px] justify-center ${
-                                                processing || isLoading 
-                                                    ? 'bg-blue-400 cursor-not-allowed' 
-                                                    : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm hover:shadow-md'
-                                            }`}
-                                            title={isLoading ? 'Searching...' : 'Search members'}
-                                        >
-                                            {isLoading ? (
-                                                <>
-                                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                                    <span className="text-sm">Searching</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Search className="w-4 h-4 mr-2" />
-                                                    <span className="text-sm font-medium">Search</span>
-                                                </>
-                                            )}
-                                        </button>
-                                    </form>
-                                </div>
-
-                                {/* Action Buttons */}
-                                <div className="flex items-center space-x-3">
-                                    <button
-                                        onClick={() => setShowFilters(!showFilters)}
-                                        className={`inline-flex items-center px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${
-                                            showFilters 
-                                                ? 'border-blue-500 text-blue-700 bg-blue-50' 
-                                                : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
-                                        }`}
-                                    >
-                                        <Filter className="w-4 h-4 mr-2" />
-                                        Filters
-                                        {Object.values(data).some(val => val && val !== 'last_name' && val !== 'asc' && val !== 15) && (
-                                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                Active
-                                            </span>
-                                        )}
-                                    </button>
-                                    
-                                    {/* Export Dropdown */}
-                                    <div className="relative group">
-                                        <button
-                                            disabled={isExporting}
-                                            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                                        >
-                                            {isExporting ? (
-                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            ) : (
-                                                <Download className="w-4 h-4 mr-2" />
-                                            )}
-                                            Export
-                                        </button>
-                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-                                            <div className="py-1">
-                                                <button
-                                                    onClick={() => handleExport('csv')}
-                                                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                                                >
-                                                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                                                    Export as CSV
-                                                </button>
-                                                <button
-                                                    onClick={() => handleExport('excel')}
-                                                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                                                >
-                                                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                                                    Export as Excel
-                                                </button>
-                                                <button
-                                                    onClick={() => handleExport('pdf')}
-                                                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                                                >
-                                                    <FileText className="w-4 h-4 mr-2" />
-                                                    Export as PDF
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        onClick={() => setShowImportModal(true)}
-                                        className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                                    >
-                                        <Upload className="w-4 h-4 mr-2" />
-                                        Import
-                                    </button>
-
+                    {/* Selection Bar */}
+                    {members.data.length > 0 && (
+                        <div className="bg-white rounded-lg shadow p-4 mb-6">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-4">
+                                    <label className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedMembers.length === members.data.length && members.data.length > 0}
+                                            onChange={handleSelectAll}
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                        />
+                                        <span className="ml-2 text-sm text-gray-700">
+                                            Select all ({members.data.length})
+                                        </span>
+                                    </label>
                                     {selectedMembers.length > 0 && (
-                                        <button
-                                            onClick={handleBulkDelete}
-                                            className="inline-flex items-center px-3 py-2 border border-red-300 rounded-lg text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4 mr-2" />
-                                            Delete ({selectedMembers.length})
-                                        </button>
+                                        <span className="text-sm text-gray-500">
+                                            {selectedMembers.length} of {members.data.length} selected
+                                        </span>
                                     )}
                                 </div>
+                                {selectedMembers.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedMembers([])}
+                                        className="text-sm text-gray-500 hover:text-gray-700"
+                                    >
+                                        Clear selection
+                                    </button>
+                                )}
                             </div>
-
-                            {/* Enhanced Filters Panel */}
-                            {showFilters && (
-                                <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Local Church
-                                            </label>
-                                            <select
-                                                value={data.local_church}
-                                                onChange={(e) => handleFilterChange('local_church', e.target.value)}
-                                                className="w-full border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                            >
-                                                <option value="">All Churches</option>
-                                                {safeFilterOptions.local_churches.map(church => (
-                                                    <option key={church} value={church}>
-                                                        {church}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Church Group
-                                            </label>
-                                            <select
-                                                value={data.church_group}
-                                                onChange={(e) => handleFilterChange('church_group', e.target.value)}
-                                                className="w-full border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                            >
-                                                <option value="">All Groups</option>
-                                                {safeFilterOptions.church_groups.map(group => (
-                                                    <option key={group.value} value={group.value}>
-                                                        {group.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Membership Status
-                                            </label>
-                                            <select
-                                                value={data.membership_status}
-                                                onChange={(e) => handleFilterChange('membership_status', e.target.value)}
-                                                className="w-full border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                            >
-                                                <option value="">All Statuses</option>
-                                                {safeFilterOptions.membership_statuses.map(status => (
-                                                    <option key={status.value} value={status.value}>
-                                                        {status.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Gender
-                                            </label>
-                                            <select
-                                                value={data.gender}
-                                                onChange={(e) => handleFilterChange('gender', e.target.value)}
-                                                className="w-full border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                            >
-                                                <option value="">All Genders</option>
-                                                {safeFilterOptions.genders.map(gender => (
-                                                    <option key={gender.value} value={gender.value}>
-                                                        {gender.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-4 flex justify-between items-center">
-                                        <div className="text-sm text-gray-500">
-                                            {Object.values(data).some(val => val && val !== 'last_name' && val !== 'asc' && val !== 15) && 
-                                                'Filters applied - showing filtered results'
-                                            }
-                                        </div>
-                                        <button
-                                            onClick={clearFilters}
-                                            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                                        >
-                                            Clear All Filters
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
                         </div>
+                    )}
 
-                        {/* Enhanced Results Summary with Search Context */}
-                        {(searchQuery || Object.values(data).some(val => val && val !== 'last_name' && val !== 'asc' && val !== 15)) && (
-                            <div className={`px-6 py-4 border-b transition-all duration-200 ${
-                                isLoading 
-                                    ? 'bg-blue-50 border-blue-200 animate-pulse' 
-                                    : 'bg-gray-50 border-gray-200'
-                            }`}>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-3">
-                                        <div className="flex items-center text-sm text-gray-700">
-                                            {isLoading ? (
-                                                <>
-                                                    <Loader2 className="w-4 h-4 mr-2 text-blue-500 animate-spin" />
-                                                    <span className="text-blue-700 font-medium">Searching...</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Info className="w-4 h-4 mr-2 text-gray-500" />
-                                                    <span className="font-medium">
-                                                        {searchQuery && `"${searchQuery}" • `}
-                                                        Showing {from.toLocaleString()} to {to.toLocaleString()} of {total.toLocaleString()} results
-                                                    </span>
-                                                </>
-                                            )}
-                                        </div>
-                                        
-                                        {/* Search performance indicator */}
-                                        {!isLoading && total > 0 && (
-                                            <div className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                                                ⚡ Found in real-time
-                                            </div>
-                                        )}
-                                    </div>
-                                    
-                                    <div className="flex items-center space-x-3">
-                                        {selectedMembers.length > 0 && (
-                                            <span className="text-sm text-blue-600 font-medium bg-blue-100 px-3 py-1 rounded-full">
-                                                {selectedMembers.length} selected
-                                            </span>
-                                        )}
-                                        
-                                        {/* Quick clear search button */}
-                                        {searchQuery && !isLoading && (
-                                            <button
-                                                onClick={() => {
-                                                    setSearchQuery('');
-                                                    const currentFilters = {
-                                                        local_church: filters.local_church || '',
-                                                        church_group: filters.church_group || '',
-                                                        membership_status: filters.membership_status || '',
-                                                        gender: filters.gender || '',
-                                                        age_group: filters.age_group || '',
-                                                        sort: filters.sort || 'last_name',
-                                                        direction: filters.direction || 'asc',
-                                                        per_page: filters.per_page || 15,
-                                                    };
-                                                    const cleanParams = Object.entries(currentFilters)
-                                                        .filter(([k, v]) => v !== null && v !== undefined && v !== '')
-                                                        .reduce((acc, [k, v]) => ({ ...acc, [k]: String(v).trim() }), {});
-                                                    router.get(route('members.index', cleanParams), undefined, {
-                                                        preserveState: true,
-                                                        preserveScroll: true,
-                                                        only: ['members', 'stats']
-                                                    });
-                                                }}
-                                                className="text-xs text-gray-500 hover:text-gray-700 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded transition-colors"
-                                            >
-                                                Clear search
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Enhanced Members Table */}
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedMembers.length === membersData.length && membersData.length > 0}
-                                                onChange={handleSelectAll}
-                                                className="rounded border-gray-300 focus:ring-blue-500"
-                                            />
-                                        </th>
-                                        <th 
-                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                                            onClick={() => handleSort('last_name')}
-                                        >
-                                            <div className="flex items-center">
-                                                Name
-                                                {data.sort === 'last_name' && (
-                                                    <span className="ml-1">
-                                                        {data.direction === 'asc' ? '↑' : '↓'}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Contact & Location
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Church Info
-                                        </th>
-                                        <th 
-                                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                                            onClick={() => handleSort('membership_date')}
-                                        >
-                                            <div className="flex items-center">
-                                                Membership
-                                                {data.sort === 'membership_date' && (
-                                                    <span className="ml-1">
-                                                        {data.direction === 'asc' ? '↑' : '↓'}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Status
-                                        </th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Actions
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {membersData.length > 0 ? (
-                                        membersData.map((member) => (
-                                            <tr key={member.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-4">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedMembers.includes(member.id)}
-                                                        onChange={() => handleSelectMember(member.id)}
-                                                        className="rounded border-gray-300 focus:ring-blue-500"
-                                                    />
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div>
-                                                        <div className="text-sm font-medium text-gray-900">
-                                                            {member.full_name}
-                                                        </div>
-                                                        <div className="text-sm text-gray-500">
-                                                            Age: {member.age} • {member.gender}
-                                                            {member.id_number && (
-                                                                <span className="ml-2">ID: {member.id_number}</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="space-y-1">
-                                                        {member.phone && (
-                                                            <div className="flex items-center text-sm text-gray-600">
-                                                                <Phone className="w-3 h-3 mr-1 flex-shrink-0" />
-                                                                <a href={`tel:${member.phone}`} className="hover:text-blue-600 transition-colors">
-                                                                    {member.phone}
-                                                                </a>
-                                                            </div>
-                                                        )}
-                                                        {member.email && (
-                                                            <div className="flex items-center text-sm text-gray-600">
-                                                                <Mail className="w-3 h-3 mr-1 flex-shrink-0" />
-                                                                <a href={`mailto:${member.email}`} className="hover:text-blue-600 transition-colors">
-                                                                    {member.email}
-                                                                </a>
-                                                            </div>
-                                                        )}
-                                                        {member.residence && (
-                                                            <div className="flex items-center text-sm text-gray-500">
-                                                                <MapPin className="w-3 h-3 mr-1 flex-shrink-0" />
-                                                                <span className="truncate">{member.residence}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="space-y-2">
-                                                        <div className="flex items-center text-sm text-gray-600">
-                                                            <MapPin className="w-3 h-3 mr-1 flex-shrink-0" />
-                                                            {member.local_church}
-                                                        </div>
-                                                        <span className={`inline-flex px-2 py-1 text-xs rounded-full border ${getGroupBadgeColor(member.church_group)}`}>
-                                                            {member.church_group}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="text-sm text-gray-900">
-                                                        {new Date(member.membership_date).toLocaleDateString()}
-                                                    </div>
-                                                    {member.family && (
-                                                        <div className="text-sm text-gray-500">
-                                                            Family: {member.family.family_name}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`inline-flex px-2 py-1 text-xs rounded-full border ${getStatusBadgeColor(member.membership_status)}`}>
-                                                        {member.membership_status}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex items-center justify-end space-x-2">
-                                                        {/* Enhanced Status Change Dropdown */}
-                                                        <div className="relative">
-                                                            <select
-                                                                value={member.membership_status}
-                                                                onChange={createStatusChangeHandler(member)}
-                                                                className={`text-xs px-3 py-2 rounded-lg border-2 font-medium transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer hover:shadow-md ${
-                                                                    member.membership_status === 'active' ? 'border-green-300 bg-green-50 text-green-700' :
-                                                                    member.membership_status === 'inactive' ? 'border-yellow-300 bg-yellow-50 text-yellow-700' :
-                                                                    member.membership_status === 'transferred' ? 'border-blue-300 bg-blue-50 text-blue-700' :
-                                                                    'border-gray-300 bg-gray-50 text-gray-700'
-                                                                }`}
-                                                                title={`Current status: ${member.membership_status}. Click to change.`}
-                                                            >
-                                                                <option value="active">✅ Active</option>
-                                                                <option value="inactive">⏸️ Inactive</option>
-                                                                <option value="transferred">📋 Transferred</option>
-                                                                <option value="deceased">🕊️ Deceased</option>
-                                                            </select>
-                                                        </div>
-                                                        
-                                                        <Link
-                                                            href={route('members.show', member.id)}
-                                                            className="text-blue-600 hover:text-blue-900 transition-colors p-2 rounded hover:bg-blue-50"
-                                                            title="View Member Details"
-                                                        >
-                                                            <Eye className="w-4 h-4" />
-                                                        </Link>
-                                                        <Link
-                                                            href={route('members.edit', member.id)}
-                                                            className="text-indigo-600 hover:text-indigo-900 transition-colors p-2 rounded hover:bg-indigo-50"
-                                                            title="Edit Member Information"
-                                                        >
-                                                            <Edit className="w-4 h-4" />
-                                                        </Link>
-                                                        <button 
-                                                            onClick={() => {
-                                                                setMemberToDelete(member);
-                                                                setShowDeleteModal(true);
-                                                            }}
-                                                            className="text-red-600 hover:text-red-900 transition-colors p-2 rounded hover:bg-red-50"
-                                                            title="Delete Member"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={7} className="px-6 py-12 text-center">
-                                                <div className="flex flex-col items-center justify-center">
-                                                    <Users className="w-16 h-16 text-gray-400 mb-4" />
-                                                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                                                        {searchQuery || Object.values(data).some(val => val && val !== 'last_name' && val !== 'asc' && val !== 15)
-                                                            ? 'No members found'
-                                                            : 'No members yet'
-                                                        }
-                                                    </h3>
-                                                    <p className="text-sm text-gray-500 mb-6 max-w-sm">
-                                                        {searchQuery || Object.values(data).some(val => val && val !== 'last_name' && val !== 'asc' && val !== 15)
-                                                            ? 'Try adjusting your search criteria or filters to find different results'
-                                                            : 'Get started by adding your first parish member to the system'
-                                                        }
-                                                    </p>
-                                                    {(!searchQuery && !Object.values(data).some(val => val && val !== 'last_name' && val !== 'asc' && val !== 15)) && (
-                                                        <Link
-                                                            href={route('members.create')}
-                                                            className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 transition-colors"
-                                                        >
-                                                            <Plus className="w-4 h-4 mr-2" />
-                                                            Add Your First Member
-                                                        </Link>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Enhanced Pagination */}
-                        {total > 0 && (
-                            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-                                <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-                                    <div className="flex items-center space-x-4">
-                                        <div className="text-sm text-gray-700">
-                                            Showing <span className="font-medium">{from.toLocaleString()}</span> to{' '}
-                                            <span className="font-medium">{to.toLocaleString()}</span> of{' '}
-                                            <span className="font-medium">{total.toLocaleString()}</span> results
-                                        </div>
-                                        
-                                        <div className="flex items-center space-x-2">
-                                            <span className="text-sm text-gray-700">Show:</span>
-                                            <select
-                                                value={data.per_page}
-                                                onChange={(e) => handleFilterChange('per_page', e.target.value)}
-                                                className="border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
-                                            >
-                                                <option value="10">10</option>
-                                                <option value="15">15</option>
-                                                <option value="25">25</option>
-                                                <option value="50">50</option>
-                                                <option value="100">100</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    {/* Pagination controls */}
-                                    <div className="flex items-center space-x-1">
-                                        <button
-                                            onClick={() => handlePageChange(1)}
-                                            disabled={currentPage === 1 || isLoading}
-                                            className="p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                            title="First page"
-                                        >
-                                            <ChevronsLeft className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handlePageChange(currentPage - 1)}
-                                            disabled={currentPage === 1 || isLoading}
-                                            className="p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                            title="Previous page"
-                                        >
-                                            <ChevronLeft className="w-4 h-4" />
-                                        </button>
-                                        
-                                        <div className="flex items-center space-x-1">
-                                            {Array.from({ length: Math.min(5, lastPage) }, (_, i) => {
-                                                let pageNum;
-                                                if (lastPage <= 5) {
-                                                    pageNum = i + 1;
-                                                } else if (currentPage <= 3) {
-                                                    pageNum = i + 1;
-                                                } else if (currentPage >= lastPage - 2) {
-                                                    pageNum = lastPage - 4 + i;
-                                                } else {
-                                                    pageNum = currentPage - 2 + i;
-                                                }
-                                                
-                                                return (
-                                                    <button
-                                                        key={pageNum}
-                                                        onClick={() => handlePageChange(pageNum)}
-                                                        disabled={isLoading}
-                                                        className={`px-3 py-2 text-sm font-medium rounded transition-colors ${
-                                                            pageNum === currentPage
-                                                                ? 'bg-blue-600 text-white'
-                                                                : 'text-gray-700 hover:bg-gray-100'
-                                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                                    >
-                                                        {pageNum}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                        
-                                        <button
-                                            onClick={() => handlePageChange(currentPage + 1)}
-                                            disabled={currentPage === lastPage || isLoading}
-                                            className="p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                            title="Next page"
-                                        >
-                                            <ChevronRight className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handlePageChange(lastPage)}
-                                            disabled={currentPage === lastPage || isLoading}
-                                            className="p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                            title="Last page"
-                                        >
-                                            <ChevronsRight className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                    {/* Members Grid */}
+                    <div className="mb-6">
+                        <MembersGrid
+                            members={members.data}
+                            selectedMembers={selectedMembers}
+                            isLoading={isLoading}
+                            onToggleSelection={handleToggleSelection}
+                            onDelete={handleDeleteMember}
+                            onStatusChange={handleStatusChange}
+                        />
                     </div>
+
+                    {/* Pagination */}
+                    <MembersPagination members={members} filters={filters} />
                 </div>
             </div>
 
-            {/* Import Modal */}
-            {showImportModal && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                    <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-                        <div className="p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-medium text-gray-900">Import Members</h3>
-                                <button
-                                    onClick={() => setShowImportModal(false)}
-                                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                            
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Select CSV File
-                                    </label>
-                                    <input
-                                        type="file"
-                                        accept=".csv"
-                                        onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-colors"
-                                    />
-                                </div>
-                                
-                                {importProgress > 0 && (
-                                    <div>
-                                        <div className="flex justify-between text-sm text-gray-600 mb-1">
-                                            <span>Importing...</span>
-                                            <span>{importProgress}%</span>
-                                        </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div
-                                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                                style={{ width: `${importProgress}%` }}
-                                            ></div>
+            {/* Delete Member Modal */}
+            {showDeleteModal && memberToDelete && (
+                <div className="fixed inset-0 z-50 overflow-y-auto">
+                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <div className="fixed inset-0 transition-opacity" onClick={() => setShowDeleteModal(false)}>
+                            <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+                        </div>
+
+                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                <div className="sm:flex sm:items-start">
+                                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                                        <Trash2 className="h-6 w-6 text-red-600" />
+                                    </div>
+                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
+                                            Delete Member
+                                        </h3>
+                                        <div className="mt-2">
+                                            <p className="text-sm text-gray-500">
+                                                Are you sure you want to delete <strong>{memberToDelete.full_name}</strong>? 
+                                                This action cannot be undone.
+                                            </p>
                                         </div>
                                     </div>
-                                )}
-                                
-                                <div className="text-sm text-gray-500">
-                                    <p className="mb-2">📋 Import Guidelines:</p>
-                                    <ul className="list-disc list-inside space-y-1">
-                                        <li>File must be in CSV format</li>
-                                        <li>First row should contain column headers</li>
-                                        <li>Required fields: first_name, last_name, local_church, church_group</li>
-                                    </ul>
-                                </div>
-                                
-                                <div className="flex items-center space-x-2">
-                                    <button
-                                        onClick={downloadTemplate}
-                                        className="text-sm text-blue-600 hover:text-blue-800 underline transition-colors"
-                                    >
-                                        Download Template
-                                    </button>
                                 </div>
                             </div>
-                            
-                            <div className="flex space-x-3 mt-6">
+                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                                 <button
-                                    onClick={() => setShowImportModal(false)}
-                                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                    type="button"
+                                    onClick={confirmDelete}
+                                    disabled={isDeleting}
+                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
                                 >
-                                    Cancel
+                                    {isDeleting ? (
+                                        <>
+                                            <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        'Delete'
+                                    )}
                                 </button>
                                 <button
-                                    onClick={handleImport}
-                                    disabled={!importFile || isImporting}
-                                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                                    type="button"
+                                    onClick={() => setShowDeleteModal(false)}
+                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                                 >
-                                    {isImporting ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        'Import Members'
-                                    )}
+                                    Cancel
                                 </button>
                             </div>
                         </div>
@@ -1806,41 +500,111 @@ export default function MembersIndex({
                 </div>
             )}
 
-            {/* Delete Confirmation Modal */}
-            {showDeleteModal && memberToDelete && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                    <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-                        <div className="p-6">
-                            <div className="flex items-center mb-4">
-                                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                                    <AlertCircle className="w-6 h-6 text-red-600" />
-                                </div>
-                                <div className="ml-4">
-                                    <h3 className="text-lg font-medium text-gray-900">Delete Member</h3>
-                                    <p className="text-sm text-gray-500">This action cannot be undone.</p>
+            {/* Bulk Delete Modal */}
+            {showBulkDeleteModal && (
+                <div className="fixed inset-0 z-50 overflow-y-auto">
+                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <div className="fixed inset-0 transition-opacity" onClick={() => setShowBulkDeleteModal(false)}>
+                            <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+                        </div>
+
+                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                <div className="sm:flex sm:items-start">
+                                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                                        <Trash2 className="h-6 w-6 text-red-600" />
+                                    </div>
+                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
+                                            Delete Selected Members
+                                        </h3>
+                                        <div className="mt-2">
+                                            <p className="text-sm text-gray-500">
+                                                Are you sure you want to delete {selectedMembers.length} selected members? 
+                                                This action cannot be undone.
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            
-                            <p className="text-sm text-gray-700 mb-6">
-                                Are you sure you want to delete <strong>{memberToDelete.full_name}</strong>? 
-                                This will permanently remove all their information from the system.
-                            </p>
-                            
-                            <div className="flex space-x-3">
+                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                                 <button
-                                    onClick={() => {
-                                        setShowDeleteModal(false);
-                                        setMemberToDelete(null);
-                                    }}
-                                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                    type="button"
+                                    onClick={confirmBulkDelete}
+                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                                >
+                                    Delete {selectedMembers.length} Members
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkDeleteModal(false)}
+                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                                 >
                                     Cancel
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Import Modal */}
+            {showImportModal && (
+                <div className="fixed inset-0 z-50 overflow-y-auto">
+                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <div className="fixed inset-0 transition-opacity" onClick={() => setShowImportModal(false)}>
+                            <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+                        </div>
+
+                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                <div className="sm:flex sm:items-start">
+                                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
+                                        <Upload className="h-6 w-6 text-indigo-600" />
+                                    </div>
+                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
+                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
+                                            Import Members
+                                        </h3>
+                                        <div className="mt-2">
+                                            <p className="text-sm text-gray-500 mb-4">
+                                                Upload an Excel file (.xlsx) containing member data.
+                                            </p>
+                                            <input
+                                                type="file"
+                                                accept=".xlsx,.xls"
+                                                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                                                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                                 <button
-                                    onClick={() => handleDeleteMember(memberToDelete)}
-                                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                                    type="button"
+                                    onClick={handleImport}
+                                    disabled={!importFile || isImporting}
+                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
                                 >
-                                    Delete Member
+                                    {isImporting ? (
+                                        <>
+                                            <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                                            Importing...
+                                        </>
+                                    ) : (
+                                        'Import'
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowImportModal(false);
+                                        setImportFile(null);
+                                    }}
+                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                                >
+                                    Cancel
                                 </button>
                             </div>
                         </div>

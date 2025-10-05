@@ -2,14 +2,15 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\User;
-use Spatie\Permission\Models\Role;
+use Illuminate\Console\Command;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class SetupPermissions extends Command
 {
     protected $signature = 'setup:permissions';
+
     protected $description = 'Setup roles and permissions for the parish system';
 
     public function handle()
@@ -20,7 +21,7 @@ class SetupPermissions extends Command
         $permissions = [
             'manage users',
             'access members',
-            'manage members', 
+            'manage members',
             'delete members',
             'export members',
             'access families',
@@ -95,6 +96,7 @@ class SetupPermissions extends Command
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         $this->info('Setup completed successfully!');
+
         return 0;
     }
 }

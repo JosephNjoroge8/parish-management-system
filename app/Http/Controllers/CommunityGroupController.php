@@ -23,7 +23,7 @@ class CommunityGroupController extends Controller
                 'search' => $search,
                 'sort' => $sort,
                 'direction' => $direction,
-            ]
+            ],
         ]);
     }
 
@@ -32,7 +32,7 @@ class CommunityGroupController extends Controller
         // Decode the group name from URL and handle special characters
         $groupName = urldecode($groupName);
         $groupName = str_replace(['-', '_'], [' ', ' '], $groupName);
-        
+
         // Handle specific group name mappings
         $groupMappings = [
             'CWA' => 'C.W.A',
@@ -40,29 +40,29 @@ class CommunityGroupController extends Controller
             'Young-Parents' => 'Young Parents',
             'young-parents' => 'Young Parents',
         ];
-        
+
         if (isset($groupMappings[$groupName])) {
             $groupName = $groupMappings[$groupName];
         }
-        
+
         // Verify the group exists in our database
         $groupExists = Member::where('church_group', $groupName)->exists();
-        
-        if (!$groupExists) {
+
+        if (! $groupExists) {
             // Try to find a similar group name
             $similarGroup = Member::select('church_group')
                 ->whereNotNull('church_group')
                 ->where('church_group', '!=', '')
-                ->where('church_group', 'like', '%' . $groupName . '%')
+                ->where('church_group', 'like', '%'.$groupName.'%')
                 ->first();
-                
+
             if ($similarGroup) {
                 $groupName = $similarGroup->church_group;
             } else {
                 abort(404, "Church group '{$groupName}' not found.");
             }
         }
-        
+
         // Get members for this group with pagination and search
         $search = $request->get('search', '');
         $query = Member::where('church_group', $groupName);
@@ -70,18 +70,18 @@ class CommunityGroupController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('middle_name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('middle_name', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
             });
         }
 
         $members = $query->orderBy('last_name', 'asc')
-                        ->orderBy('first_name', 'asc')
-                        ->paginate(20)
-                        ->withQueryString();
+            ->orderBy('first_name', 'asc')
+            ->paginate(20)
+            ->withQueryString();
 
         $groupStats = $this->getGroupDetails($groupName);
 
@@ -90,7 +90,7 @@ class CommunityGroupController extends Controller
             'members' => $members,
             'filters' => [
                 'search' => $search,
-            ]
+            ],
         ]);
     }
 
@@ -116,7 +116,7 @@ class CommunityGroupController extends Controller
         $communities = Member::select('small_christian_community')
             ->whereNotNull('small_christian_community')
             ->where('small_christian_community', '!=', '')
-            ->where('small_christian_community', 'like', '%' . $search . '%')
+            ->where('small_christian_community', 'like', '%'.$search.'%')
             ->groupBy('small_christian_community')
             ->orderBy('small_christian_community', 'asc')
             ->limit($limit)
@@ -142,7 +142,7 @@ class CommunityGroupController extends Controller
             ->groupBy('church_group');
 
         if ($search) {
-            $groupsQuery->having('church_group', 'like', '%' . $search . '%');
+            $groupsQuery->having('church_group', 'like', '%'.$search.'%');
         }
 
         $groups = $groupsQuery->get();
@@ -155,11 +155,11 @@ class CommunityGroupController extends Controller
 
         foreach ($groups as $group) {
             $groupDetails = $this->getGroupDetails($group->church_group);
-            
+
             if ($groupDetails['members_count'] > 0) {
                 $groupsWithMembers++;
                 $totalMembers += $groupDetails['members_count'];
-                
+
                 if ($groupDetails['members_count'] > $maxMembers) {
                     $maxMembers = $groupDetails['members_count'];
                     $mostPopularGroup = $group->church_group;
@@ -171,7 +171,7 @@ class CommunityGroupController extends Controller
 
         // Sort groups
         $groupsBreakdown = collect($groupsBreakdown)->sortBy([
-            [$sort, $direction]
+            [$sort, $direction],
         ])->values()->all();
 
         return [
@@ -187,11 +187,11 @@ class CommunityGroupController extends Controller
     private function getGroupDetails($groupName)
     {
         $members = Member::where('church_group', $groupName);
-        
+
         $totalMembers = $members->count();
         $activeMembers = $members->where('membership_status', 'active')->count();
         $inactiveMembers = $totalMembers - $activeMembers;
-        
+
         $latestMember = $members->orderBy('created_at', 'desc')->first();
 
         return [
@@ -216,6 +216,7 @@ class CommunityGroupController extends Controller
         $slug = str_replace([' ', '.', '(', ')', ','], ['-', '', '', '', ''], $slug);
         $slug = preg_replace('/[^a-z0-9-]/', '', $slug);
         $slug = preg_replace('/-+/', '-', $slug);
+
         return trim($slug, '-');
     }
 

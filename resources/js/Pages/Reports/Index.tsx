@@ -201,11 +201,17 @@ export default function EnhancedReportsIndex({ auth, statistics, charts, filters
                 'age_group': 'export-by-age-group',
                 'gender': 'export-by-gender',
                 
-                // Membership status exports
+                // Membership status exports - use correct parameter names
+                'all_members': 'export-by-membership-status',
                 'membership_status': 'export-by-membership-status',
                 'marital_status': 'export-by-marital-status',
                 'matrimony_status': 'export-by-marital-status',
                 'marriage_type': 'export-by-marital-status',
+                
+                // Sacrament status exports
+                'baptism_status': 'export-baptized-members',
+                'confirmation_status': 'export-confirmed-members', 
+                'marriage_status': 'export-married-members',
                 
                 // Geographic exports
                 'state': 'export-by-state',
@@ -219,13 +225,14 @@ export default function EnhancedReportsIndex({ auth, statistics, charts, filters
                 
                 // Community exports
                 'community': 'export-by-community',
+                'scc': 'export-by-community',
                 'small_christian_community': 'export-by-community',
                 
                 // Time-based exports
                 'year_joined': 'export-by-year-joined',
                 'monthly_trends': 'export-members-data',
                 
-                // Sacrament-based exports
+                // Sacrament-based exports (legacy)
                 'baptized': 'export-baptized-members',
                 'confirmed': 'export-confirmed-members',
                 'married': 'export-married-members',
@@ -240,9 +247,22 @@ export default function EnhancedReportsIndex({ auth, statistics, charts, filters
             };
 
             const routeName = routeMap[category] || 'export-members-data';
-            const url = `/reports/${routeName}?value=${encodeURIComponent(value)}&format=${format}`;
+            
+            // Map values to correct parameter names for membership status
+            let actualValue = value;
+            if (category === 'all_members') {
+                // For all_members category, map the values correctly
+                const statusMap: Record<string, string> = {
+                    'active': 'Active',
+                    'inactive': 'Inactive',
+                    'all': 'all'
+                };
+                actualValue = statusMap[value] || value;
+            }
+            
+            const url = `/reports/${routeName}?value=${encodeURIComponent(actualValue)}&format=${format}`;
 
-            console.log('Export request:', { category, value, format, url });
+            console.log('Export request:', { category, value: actualValue, format, url });
             showToast(`Requesting: ${url}`, 'info');
 
             const response = await fetch(url, {
@@ -304,12 +324,24 @@ export default function EnhancedReportsIndex({ auth, statistics, charts, filters
             }
 
             const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/')) {
-                const errorText = await response.text();
-                throw new Error(`Invalid response format: ${errorText}`);
+            let blob;
+            
+            // Handle different content types - some endpoints return CSV with text/csv
+            if (contentType && (contentType.includes('application/') || contentType.includes('text/csv'))) {
+                blob = await response.blob();
+            } else {
+                // If content type is not set properly, check if it's CSV data
+                const responseText = await response.text();
+                
+                // Check if the response looks like CSV data
+                if (responseText.includes('ID,"First Name","Last Name"') || responseText.includes('Email,')) {
+                    // Create a blob from the CSV text
+                    blob = new Blob([responseText], { type: 'text/csv' });
+                } else {
+                    throw new Error(`Invalid response format: ${responseText.substring(0, 200)}...`);
+                }
             }
-
-            const blob = await response.blob();
+            
             if (blob.size === 0) {
                 throw new Error('Export returned empty file');
             }
@@ -1574,6 +1606,246 @@ export default function EnhancedReportsIndex({ auth, statistics, charts, filters
                                         <BookOpen className="w-4 h-4" />
                                         <span>Member Directory</span>
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Comprehensive Downloads Section */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center space-x-3">
+                                <Download className="w-6 h-6 text-indigo-600" />
+                                <h3 className="text-xl font-bold text-gray-900">Comprehensive Reports & Downloads</h3>
+                            </div>
+                            <div className="text-sm text-gray-500">
+                                Download detailed reports in multiple formats
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {/* Member Reports */}
+                            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                                <div className="flex items-center space-x-3 mb-4">
+                                    <Users className="w-6 h-6 text-blue-600" />
+                                    <h4 className="font-semibold text-blue-900">Member Reports</h4>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="grid grid-cols-3 gap-1">
+                                        <button
+                                            onClick={() => downloadAllClearRecords('excel')}
+                                            className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs flex items-center justify-center"
+                                            disabled={loading}
+                                        >
+                                            <FileSpreadsheet className="w-3 h-3 mr-1" />
+                                            Excel
+                                        </button>
+                                        <button
+                                            onClick={() => downloadAllClearRecords('csv')}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs flex items-center justify-center"
+                                            disabled={loading}
+                                        >
+                                            <FileText className="w-3 h-3 mr-1" />
+                                            CSV
+                                        </button>
+                                        <button
+                                            onClick={() => downloadAllClearRecords('pdf')}
+                                            className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs flex items-center justify-center"
+                                            disabled={loading}
+                                        >
+                                            <FileDown className="w-3 h-3 mr-1" />
+                                            PDF
+                                        </button>
+                                    </div>
+                                    <button
+                                        onClick={() => exportByCategory('all_members', 'active', 'excel')}
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <UserCheck className="w-4 h-4" />
+                                        <span>Active Members</span>
+                                    </button>
+                                    <button
+                                        onClick={() => exportByCategory('all_members', 'inactive', 'excel')}
+                                        className="w-full bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <Users className="w-4 h-4" />
+                                        <span>Inactive Members</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Church Organization Reports */}
+                            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+                                <div className="flex items-center space-x-3 mb-4">
+                                    <Church className="w-6 h-6 text-purple-600" />
+                                    <h4 className="font-semibold text-purple-900">Church Organization</h4>
+                                </div>
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={() => exportByCategory('church_group', 'all', 'excel')}
+                                        className="w-full bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <Crown className="w-4 h-4" />
+                                        <span>Church Groups</span>
+                                    </button>
+                                    <button
+                                        onClick={() => exportByCategory('local_church', 'all', 'excel')}
+                                        className="w-full bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <Church className="w-4 h-4" />
+                                        <span>Local Churches</span>
+                                    </button>
+                                    <button
+                                        onClick={() => exportByCategory('scc', 'all', 'excel')}
+                                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <Users className="w-4 h-4" />
+                                        <span>Small Communities</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Demographics Reports */}
+                            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-4 border border-emerald-200">
+                                <div className="flex items-center space-x-3 mb-4">
+                                    <BarChart3 className="w-6 h-6 text-emerald-600" />
+                                    <h4 className="font-semibold text-emerald-900">Demographics</h4>
+                                </div>
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={() => exportByCategory('age_group', 'all', 'excel')}
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <Users className="w-4 h-4" />
+                                        <span>Age Groups</span>
+                                    </button>
+                                    <button
+                                        onClick={() => exportByCategory('gender', 'all', 'excel')}
+                                        className="w-full bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <Equal className="w-4 h-4" />
+                                        <span>Gender Distribution</span>
+                                    </button>
+                                    <button
+                                        onClick={() => exportByCategory('education', 'all', 'excel')}
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <GraduationCap className="w-4 h-4" />
+                                        <span>Education Levels</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Sacraments Reports */}
+                            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-4 border border-amber-200">
+                                <div className="flex items-center space-x-3 mb-4">
+                                    <Award className="w-6 h-6 text-amber-600" />
+                                    <h4 className="font-semibold text-amber-900">Sacraments</h4>
+                                </div>
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={() => exportByCategory('baptism_status', 'baptized', 'excel')}
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <Award className="w-4 h-4" />
+                                        <span>Baptized Members</span>
+                                    </button>
+                                    <button
+                                        onClick={() => exportByCategory('confirmation_status', 'confirmed', 'excel')}
+                                        className="w-full bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <Star className="w-4 h-4" />
+                                        <span>Confirmed Members</span>
+                                    </button>
+                                    <button
+                                        onClick={() => exportByCategory('marriage_status', 'married', 'excel')}
+                                        className="w-full bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <Heart className="w-4 h-4" />
+                                        <span>Married Members</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Special Reports */}
+                            <div className="bg-gradient-to-br from-rose-50 to-rose-100 rounded-lg p-4 border border-rose-200">
+                                <div className="flex items-center space-x-3 mb-4">
+                                    <FileText className="w-6 h-6 text-rose-600" />
+                                    <h4 className="font-semibold text-rose-900">Special Reports</h4>
+                                </div>
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={() => downloadFilteredMembersList()}
+                                        className="w-full bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <Filter className="w-4 h-4" />
+                                        <span>Filtered Members</span>
+                                    </button>
+                                    <button
+                                        onClick={() => downloadMemberDirectory()}
+                                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <BookOpen className="w-4 h-4" />
+                                        <span>Member Directory</span>
+                                    </button>
+                                    <button
+                                        onClick={() => exportByCategory('all_records', 'statistics', 'excel')}
+                                        className="w-full bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                        disabled={loading}
+                                    >
+                                        <BarChart3 className="w-4 h-4" />
+                                        <span>Statistics Report</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Quick Export Options */}
+                            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 border border-gray-200">
+                                <div className="flex items-center space-x-3 mb-4">
+                                    <Download className="w-6 h-6 text-gray-600" />
+                                    <h4 className="font-semibold text-gray-900">Quick Export</h4>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="text-xs text-gray-600 mb-2">Export all data in different formats:</div>
+                                    <div className="grid grid-cols-1 gap-1">
+                                        <button
+                                            onClick={() => downloadAllClearRecords('excel')}
+                                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                            disabled={loading}
+                                        >
+                                            <FileSpreadsheet className="w-4 h-4" />
+                                            <span>Excel Format</span>
+                                        </button>
+                                        <button
+                                            onClick={() => downloadAllClearRecords('csv')}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                            disabled={loading}
+                                        >
+                                            <FileText className="w-4 h-4" />
+                                            <span>CSV Format</span>
+                                        </button>
+                                        <button
+                                            onClick={() => downloadAllClearRecords('pdf')}
+                                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm flex items-center justify-center space-x-2"
+                                            disabled={loading}
+                                        >
+                                            <FileDown className="w-4 h-4" />
+                                            <span>PDF Format</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

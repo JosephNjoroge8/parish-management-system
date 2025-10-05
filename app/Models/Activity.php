@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Carbon\Carbon;
 
 class Activity extends Model
 {
@@ -68,8 +68,8 @@ class Activity extends Model
     public function scopeUpcoming($query)
     {
         return $query->where('start_date', '>=', Carbon::today())
-                    ->whereNotIn('status', ['cancelled', 'completed'])
-                    ->orderBy('start_date');
+            ->whereNotIn('status', ['cancelled', 'completed'])
+            ->orderBy('start_date');
     }
 
     public function scopeActive($query)
@@ -80,7 +80,7 @@ class Activity extends Model
     public function scopeThisMonth($query)
     {
         return $query->whereMonth('start_date', Carbon::now()->month)
-                    ->whereYear('start_date', Carbon::now()->year);
+            ->whereYear('start_date', Carbon::now()->year);
     }
 
     // Relationships
@@ -95,8 +95,8 @@ class Activity extends Model
     public function participants(): BelongsToMany
     {
         return $this->belongsToMany(Member::class, 'activity_participants')
-                    ->withPivot(['registered_at', 'attended', 'role', 'notes'])
-                    ->withTimestamps();
+            ->withPivot(['registered_at', 'attended', 'role', 'notes'])
+            ->withTimestamps();
     }
 
     /**
@@ -129,11 +129,11 @@ class Activity extends Model
     public function getFormattedDateTimeAttribute(): string
     {
         $dateString = $this->start_date->format('M d, Y');
-        
+
         if ($this->start_time) {
-            $dateString .= ' at ' . Carbon::parse($this->start_time)->format('g:i A');
+            $dateString .= ' at '.Carbon::parse($this->start_time)->format('g:i A');
         }
-        
+
         return $dateString;
     }
 }

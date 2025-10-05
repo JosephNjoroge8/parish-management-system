@@ -45,6 +45,10 @@ interface Member {
     // Baptism record fields
     father_name?: string;
     mother_name?: string;
+    father_occupation?: string;
+    father_residence?: string;
+    mother_occupation?: string;
+    mother_residence?: string;
     birth_village?: string;
     county?: string;
     baptism_location?: string;
@@ -102,6 +106,7 @@ interface Member {
     marriage_officiant_name?: string;
     marriage_witness1_name?: string;
     marriage_witness2_name?: string;
+    member_marriage_residence?: string;
 }
 
 // Define Family interface
@@ -162,10 +167,10 @@ interface MemberFormData {
     // Baptism record fields
     father_name: string;
     mother_name: string;
-    father_occupation?: string;
-    mother_occupation?: string;
-    father_residence?: string;
-    mother_residence?: string;
+    father_occupation: string;
+    father_residence: string;
+    mother_occupation: string;
+    mother_residence: string;
     birth_village: string;
     county: string;
     
@@ -220,6 +225,7 @@ interface MemberFormData {
     // Witnesses
     marriage_witness1_name: string;
     marriage_witness2_name: string;
+    member_marriage_residence: string;
 }
 
 const FormInput = ({
@@ -437,6 +443,10 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
         // Baptism record fields
         father_name: member.father_name || '',
         mother_name: member.mother_name || '',
+        father_occupation: member.father_occupation || '',
+        father_residence: member.father_residence || '',
+        mother_occupation: member.mother_occupation || '',
+        mother_residence: member.mother_residence || '',
         birth_village: member.birth_village || '',
         county: member.county || '',
         
@@ -507,6 +517,7 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
         // Witnesses
         marriage_witness1_name: member.marriage_witness1_name || '',
         marriage_witness2_name: member.marriage_witness2_name || '',
+        member_marriage_residence: member.member_marriage_residence || '',
     });
 
     // Initialize search queries and selected family from member data
@@ -806,7 +817,7 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
                         setActiveTab('church_details');
                     } else if (['birth_village', 'county', 'eucharist_location', 'eucharist_date', 'confirmation_location', 'confirmation_register_number', 'confirmation_number'].includes(firstErrorField)) {
                         setActiveTab('baptism_details');
-                    } else if (['marriage_date', 'marriage_location', 'marriage_county', 'marriage_sub_county', 'marriage_entry_number', 'marriage_certificate_number', 'marriage_religion', 'marriage_officiant_name', 'marriage_witness1_name', 'marriage_witness2_name', 'bridegroom_name', 'bridegroom_age', 'bride_name', 'bride_age'].includes(firstErrorField)) {
+                    } else if (['marriage_date', 'marriage_location', 'marriage_county', 'marriage_sub_county', 'marriage_entry_number', 'marriage_certificate_number', 'marriage_religion', 'marriage_officiant_name', 'marriage_witness1_name', 'marriage_witness2_name', 'member_marriage_residence', 'bridegroom_name', 'bridegroom_age', 'bride_name', 'bride_age'].includes(firstErrorField)) {
                         setActiveTab('marriage_details');
                     } else if (['phone', 'email', 'residence', 'notes', 'emergency_contact', 'emergency_phone'].includes(firstErrorField)) {
                         setActiveTab('contact');
@@ -1740,11 +1751,11 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
 
                                     <FormInput
                                         id="marriage_religion"
-                                        label="Religion/Type"
+                                        label="Married in the"
                                         maxLength={255}
                                         value={data.marriage_religion}
                                         onChange={(value) => handleInputChange('marriage_religion', value)}
-                                        placeholder="e.g., Catholic, Civil"
+                                        placeholder="e.g., Catholic Church, Civil Registry"
                                         hasError={hasError('marriage_religion')}
                                         errorMessage={getErrorMessage('marriage_religion')}
                                     />
@@ -1799,6 +1810,85 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
                                         hasError={hasError('marriage_witness2_name')}
                                         errorMessage={getErrorMessage('marriage_witness2_name')}
                                     />
+
+                                    {/* Member's Residence at Time of Marriage */}
+                                    <div className="md:col-span-2 mt-6">
+                                        <h4 className="text-md font-medium text-gray-700 mb-4 border-b border-gray-200 pb-2">
+                                            Member's Marriage Details
+                                        </h4>
+                                    </div>
+
+                                    <FormInput
+                                        id="member_marriage_residence"
+                                        label="Member's Residence at Time of Marriage"
+                                        required
+                                        maxLength={255}
+                                        value={data.member_marriage_residence}
+                                        onChange={(value) => handleInputChange('member_marriage_residence', value)}
+                                        placeholder="Your residence at the time of marriage"
+                                        hasError={hasError('member_marriage_residence')}
+                                        errorMessage={getErrorMessage('member_marriage_residence')}
+                                    />
+
+                                    {/* Member's Parent Details Section - Required for marriage certificate */}
+                                    <div className="md:col-span-2 mt-6">
+                                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                                            <h4 className="text-md font-semibold text-amber-900 mb-2">Member's Parent Details</h4>
+                                            <p className="text-sm text-amber-700">
+                                                Parent occupation and residence details are required for married members to complete marriage certificates.
+                                            </p>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <FormInput
+                                                id="father_occupation"
+                                                label="Father's Occupation"
+                                                required
+                                                maxLength={255}
+                                                value={data.father_occupation}
+                                                onChange={(value) => handleInputChange('father_occupation', value)}
+                                                placeholder="Father's occupation"
+                                                hasError={hasError('father_occupation')}
+                                                errorMessage={getErrorMessage('father_occupation')}
+                                            />
+                                            
+                                            <FormInput
+                                                id="father_residence"
+                                                label="Father's Residence"
+                                                required
+                                                maxLength={255}
+                                                value={data.father_residence}
+                                                onChange={(value) => handleInputChange('father_residence', value)}
+                                                placeholder="Father's residence"
+                                                hasError={hasError('father_residence')}
+                                                errorMessage={getErrorMessage('father_residence')}
+                                            />
+                                            
+                                            <FormInput
+                                                id="mother_occupation"
+                                                label="Mother's Occupation"
+                                                required
+                                                maxLength={255}
+                                                value={data.mother_occupation}
+                                                onChange={(value) => handleInputChange('mother_occupation', value)}
+                                                placeholder="Mother's occupation"
+                                                hasError={hasError('mother_occupation')}
+                                                errorMessage={getErrorMessage('mother_occupation')}
+                                            />
+                                            
+                                            <FormInput
+                                                id="mother_residence"
+                                                label="Mother's Residence"
+                                                required
+                                                maxLength={255}
+                                                value={data.mother_residence}
+                                                onChange={(value) => handleInputChange('mother_residence', value)}
+                                                placeholder="Mother's residence"
+                                                hasError={hasError('mother_residence')}
+                                                errorMessage={getErrorMessage('mother_residence')}
+                                            />
+                                        </div>
+                                    </div>
                                 </>
                             )}
                         </div>
@@ -2076,12 +2166,12 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
 
                             <FormInput
                                 id="marriage_religion"
-                                label="Religion/Type"
+                                label="Married in the"
                                 required
                                 maxLength={255}
                                 value={data.marriage_religion}
                                 onChange={(value) => handleInputChange('marriage_religion', value)}
-                                placeholder="e.g., Catholic, Civil"
+                                placeholder="e.g., Catholic Church, Civil Registry"
                                 hasError={hasError('marriage_religion')}
                                 errorMessage={getErrorMessage('marriage_religion')}
                             />
@@ -2127,6 +2217,25 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
                                 placeholder="Second witness full name"
                                 hasError={hasError('marriage_witness2_name')}
                                 errorMessage={getErrorMessage('marriage_witness2_name')}
+                            />
+
+                            {/* Member's Residence at Time of Marriage */}
+                            <div className="md:col-span-2 mt-6">
+                                <h4 className="text-md font-medium text-gray-700 mb-4 border-b border-gray-200 pb-2">
+                                    Member's Marriage Details
+                                </h4>
+                            </div>
+
+                            <FormInput
+                                id="member_marriage_residence"
+                                label="Member's Residence at Time of Marriage"
+                                required
+                                maxLength={255}
+                                value={data.member_marriage_residence}
+                                onChange={(value) => handleInputChange('member_marriage_residence', value)}
+                                placeholder="Your residence at the time of marriage"
+                                hasError={hasError('member_marriage_residence')}
+                                errorMessage={getErrorMessage('member_marriage_residence')}
                             />
                         </div>
                     </div>

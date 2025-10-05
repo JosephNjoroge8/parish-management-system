@@ -6,7 +6,7 @@ return [
     | Production Security Configuration
     |--------------------------------------------------------------------------
     */
-    
+
     'security' => [
         'force_https' => env('FORCE_HTTPS', true),
         'csp_enabled' => env('CSP_ENABLED', true),
@@ -18,7 +18,7 @@ return [
     | Performance Configuration
     |--------------------------------------------------------------------------
     */
-    
+
     'performance' => [
         'enable_opcache' => env('OPCACHE_ENABLE', true),
         'cache_ttl' => env('CACHE_TTL', 3600),
@@ -31,7 +31,7 @@ return [
     | Monitoring Configuration
     |--------------------------------------------------------------------------
     */
-    
+
     'monitoring' => [
         'enabled' => env('PERFORMANCE_MONITORING', false),
         'memory_threshold' => env('MEMORY_THRESHOLD', 85),
@@ -44,7 +44,7 @@ return [
     | Rate Limiting
     |--------------------------------------------------------------------------
     */
-    
+
     'rate_limiting' => [
         'api_rate' => env('THROTTLE_API', '60,1'),
         'login_rate' => env('THROTTLE_LOGIN', '5,1'),
@@ -56,7 +56,7 @@ return [
     | Backup Configuration
     |--------------------------------------------------------------------------
     */
-    
+
     'backup' => [
         'enabled' => env('BACKUP_ENABLED', false),
         'disk' => env('BACKUP_DISK', 'local'),
@@ -69,7 +69,7 @@ return [
     | Asset Configuration
     |--------------------------------------------------------------------------
     */
-    
+
     'assets' => [
         'version' => env('ASSET_VERSION', '1.0.0'),
         'cdn_enabled' => env('CDN_ENABLED', false),
@@ -82,7 +82,7 @@ return [
     | Health Check Configuration
     |--------------------------------------------------------------------------
     */
-    
+
     'health' => [
         'enabled' => env('HEALTH_CHECK_ENABLED', true),
         'endpoints' => [
@@ -97,7 +97,7 @@ return [
     | Production Optimizations
     |--------------------------------------------------------------------------
     */
-    
+
     'optimizations' => [
         'config_cache' => env('CONFIG_CACHE_ENABLED', true),
         'route_cache' => env('ROUTE_CACHE_ENABLED', true),

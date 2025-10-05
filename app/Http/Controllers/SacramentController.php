@@ -1,13 +1,14 @@
 <?php
 
 // app/Http/Controllers/SacramentController.php
+
 namespace App\Http\Controllers;
 
-use App\Models\Sacrament;
 use App\Models\Member;
+use App\Models\Sacrament;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class SacramentController extends Controller
@@ -15,7 +16,7 @@ class SacramentController extends Controller
     public function create(Request $request)
     {
         $memberId = $request->get('member_id');
-        
+
         // Get all members with basic info for dropdown - only select existing columns
         $members = Member::select('id', 'first_name', 'last_name', 'middle_name', 'id_number')
             ->where('membership_status', 'active')
@@ -54,13 +55,13 @@ class SacramentController extends Controller
 
         // Find member by id_number first, then fallback to system id
         $member = Member::where('id_number', $validated['member_id'])->first();
-        
-        if (!$member) {
+
+        if (! $member) {
             // If not found by id_number, try by system id (for members without id_number)
             $member = Member::where('id', $validated['member_id'])->first();
         }
 
-        if (!$member) {
+        if (! $member) {
             return back()->withErrors(['member_id' => 'Selected member not found.']);
         }
 
@@ -70,10 +71,10 @@ class SacramentController extends Controller
                 $existingSacrament = Sacrament::where('member_id', $member->id)
                     ->where('sacrament_type', $validated['sacrament_type'])
                     ->first();
-                
+
                 if ($existingSacrament) {
                     return back()->withErrors([
-                        'sacrament_type' => "This member already has a {$validated['sacrament_type']} record."
+                        'sacrament_type' => "This member already has a {$validated['sacrament_type']} record.",
                     ])->withInput();
                 }
             }
@@ -98,14 +99,14 @@ class SacramentController extends Controller
                 ->with('success', "Sacramental record created successfully for {$member->first_name} {$member->last_name}.");
         } catch (\Exception $e) {
             // Log the actual error for debugging
-            Log::error('Failed to create sacramental record: ' . $e->getMessage(), [
+            Log::error('Failed to create sacramental record: '.$e->getMessage(), [
                 'user_id' => Auth::id(),
                 'member_id' => $member->id ?? 'unknown',
-                'data' => $validated
+                'data' => $validated,
             ]);
-            
+
             return back()->withErrors(['error' => 'Failed to create sacramental record. Please try again.'])
-                        ->withInput();
+                ->withInput();
         }
     }
 
@@ -124,14 +125,14 @@ class SacramentController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('celebrant', 'like', "%{$search}%") // Fixed: was 'administered_by'
-                  ->orWhere('location', 'like', "%{$search}%")
-                  ->orWhere('certificate_number', 'like', "%{$search}%")
-                  ->orWhereHas('member', function ($memberQuery) use ($search) {
-                      $memberQuery->where('first_name', 'like', "%{$search}%")
-                                  ->orWhere('last_name', 'like', "%{$search}%")
-                                  ->orWhere('id_number', 'like', "%{$search}%")
-                                  ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
-                  });
+                    ->orWhere('location', 'like', "%{$search}%")
+                    ->orWhere('certificate_number', 'like', "%{$search}%")
+                    ->orWhereHas('member', function ($memberQuery) use ($search) {
+                        $memberQuery->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('id_number', 'like', "%{$search}%")
+                            ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$search}%"]);
+                    });
             });
         }
 
@@ -152,7 +153,7 @@ class SacramentController extends Controller
 
         $sacraments = $query->paginate(20)->through(function ($sacrament) {
             // Add null safety check for member relationship
-            if (!$sacrament->member) {
+            if (! $sacrament->member) {
                 return [
                     'id' => $sacrament->id,
                     'member_id_display' => 'Unknown',
@@ -180,7 +181,7 @@ class SacramentController extends Controller
             return [
                 'id' => $sacrament->id,
                 'member_id_display' => $sacrament->member->id_number ?? $sacrament->member->id,
-                'member_name' => $sacrament->member->first_name . ' ' . $sacrament->member->last_name,
+                'member_name' => $sacrament->member->first_name.' '.$sacrament->member->last_name,
                 'member_id_type' => $sacrament->member->id_number ? 'ID Number' : 'System ID',
                 // Add the member object that frontend expects
                 'member' => [
@@ -234,8 +235,8 @@ class SacramentController extends Controller
                 'member_id_display' => $sacrament->member->id_number ?? $sacrament->member->id,
                 'member' => [
                     'id' => $sacrament->member->id,
-                    'name' => $sacrament->member->first_name . ' ' . $sacrament->member->last_name,
-                    'full_name' => trim($sacrament->member->first_name . ' ' . ($sacrament->member->middle_name ?? '') . ' ' . $sacrament->member->last_name),
+                    'name' => $sacrament->member->first_name.' '.$sacrament->member->last_name,
+                    'full_name' => trim($sacrament->member->first_name.' '.($sacrament->member->middle_name ?? '').' '.$sacrament->member->last_name),
                     'id_number' => $sacrament->member->id_number,
                     'date_of_birth' => $sacrament->member->date_of_birth,
                     'gender' => $sacrament->member->gender,
@@ -252,7 +253,7 @@ class SacramentController extends Controller
                 'notes' => $sacrament->notes,
                 'created_at' => $sacrament->created_at,
                 'updated_at' => $sacrament->updated_at,
-            ]
+            ],
         ]);
     }
 
@@ -316,12 +317,12 @@ class SacramentController extends Controller
 
         // Find member by id_number first, then fallback to system id
         $member = Member::where('id_number', $validated['member_id'])->first();
-        
-        if (!$member) {
+
+        if (! $member) {
             $member = Member::where('id', $validated['member_id'])->first();
         }
 
-        if (!$member) {
+        if (! $member) {
             return back()->withErrors(['member_id' => 'Selected member not found.']);
         }
 
@@ -345,14 +346,14 @@ class SacramentController extends Controller
                 ->with('success', 'Sacramental record updated successfully.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to update sacramental record. Please try again.'])
-                        ->withInput();
+                ->withInput();
         }
     }
 
     public function destroy(Sacrament $sacrament)
     {
         try {
-            $memberName = $sacrament->member->first_name . ' ' . $sacrament->member->last_name;
+            $memberName = $sacrament->member->first_name.' '.$sacrament->member->last_name;
             $sacrament->delete();
 
             return redirect()->route('sacraments.index')
@@ -365,7 +366,7 @@ class SacramentController extends Controller
     public function memberSacraments(Member $member)
     {
         $sacraments = $member->sacraments()->orderBy('sacrament_date')->get();
-        
+
         return response()->json($sacraments);
     }
 }

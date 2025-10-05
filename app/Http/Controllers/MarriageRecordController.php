@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\DatabaseCompatibilityHelper;
 use App\Models\MarriageRecord;
 use App\Models\Member;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Inertia\Inertia;
 
 class MarriageRecordController extends Controller
 {
@@ -20,7 +21,7 @@ class MarriageRecordController extends Controller
 
         return Inertia::render('MarriageRecords/Index', [
             'marriageRecords' => $marriageRecords,
-            'filters' => $this->getAvailableFilters()
+            'filters' => $this->getAvailableFilters(),
         ]);
     }
 
@@ -30,7 +31,7 @@ class MarriageRecordController extends Controller
             'members' => Member::select('id', 'first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender')
                 ->orderBy('last_name')
                 ->get(),
-            'ministers' => $this->getAvailableClergy()
+            'ministers' => $this->getAvailableClergy(),
         ]);
     }
 
@@ -104,22 +105,22 @@ class MarriageRecordController extends Controller
     public function show(MarriageRecord $marriageRecord)
     {
         $marriageRecord->load(['husband', 'wife']);
-        
+
         return Inertia::render('MarriageRecords/Show', [
-            'marriageRecord' => $marriageRecord
+            'marriageRecord' => $marriageRecord,
         ]);
     }
 
     public function edit(MarriageRecord $marriageRecord)
     {
         $marriageRecord->load(['husband', 'wife']);
-        
+
         return Inertia::render('MarriageRecords/Edit', [
             'marriageRecord' => $marriageRecord,
             'members' => Member::select('id', 'first_name', 'middle_name', 'last_name', 'date_of_birth', 'gender')
                 ->orderBy('last_name')
                 ->get(),
-            'ministers' => $this->getAvailableClergy()
+            'ministers' => $this->getAvailableClergy(),
         ]);
     }
 
@@ -152,7 +153,7 @@ class MarriageRecordController extends Controller
             'register_volume' => 'nullable|string|max:100',
             'register_number' => 'nullable|string|max:100',
             'page_number' => 'nullable|string|max:100',
-            'certificate_number' => 'nullable|string|max:100|unique:marriage_records,certificate_number,' . $marriageRecord->id,
+            'certificate_number' => 'nullable|string|max:100|unique:marriage_records,certificate_number,'.$marriageRecord->id,
             'remarks' => 'nullable|string',
         ]);
 
@@ -229,30 +230,30 @@ class MarriageRecordController extends Controller
     {
         try {
             $marriageRecord->load(['husband', 'wife']);
-            
+
             // Enhance marriage record with additional computed fields for template
             $enhancedRecord = $this->enhanceMarriageRecordForCertificate($marriageRecord);
-            
+
             // Prepare data for certificate
             $data = [
                 'marriageRecord' => $enhancedRecord,
                 'parish_name' => config('app.parish_name', 'Sacred Heart Kandara Parish'),
-                'generated_at' => now()
+                'generated_at' => now(),
             ];
-            
+
             // Generate PDF using Dompdf
             $pdf = Pdf::loadView('certificates.marriage-certificate', $data);
             $pdf->setPaper('A4', 'portrait');
-            
+
             $husbandName = Str::slug($marriageRecord->husband_name ?: 'unknown');
             $wifeName = Str::slug($marriageRecord->wife_name ?: 'unknown');
-            $filename = 'marriage-certificate-' . $husbandName . '-' . $wifeName . '-' . now()->format('Y-m-d') . '.pdf';
-            
+            $filename = 'marriage-certificate-'.$husbandName.'-'.$wifeName.'-'.now()->format('Y-m-d').'.pdf';
+
             return $pdf->download($filename);
-            
+
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Failed to generate marriage certificate: ' . $e->getMessage()
+                'error' => 'Failed to generate marriage certificate: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -264,30 +265,30 @@ class MarriageRecordController extends Controller
     {
         try {
             $marriageRecord = MarriageRecord::with(['husband', 'wife'])->findOrFail($marriageRecordId);
-            
+
             // Enhance marriage record with additional computed fields for template
             $enhancedRecord = $this->enhanceMarriageRecordForCertificate($marriageRecord);
-            
+
             // Prepare comprehensive data for certificate
             $data = [
                 'marriageRecord' => $enhancedRecord,
                 'parish_name' => config('app.parish_name', 'Sacred Heart Kandara Parish'),
-                'generated_at' => now()
+                'generated_at' => now(),
             ];
-            
+
             // Generate PDF using Dompdf
             $pdf = Pdf::loadView('certificates.marriage-certificate', $data);
             $pdf->setPaper('A4', 'portrait');
-            
+
             $husbandName = Str::slug($marriageRecord->husband_name ?: 'unknown');
             $wifeName = Str::slug($marriageRecord->wife_name ?: 'unknown');
-            $filename = 'marriage-certificate-' . $husbandName . '-' . $wifeName . '-' . now()->format('Y-m-d') . '.pdf';
-            
+            $filename = 'marriage-certificate-'.$husbandName.'-'.$wifeName.'-'.now()->format('Y-m-d').'.pdf';
+
             return $pdf->download($filename);
-            
+
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Failed to generate marriage certificate: ' . $e->getMessage()
+                'error' => 'Failed to generate marriage certificate: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -299,29 +300,29 @@ class MarriageRecordController extends Controller
     {
         try {
             $member = Member::findOrFail($memberId);
-            
+
             // Find marriage record where this member is either husband or wife
             $marriageRecord = MarriageRecord::where('husband_id', $memberId)
                 ->orWhere('wife_id', $memberId)
                 ->with(['husband', 'wife'])
                 ->first();
-            
-            if (!$marriageRecord && $member->matrimony_status === 'married') {
+
+            if (! $marriageRecord && $member->matrimony_status === 'married') {
                 // Create a basic marriage record from member data if none exists but member is married
                 $marriageRecord = $this->createBasicMarriageRecordFromMember($member);
             }
-            
-            if (!$marriageRecord) {
+
+            if (! $marriageRecord) {
                 return response()->json([
-                    'error' => 'No marriage record found for this member and member is not marked as married'
+                    'error' => 'No marriage record found for this member and member is not marked as married',
                 ], 404);
             }
-            
+
             return $this->downloadMarriageCertificate($marriageRecord->id);
-            
+
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Failed to find marriage certificate: ' . $e->getMessage()
+                'error' => 'Failed to find marriage certificate: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -333,7 +334,7 @@ class MarriageRecordController extends Controller
     {
         // Create a copy of the marriage record as array to add computed fields
         $enhanced = $marriageRecord->toArray();
-        
+
         // Add missing fields that our template expects
         $enhanced['entry_number'] = $marriageRecord->record_number ?? str_pad($marriageRecord->id, 4, '0', STR_PAD_LEFT);
         $enhanced['sub_county'] = $marriageRecord->district ?? '';
@@ -343,17 +344,17 @@ class MarriageRecordController extends Controller
         $enhanced['religion'] = 'Catholic';
         $enhanced['license_number'] = $marriageRecord->civil_marriage_certificate_number ?? '';
         $enhanced['officiant_name'] = $marriageRecord->presence_of ?? '';
-        
+
         // Enhance husband details
         if ($marriageRecord->husband) {
             $husband = $marriageRecord->husband;
-            $enhanced['husband_age'] = $husband->date_of_birth ? 
+            $enhanced['husband_age'] = $husband->date_of_birth ?
                 \Carbon\Carbon::parse($husband->date_of_birth)->age : '';
             $enhanced['husband_residence'] = $husband->address ?? $marriageRecord->husband_domicile ?? '';
             $enhanced['husband_county'] = $husband->county ?? $marriageRecord->province ?? '';
             $enhanced['husband_occupation'] = $husband->occupation ?? '';
             $enhanced['husband_marital_status'] = 'Single'; // Default for first marriage
-            
+
             // Parent details from member if not in marriage record
             $enhanced['husband_father_name'] = $marriageRecord->husband_father_name ?? $husband->father_name ?? '';
             $enhanced['husband_mother_name'] = $marriageRecord->husband_mother_name ?? $husband->mother_name ?? '';
@@ -362,17 +363,17 @@ class MarriageRecordController extends Controller
             $enhanced['husband_father_residence'] = $husband->father_residence ?? '';
             $enhanced['husband_mother_residence'] = $husband->mother_residence ?? '';
         }
-        
+
         // Enhance wife details
         if ($marriageRecord->wife) {
             $wife = $marriageRecord->wife;
-            $enhanced['wife_age'] = $wife->date_of_birth ? 
+            $enhanced['wife_age'] = $wife->date_of_birth ?
                 \Carbon\Carbon::parse($wife->date_of_birth)->age : '';
             $enhanced['wife_residence'] = $wife->address ?? $marriageRecord->wife_domicile ?? '';
             $enhanced['wife_county'] = $wife->county ?? $marriageRecord->province ?? '';
             $enhanced['wife_occupation'] = $wife->occupation ?? '';
             $enhanced['wife_marital_status'] = 'Single'; // Default for first marriage
-            
+
             // Parent details from member if not in marriage record
             $enhanced['wife_father_name'] = $marriageRecord->wife_father_name ?? $wife->father_name ?? '';
             $enhanced['wife_mother_name'] = $marriageRecord->wife_mother_name ?? $wife->mother_name ?? '';
@@ -381,11 +382,11 @@ class MarriageRecordController extends Controller
             $enhanced['wife_father_residence'] = $wife->father_residence ?? '';
             $enhanced['wife_mother_residence'] = $wife->mother_residence ?? '';
         }
-        
+
         // Witness information
         $enhanced['witness1_name'] = $marriageRecord->male_witness_full_name ?? '';
         $enhanced['witness2_name'] = $marriageRecord->female_witness_full_name ?? '';
-        
+
         // Convert back to object for template compatibility
         return (object) $enhanced;
     }
@@ -397,26 +398,26 @@ class MarriageRecordController extends Controller
     {
         // This is a fallback method - in production, proper marriage records should be entered
         $currentDate = now();
-        
+
         // Load relationships to avoid N+1 queries
         $member->load('parent');
-        
+
         // Get parent name safely
-        $parentName = $member->parent ? 
-            trim($member->parent->first_name . ' ' . $member->parent->last_name) : 
+        $parentName = $member->parent ?
+            trim($member->parent->first_name.' '.$member->parent->last_name) :
             'Unknown';
-        
+
         // Check gender case-insensitively
         $isMale = strtolower($member->gender) === 'male';
         $isFemale = strtolower($member->gender) === 'female';
-        
+
         $marriageRecord = MarriageRecord::create([
-            'record_number' => 'AUTO-' . str_pad($member->id, 4, '0', STR_PAD_LEFT),
-            
+            'record_number' => 'AUTO-'.str_pad($member->id, 4, '0', STR_PAD_LEFT),
+
             // Husband Information (required fields)
             'husband_id' => $isMale ? $member->id : null,
-            'husband_name' => $isMale ? 
-                trim($member->first_name . ' ' . ($member->middle_name ?? '') . ' ' . $member->last_name) : 
+            'husband_name' => $isMale ?
+                trim($member->first_name.' '.($member->middle_name ?? '').' '.$member->last_name) :
                 'Not Applicable',
             'husband_father_name' => $isMale ? $parentName : 'Not Applicable',
             'husband_mother_name' => $isMale ? 'To Be Provided' : 'Not Applicable',
@@ -426,11 +427,11 @@ class MarriageRecordController extends Controller
             'husband_domicile' => $isMale ? ($member->residence ?? 'Not Specified') : 'Not Applicable',
             'husband_baptized_at' => $isMale ? ($member->local_church ?? config('app.parish_name', 'Sacred Heart Kandara Parish')) : 'Not Applicable',
             'husband_baptism_date' => $isMale ? ($member->baptism_date ?? $currentDate) : $currentDate,
-            
+
             // Wife Information (required fields)
             'wife_id' => $isFemale ? $member->id : null,
-            'wife_name' => $isFemale ? 
-                trim($member->first_name . ' ' . ($member->middle_name ?? '') . ' ' . $member->last_name) : 
+            'wife_name' => $isFemale ?
+                trim($member->first_name.' '.($member->middle_name ?? '').' '.$member->last_name) :
                 'Not Applicable',
             'wife_father_name' => $isFemale ? $parentName : 'Not Applicable',
             'wife_mother_name' => $isFemale ? 'To Be Provided' : 'Not Applicable',
@@ -440,7 +441,7 @@ class MarriageRecordController extends Controller
             'wife_domicile' => $isFemale ? ($member->residence ?? 'Not Specified') : 'Not Applicable',
             'wife_baptized_at' => $isFemale ? ($member->local_church ?? config('app.parish_name', 'Sacred Heart Kandara Parish')) : 'Not Applicable',
             'wife_baptism_date' => $isFemale ? ($member->baptism_date ?? $currentDate) : $currentDate,
-            
+
             // Marriage Contract Information (required fields)
             'marriage_date' => $currentDate,
             'marriage_month' => $currentDate->format('F'),
@@ -449,16 +450,16 @@ class MarriageRecordController extends Controller
             'district' => 'Kandara',
             'province' => 'Murang\'a',
             'presence_of' => 'Parish Priest',
-            
+
             // Witness Information (required fields)
             'male_witness_full_name' => 'To Be Provided',
             'male_witness_father' => 'Unknown',
             'male_witness_clan' => 'Unknown',
-            'female_witness_full_name' => 'To Be Provided', 
+            'female_witness_full_name' => 'To Be Provided',
             'female_witness_father' => 'Unknown',
             'female_witness_clan' => 'Unknown',
         ]);
-        
+
         return $marriageRecord->load(['husband', 'wife']);
     }
 
@@ -469,11 +470,18 @@ class MarriageRecordController extends Controller
     {
         $stats = [
             'total_marriages' => MarriageRecord::count(),
-            'this_year' => MarriageRecord::whereYear('marriage_date', now()->year)->count(),
-            'this_month' => MarriageRecord::whereYear('marriage_date', now()->year)
-                ->whereMonth('marriage_date', now()->month)->count(),
-            'by_month' => MarriageRecord::selectRaw('MONTH(marriage_date) as month, COUNT(*) as count')
-                ->whereYear('marriage_date', now()->year)
+            'this_year' => DatabaseCompatibilityHelper::whereYear(
+                MarriageRecord::query(), 'marriage_date', now()->year
+            )->count(),
+            'this_month' => DatabaseCompatibilityHelper::whereYear(
+                DatabaseCompatibilityHelper::whereMonth(
+                    MarriageRecord::query(), 'marriage_date', now()->month
+                ), 'marriage_date', now()->year
+            )->count(),
+            'by_month' => MarriageRecord::selectRaw(
+                DatabaseCompatibilityHelper::monthFunction('marriage_date').' as month, COUNT(*) as count'
+            )
+                ->whereRaw(DatabaseCompatibilityHelper::yearFunction('marriage_date').' = ?', [now()->year])
                 ->groupBy('month')
                 ->orderBy('month')
                 ->get(),
@@ -501,15 +509,15 @@ class MarriageRecordController extends Controller
 
         // Apply filters
         if ($request->filled('husband_name')) {
-            $query->where('husband_name', 'like', '%' . $request->husband_name . '%');
+            $query->where('husband_name', 'like', '%'.$request->husband_name.'%');
         }
 
         if ($request->filled('wife_name')) {
-            $query->where('wife_name', 'like', '%' . $request->wife_name . '%');
+            $query->where('wife_name', 'like', '%'.$request->wife_name.'%');
         }
 
         if ($request->filled('officiant')) {
-            $query->where('officiant_name', 'like', '%' . $request->officiant . '%');
+            $query->where('officiant_name', 'like', '%'.$request->officiant.'%');
         }
 
         if ($request->filled('date_from')) {
@@ -521,14 +529,14 @@ class MarriageRecordController extends Controller
         }
 
         if ($request->filled('marriage_location')) {
-            $query->where('marriage_location', 'like', '%' . $request->marriage_location . '%');
+            $query->where('marriage_location', 'like', '%'.$request->marriage_location.'%');
         }
 
         $marriageRecords = $query->orderBy('marriage_date', 'desc')->paginate(50);
 
         return response()->json([
             'marriageRecords' => $marriageRecords,
-            'success' => true
+            'success' => true,
         ]);
     }
 
@@ -557,7 +565,7 @@ class MarriageRecordController extends Controller
             'Fr. Peter Smith',
             'Fr. Michael Johnson',
             'Bishop Thomas Wilson',
-            'Deacon Paul Brown'
+            'Deacon Paul Brown',
         ];
     }
 
@@ -571,17 +579,17 @@ class MarriageRecordController extends Controller
 
         // Apply filters and export
         $query = MarriageRecord::with(['husband', 'wife']);
-        
+
         // Apply same filters as in filter method
         // ... filter logic here ...
 
-        $filename = 'marriage-records-' . now()->format('Y-m-d');
+        $filename = 'marriage-records-'.now()->format('Y-m-d');
 
         // Implementation for export would use Excel package
         return response()->json([
             'success' => true,
             'message' => 'Export functionality to be implemented',
-            'filename' => $filename
+            'filename' => $filename,
         ]);
     }
 }

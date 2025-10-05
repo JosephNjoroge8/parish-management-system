@@ -1,5 +1,7 @@
 <?php
+
 // app/Http/Requests/StoreFamilyRequest.php
+
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;

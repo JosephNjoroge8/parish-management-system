@@ -29,10 +29,10 @@ class MemberObserver
                 'member_id' => $member->id,
                 'name' => $member->full_name,
                 'old_status' => $member->getOriginal('membership_status'),
-                'new_status' => $member->membership_status
+                'new_status' => $member->membership_status,
             ]);
         }
-        
+
         // Clear cache if other important fields change
         if ($member->wasChanged(['local_church', 'church_group'])) {
             $this->clearStatsCache();

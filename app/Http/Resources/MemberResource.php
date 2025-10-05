@@ -1,5 +1,7 @@
 <?php
+
 // app/Http/Resources/MemberResource.php
+
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;

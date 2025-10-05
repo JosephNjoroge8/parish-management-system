@@ -1,6 +1,7 @@
 <?php
 
 // app/Http/Requests/UpdateMemberRequest.php
+
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -27,12 +28,12 @@ class UpdateMemberRequest extends FormRequest
             'email' => [
                 'nullable',
                 'email',
-                Rule::unique('members', 'email')->ignore($memberId)
+                Rule::unique('members', 'email')->ignore($memberId),
             ],
             'id_number' => [
                 'nullable',
                 'string',
-                Rule::unique('members', 'id_number')->ignore($memberId)
+                Rule::unique('members', 'id_number')->ignore($memberId),
             ],
             'address' => 'required|string',
             'occupation' => 'nullable|string|max:255',

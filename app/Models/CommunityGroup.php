@@ -13,14 +13,14 @@ class CommunityGroup extends Model
 
     protected $fillable = [
         'name',
-        'description', 
+        'description',
         'group_type',
         'leader_id',
         'meeting_day',
         'meeting_time',
         'meeting_location',
         'is_active', // Use is_active instead of status
-        'created_by'
+        'created_by',
     ];
 
     protected $casts = [
@@ -62,8 +62,8 @@ class CommunityGroup extends Model
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(Member::class, 'group_members')
-                    ->withPivot(['joined_date', 'role', 'status', 'notes'])
-                    ->withTimestamps();
+            ->withPivot(['joined_date', 'role', 'status', 'notes'])
+            ->withTimestamps();
     }
 
     public function activeMembers(): BelongsToMany
@@ -87,6 +87,7 @@ class CommunityGroup extends Model
         if ($type) {
             return $query->where('group_type', $type);
         }
+
         return $query;
     }
 

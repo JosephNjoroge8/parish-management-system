@@ -35,8 +35,9 @@ class OptimizeLogs extends Command
         // Get log directory
         $logPath = storage_path('logs');
 
-        if (!File::isDirectory($logPath)) {
+        if (! File::isDirectory($logPath)) {
             $this->error('Log directory not found');
+
             return 1;
         }
 
@@ -44,26 +45,27 @@ class OptimizeLogs extends Command
         $totalSize = 0;
 
         // Process log files
-        $logFiles = File::glob($logPath . '/*.log');
+        $logFiles = File::glob($logPath.'/*.log');
 
         foreach ($logFiles as $logFile) {
             $fileName = basename($logFile);
             $fileSize = File::size($logFile);
             $fileAge = now()->diffInDays(File::lastModified($logFile));
 
-            $this->line("Processing: {$fileName} (Size: " . $this->formatBytes($fileSize) . ", Age: {$fileAge} days)");
+            $this->line("Processing: {$fileName} (Size: ".$this->formatBytes($fileSize).", Age: {$fileAge} days)");
 
             // Check if file is too old
             if ($fileAge > $days) {
                 if ($archive) {
                     $this->archiveLogFile($logFile);
-                    $this->info("  → Archived old log file");
+                    $this->info('  → Archived old log file');
                 } else {
                     File::delete($logFile);
-                    $this->info("  → Deleted old log file");
+                    $this->info('  → Deleted old log file');
                 }
                 $totalCleaned++;
                 $totalSize += $fileSize;
+
                 continue;
             }
 
@@ -71,10 +73,10 @@ class OptimizeLogs extends Command
             if ($fileSize > $maxSize) {
                 if ($archive) {
                     $this->archiveLogFile($logFile);
-                    $this->info("  → Archived large log file");
+                    $this->info('  → Archived large log file');
                 } else {
                     $this->truncateLogFile($logFile, $maxSize);
-                    $this->info("  → Truncated large log file");
+                    $this->info('  → Truncated large log file');
                 }
                 $totalCleaned++;
                 $totalSize += $fileSize;
@@ -86,7 +88,7 @@ class OptimizeLogs extends Command
 
         $this->info("\nLog optimization completed!");
         $this->info("Files processed: {$totalCleaned}");
-        $this->info("Space freed: " . $this->formatBytes($totalSize));
+        $this->info('Space freed: '.$this->formatBytes($totalSize));
 
         return 0;
     }
@@ -97,14 +99,14 @@ class OptimizeLogs extends Command
     private function archiveLogFile(string $logFile): void
     {
         $archiveDir = storage_path('logs/archive');
-        
-        if (!File::isDirectory($archiveDir)) {
+
+        if (! File::isDirectory($archiveDir)) {
             File::makeDirectory($archiveDir, 0755, true);
         }
 
         $fileName = basename($logFile, '.log');
-        $archiveName = $fileName . '_' . now()->format('Y-m-d_H-i-s') . '.log.gz';
-        $archivePath = $archiveDir . '/' . $archiveName;
+        $archiveName = $fileName.'_'.now()->format('Y-m-d_H-i-s').'.log.gz';
+        $archivePath = $archiveDir.'/'.$archiveName;
 
         // Compress and move
         $handle = gzopen($archivePath, 'wb9');
@@ -121,7 +123,7 @@ class OptimizeLogs extends Command
     {
         $content = File::get($logFile);
         $lines = explode("\n", $content);
-        
+
         // Keep the last portion of the file
         $keepLines = intval(count($lines) * 0.3); // Keep last 30%
         $truncatedContent = implode("\n", array_slice($lines, -$keepLines));
@@ -135,8 +137,8 @@ class OptimizeLogs extends Command
     private function clearLogBuffers(): void
     {
         // Force log rotation
-        Log::info('Log optimization completed at ' . now());
-        
+        Log::info('Log optimization completed at '.now());
+
         // Clear any buffered logs
         if (function_exists('fastcgi_finish_request')) {
             fastcgi_finish_request();
@@ -150,7 +152,7 @@ class OptimizeLogs extends Command
     {
         $units = ['B', 'KB', 'MB', 'GB'];
         $factor = floor((strlen($bytes) - 1) / 3);
-        
-        return sprintf("%.2f %s", $bytes / pow(1024, $factor), $units[$factor] ?? 'TB');
+
+        return sprintf('%.2f %s', $bytes / pow(1024, $factor), $units[$factor] ?? 'TB');
     }
 }

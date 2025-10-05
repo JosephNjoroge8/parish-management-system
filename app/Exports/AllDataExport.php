@@ -3,16 +3,16 @@
 namespace App\Exports;
 
 use App\Models\Member;
+use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Illuminate\Support\Facades\Schema;
 
 class AllDataExport implements FromCollection, WithHeadings, WithMapping
 {
     /**
-    * @return \Illuminate\Support\Collection
-    */
+     * @return \Illuminate\Support\Collection
+     */
     public function collection()
     {
         return Member::all();
@@ -21,6 +21,7 @@ class AllDataExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         $columns = Schema::getColumnListing('members');
+
         return array_map('ucfirst', $columns);
     }
 
@@ -28,11 +29,11 @@ class AllDataExport implements FromCollection, WithHeadings, WithMapping
     {
         $columns = Schema::getColumnListing('members');
         $data = [];
-        
+
         foreach ($columns as $column) {
             $data[] = $member->$column ?? '';
         }
-        
+
         return $data;
     }
 }

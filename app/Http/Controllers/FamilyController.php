@@ -2,18 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\DatabaseCompatibilityHelper;
 use App\Models\Family;
 use App\Models\Member;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
 
 class FamilyController extends Controller
 {
@@ -30,7 +28,7 @@ class FamilyController extends Controller
                 'members',
                 'members as active_members_count' => function ($q) {
                     $q->where('membership_status', 'active');
-                }
+                },
             ]);
 
             // Apply search filter
@@ -38,13 +36,13 @@ class FamilyController extends Controller
                 $search = $request->get('search');
                 $query->where(function ($q) use ($search) {
                     $q->where('family_name', 'like', "%{$search}%")
-                      ->orWhere('family_code', 'like', "%{$search}%")
-                      ->orWhere('address', 'like', "%{$search}%")
-                      ->orWhere('phone', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%")
-                      ->orWhere('parish_section', 'like', "%{$search}%")
-                      ->orWhere('deanery', 'like', "%{$search}%")
-                      ->orWhere('parish', 'like', "%{$search}%");
+                        ->orWhere('family_code', 'like', "%{$search}%")
+                        ->orWhere('address', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('parish_section', 'like', "%{$search}%")
+                        ->orWhere('deanery', 'like', "%{$search}%")
+                        ->orWhere('parish', 'like', "%{$search}%");
                 });
             }
 
@@ -66,7 +64,7 @@ class FamilyController extends Controller
             // Apply year filter using created_at (since registration_date doesn't exist)
             if ($request->filled('year')) {
                 $year = $request->get('year');
-                $query->whereYear('created_at', $year);
+                DatabaseCompatibilityHelper::whereYear($query, 'created_at', $year);
             }
 
             // Apply member count filter
@@ -83,24 +81,24 @@ class FamilyController extends Controller
             // Sorting
             $sortField = $request->get('sort', 'family_name');
             $sortDirection = $request->get('direction', 'asc');
-            
+
             // Ensure we're sorting by valid columns that exist in the database
             $allowedSortFields = [
-                'family_name', 
-                'family_code', 
-                'parish_section', 
-                'deanery', 
-                'parish', 
-                'created_at', 
+                'family_name',
+                'family_code',
+                'parish_section',
+                'deanery',
+                'parish',
+                'created_at',
                 'updated_at',
-                'members_count'
+                'members_count',
             ];
-            
-            if (!in_array($sortField, $allowedSortFields)) {
+
+            if (! in_array($sortField, $allowedSortFields)) {
                 $sortField = 'family_name';
             }
 
-            if (!in_array($sortDirection, ['asc', 'desc'])) {
+            if (! in_array($sortDirection, ['asc', 'desc'])) {
                 $sortDirection = 'asc';
             }
 
@@ -112,7 +110,7 @@ class FamilyController extends Controller
 
             // Pagination
             $perPage = $request->get('per_page', 15);
-            if (!is_numeric($perPage) || $perPage < 1 || $perPage > 100) {
+            if (! is_numeric($perPage) || $perPage < 1 || $perPage > 100) {
                 $perPage = 15;
             }
 
@@ -144,8 +142,8 @@ class FamilyController extends Controller
                         'first_name' => $family->headOfFamily->first_name,
                         'middle_name' => $family->headOfFamily->middle_name,
                         'last_name' => $family->headOfFamily->last_name,
-                        'full_name' => trim(($family->headOfFamily->first_name ?? '') . ' ' . 
-                                          ($family->headOfFamily->middle_name ?? '') . ' ' . 
+                        'full_name' => trim(($family->headOfFamily->first_name ?? '').' '.
+                                          ($family->headOfFamily->middle_name ?? '').' '.
                                           ($family->headOfFamily->last_name ?? '')),
                         'phone' => $family->headOfFamily->phone,
                         'email' => $family->headOfFamily->email,
@@ -165,13 +163,15 @@ class FamilyController extends Controller
                 'families_with_active_members' => Family::whereHas('members', function ($q) {
                     $q->where('membership_status', 'active');
                 })->count(),
-                'new_this_month' => Family::whereMonth('created_at', now()->month)
-                                         ->whereYear('created_at', now()->year)
-                                         ->count(),
-                'new_this_year' => Family::whereYear('created_at', now()->year)->count(),
+                'new_this_month' => DatabaseCompatibilityHelper::currentMonthQuery(
+                    Family::query(), 'created_at'
+                )->count(),
+                'new_this_year' => DatabaseCompatibilityHelper::currentYearQuery(
+                    Family::query(), 'created_at'
+                )->count(),
                 'total_members_in_families' => Member::whereNotNull('family_id')->count(),
                 'average_family_size' => round(
-                    Member::whereNotNull('family_id')->count() / max(Family::count(), 1), 
+                    Member::whereNotNull('family_id')->count() / max(Family::count(), 1),
                     1
                 ),
             ];
@@ -179,61 +179,57 @@ class FamilyController extends Controller
             // Get filter options from existing data
             $filterOptions = [
                 'parish_sections' => Family::select('parish_section')
-                                          ->whereNotNull('parish_section')
-                                          ->where('parish_section', '!=', '')
-                                          ->distinct()
-                                          ->orderBy('parish_section')
-                                          ->pluck('parish_section')
-                                          ->filter()
-                                          ->values()
-                                          ->toArray(),
+                    ->whereNotNull('parish_section')
+                    ->where('parish_section', '!=', '')
+                    ->distinct()
+                    ->orderBy('parish_section')
+                    ->pluck('parish_section')
+                    ->filter()
+                    ->values()
+                    ->toArray(),
                 'deaneries' => Family::select('deanery')
-                                    ->whereNotNull('deanery')
-                                    ->where('deanery', '!=', '')
-                                    ->distinct()
-                                    ->orderBy('deanery')
-                                    ->pluck('deanery')
-                                    ->filter()
-                                    ->values()
-                                    ->toArray(),
+                    ->whereNotNull('deanery')
+                    ->where('deanery', '!=', '')
+                    ->distinct()
+                    ->orderBy('deanery')
+                    ->pluck('deanery')
+                    ->filter()
+                    ->values()
+                    ->toArray(),
                 'parishes' => Family::select('parish')
-                                   ->whereNotNull('parish')
-                                   ->where('parish', '!=', '')
-                                   ->distinct()
-                                   ->orderBy('parish')
-                                   ->pluck('parish')
-                                   ->filter()
-                                   ->values()
-                                   ->toArray(),
+                    ->whereNotNull('parish')
+                    ->where('parish', '!=', '')
+                    ->distinct()
+                    ->orderBy('parish')
+                    ->pluck('parish')
+                    ->filter()
+                    ->values()
+                    ->toArray(),
                 // Use created_at for years since registration_date doesn't exist
-                'years' => Family::select(DB::raw('DISTINCT YEAR(created_at) as year'))
-                                ->whereNotNull('created_at')
-                                ->orderBy('year', 'desc')
-                                ->pluck('year')
-                                ->filter()
-                                ->values()
-                                ->toArray(),
+                'years' => DatabaseCompatibilityHelper::getDistinctYears(
+                    Family::query(), 'created_at'
+                ),
             ];
 
             // Group families by parish section for stats
             $familiesBySection = Family::select('parish_section', DB::raw('count(*) as count'))
-                                      ->whereNotNull('parish_section')
-                                      ->where('parish_section', '!=', '')
-                                      ->groupBy('parish_section')
-                                      ->orderBy('count', 'desc')
-                                      ->get()
-                                      ->pluck('count', 'parish_section')
-                                      ->toArray();
+                ->whereNotNull('parish_section')
+                ->where('parish_section', '!=', '')
+                ->groupBy('parish_section')
+                ->orderBy('count', 'desc')
+                ->get()
+                ->pluck('count', 'parish_section')
+                ->toArray();
 
             // Group families by deanery for stats
             $familiesByDeanery = Family::select('deanery', DB::raw('count(*) as count'))
-                                      ->whereNotNull('deanery')
-                                      ->where('deanery', '!=', '')
-                                      ->groupBy('deanery')
-                                      ->orderBy('count', 'desc')
-                                      ->get()
-                                      ->pluck('count', 'deanery')
-                                      ->toArray();
+                ->whereNotNull('deanery')
+                ->where('deanery', '!=', '')
+                ->groupBy('deanery')
+                ->orderBy('count', 'desc')
+                ->get()
+                ->pluck('count', 'deanery')
+                ->toArray();
 
             $stats['by_parish_section'] = $familiesBySection;
             $stats['by_deanery'] = $familiesByDeanery;
@@ -242,16 +238,16 @@ class FamilyController extends Controller
                 'families' => $families,
                 'stats' => $stats,
                 'filters' => $request->only([
-                    'search', 
-                    'parish_section', 
-                    'deanery', 
-                    'parish', 
-                    'year', 
+                    'search',
+                    'parish_section',
+                    'deanery',
+                    'parish',
+                    'year',
                     'min_members',
                     'max_members',
-                    'sort', 
-                    'direction', 
-                    'per_page'
+                    'sort',
+                    'direction',
+                    'per_page',
                 ]),
                 'filterOptions' => $filterOptions,
                 'success' => session('success'),
@@ -262,7 +258,7 @@ class FamilyController extends Controller
             Log::error('Error in FamilyController@index', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
             ]);
 
             // Return a safe fallback response
@@ -287,7 +283,7 @@ class FamilyController extends Controller
                     'years' => [],
                 ],
                 'success' => null,
-                'error' => 'An error occurred while loading families: ' . $e->getMessage(),
+                'error' => 'An error occurred while loading families: '.$e->getMessage(),
             ]);
         }
     }
@@ -300,36 +296,36 @@ class FamilyController extends Controller
         try {
             // Get all members without families for potential head of family selection
             $availableMembers = Member::whereNull('family_id')
-                                    ->select('id', 'first_name', 'middle_name', 'last_name', 'phone', 'email')
-                                    ->orderBy('first_name')
-                                    ->get()
-                                    ->map(function ($member) {
-                                        return [
-                                            'id' => $member->id,
-                                            'name' => trim(($member->first_name ?? '') . ' ' . 
-                                                          ($member->middle_name ?? '') . ' ' . 
-                                                          ($member->last_name ?? '')),
-                                            'phone' => $member->phone,
-                                            'email' => $member->email,
-                                        ];
-                                    });
+                ->select('id', 'first_name', 'middle_name', 'last_name', 'phone', 'email')
+                ->orderBy('first_name')
+                ->get()
+                ->map(function ($member) {
+                    return [
+                        'id' => $member->id,
+                        'name' => trim(($member->first_name ?? '').' '.
+                                      ($member->middle_name ?? '').' '.
+                                      ($member->last_name ?? '')),
+                        'phone' => $member->phone,
+                        'email' => $member->email,
+                    ];
+                });
 
             return Inertia::render('Families/Create', [
                 'availableMembers' => $availableMembers,
                 'success' => session('success'),
                 'error' => session('error'),
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Error in FamilyController@create', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return Inertia::render('Families/Create', [
                 'availableMembers' => [],
                 'success' => null,
-                'error' => 'Unable to load members data: ' . $e->getMessage(),
+                'error' => 'Unable to load members data: '.$e->getMessage(),
             ]);
         }
     }
@@ -341,16 +337,16 @@ class FamilyController extends Controller
     {
         // Handle duplicate family codes automatically
         $familyCode = $request->family_code;
-        
+
         // If family code exists, either update existing or auto-generate new code
-        if (!empty($familyCode)) {
+        if (! empty($familyCode)) {
             $existingFamily = Family::where('family_code', $familyCode)->first();
-            
+
             if ($existingFamily) {
                 // Option 1: Update existing family (overwrite)
                 try {
                     DB::beginTransaction();
-                    
+
                     $existingFamily->update([
                         'family_name' => $request->family_name,
                         'address' => $request->address,
@@ -365,33 +361,34 @@ class FamilyController extends Controller
                     // Update head of family if selected
                     if ($request->filled('head_of_family_id')) {
                         Member::where('id', $request->head_of_family_id)
-                              ->update(['family_id' => $existingFamily->id]);
+                            ->update(['family_id' => $existingFamily->id]);
                     }
 
                     DB::commit();
 
                     return redirect()->route('families.index')
-                                   ->with('success', "Family '{$familyCode}' updated successfully!");
+                        ->with('success', "Family '{$familyCode}' updated successfully!");
                 } catch (\Exception $e) {
                     DB::rollBack();
+
                     return redirect()->back()
-                                   ->with('error', 'Failed to update family: ' . $e->getMessage())
-                                   ->withInput();
+                        ->with('error', 'Failed to update family: '.$e->getMessage())
+                        ->withInput();
                 }
             }
         } else {
             // Auto-generate family code if not provided
             $lastFamily = Family::whereNotNull('family_code')
-                               ->where('family_code', 'like', 'FAM%')
-                               ->orderBy('family_code', 'desc')
-                               ->first();
-            
+                ->where('family_code', 'like', 'FAM%')
+                ->orderBy('family_code', 'desc')
+                ->first();
+
             if ($lastFamily && preg_match('/^FAM(\d+)$/', $lastFamily->family_code, $matches)) {
                 $nextNumber = intval($matches[1]) + 1;
             } else {
                 $nextNumber = 1;
             }
-            $familyCode = 'FAM' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+            $familyCode = 'FAM'.str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
             $request->merge(['family_code' => $familyCode]);
         }
 
@@ -411,8 +408,8 @@ class FamilyController extends Controller
 
         if ($validator->fails()) {
             return redirect()->back()
-                           ->withErrors($validator)
-                           ->withInput();
+                ->withErrors($validator)
+                ->withInput();
         }
 
         try {
@@ -425,23 +422,23 @@ class FamilyController extends Controller
             // If a head of family is selected, update their family_id
             if ($request->filled('head_of_family_id')) {
                 Member::where('id', $request->head_of_family_id)
-                      ->update(['family_id' => $family->id]);
+                    ->update(['family_id' => $family->id]);
             }
 
             DB::commit();
 
             return redirect()->route('families.index')
-                           ->with('success', 'Family created successfully!');
+                ->with('success', 'Family created successfully!');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error creating family', [
                 'error' => $e->getMessage(),
-                'data' => $request->all()
+                'data' => $request->all(),
             ]);
-            
+
             return redirect()->back()
-                           ->with('error', 'Error creating family: ' . $e->getMessage())
-                           ->withInput();
+                ->with('error', 'Error creating family: '.$e->getMessage())
+                ->withInput();
         }
     }
 
@@ -452,11 +449,11 @@ class FamilyController extends Controller
     {
         try {
             $family->load([
-                'headOfFamily', 
+                'headOfFamily',
                 'members' => function ($query) {
                     $query->orderBy('first_name');
-                }, 
-                'creator'
+                },
+                'creator',
             ]);
 
             // Transform family data
@@ -479,8 +476,8 @@ class FamilyController extends Controller
                     'first_name' => $family->headOfFamily->first_name,
                     'middle_name' => $family->headOfFamily->middle_name,
                     'last_name' => $family->headOfFamily->last_name,
-                    'full_name' => trim(($family->headOfFamily->first_name ?? '') . ' ' . 
-                                      ($family->headOfFamily->middle_name ?? '') . ' ' . 
+                    'full_name' => trim(($family->headOfFamily->first_name ?? '').' '.
+                                      ($family->headOfFamily->middle_name ?? '').' '.
                                       ($family->headOfFamily->last_name ?? '')),
                     'phone' => $family->headOfFamily->phone,
                     'email' => $family->headOfFamily->email,
@@ -492,8 +489,8 @@ class FamilyController extends Controller
                         'first_name' => $member->first_name,
                         'middle_name' => $member->middle_name,
                         'last_name' => $member->last_name,
-                        'full_name' => trim(($member->first_name ?? '') . ' ' . 
-                                          ($member->middle_name ?? '') . ' ' . 
+                        'full_name' => trim(($member->first_name ?? '').' '.
+                                          ($member->middle_name ?? '').' '.
                                           ($member->last_name ?? '')),
                         'phone' => $member->phone,
                         'email' => $member->email,
@@ -516,7 +513,7 @@ class FamilyController extends Controller
         } catch (\Exception $e) {
             Log::error('Error in FamilyController@show', [
                 'error' => $e->getMessage(),
-                'family_id' => $family->id
+                'family_id' => $family->id,
             ]);
 
             return Inertia::render('Families/Show', [
@@ -538,7 +535,7 @@ class FamilyController extends Controller
                     'members' => [],
                     'creator' => null,
                 ],
-                'error' => 'Error loading family details: ' . $e->getMessage(),
+                'error' => 'Error loading family details: '.$e->getMessage(),
             ]);
         }
     }
@@ -552,22 +549,22 @@ class FamilyController extends Controller
             // Get all members without families (excluding current family members)
             $availableMembers = Member::where(function ($query) use ($family) {
                 $query->whereNull('family_id')
-                      ->orWhere('family_id', $family->id);
+                    ->orWhere('family_id', $family->id);
             })
-            ->select('id', 'first_name', 'middle_name', 'last_name', 'phone', 'email', 'family_id')
-            ->orderBy('first_name')
-            ->get()
-            ->map(function ($member) {
-                return [
-                    'id' => $member->id,
-                    'name' => trim(($member->first_name ?? '') . ' ' . 
-                                  ($member->middle_name ?? '') . ' ' . 
-                                  ($member->last_name ?? '')),
-                    'phone' => $member->phone,
-                    'email' => $member->email,
-                    'family_id' => $member->family_id,
-                ];
-            });
+                ->select('id', 'first_name', 'middle_name', 'last_name', 'phone', 'email', 'family_id')
+                ->orderBy('first_name')
+                ->get()
+                ->map(function ($member) {
+                    return [
+                        'id' => $member->id,
+                        'name' => trim(($member->first_name ?? '').' '.
+                                      ($member->middle_name ?? '').' '.
+                                      ($member->last_name ?? '')),
+                        'phone' => $member->phone,
+                        'email' => $member->email,
+                        'family_id' => $member->family_id,
+                    ];
+                });
 
             $family->load(['headOfFamily', 'members']);
 
@@ -579,13 +576,13 @@ class FamilyController extends Controller
         } catch (\Exception $e) {
             Log::error('Error in FamilyController@edit', [
                 'error' => $e->getMessage(),
-                'family_id' => $family->id
+                'family_id' => $family->id,
             ]);
 
             return Inertia::render('Families/Edit', [
                 'family' => $family,
                 'availableMembers' => [],
-                'error' => 'Error loading family edit form: ' . $e->getMessage(),
+                'error' => 'Error loading family edit form: '.$e->getMessage(),
             ]);
         }
     }
@@ -597,10 +594,10 @@ class FamilyController extends Controller
     {
         $rules = [
             'family_name' => 'required|string|max:255',
-            'family_code' => 'nullable|string|max:50|unique:families,family_code,' . $family->id,
+            'family_code' => 'nullable|string|max:50|unique:families,family_code,'.$family->id,
             'address' => 'nullable|string',
             'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255|unique:families,email,' . $family->id,
+            'email' => 'nullable|email|max:255|unique:families,email,'.$family->id,
             'deanery' => 'nullable|string|max:255',
             'parish' => 'nullable|string|max:255',
             'parish_section' => 'nullable|string|max:255',
@@ -611,8 +608,8 @@ class FamilyController extends Controller
 
         if ($validator->fails()) {
             return redirect()->back()
-                           ->withErrors($validator)
-                           ->withInput();
+                ->withErrors($validator)
+                ->withInput();
         }
 
         try {
@@ -629,25 +626,25 @@ class FamilyController extends Controller
                 // Set new head of family
                 if ($newHeadId) {
                     Member::where('id', $newHeadId)
-                          ->update(['family_id' => $family->id]);
+                        ->update(['family_id' => $family->id]);
                 }
             }
 
             DB::commit();
 
             return redirect()->route('families.index')
-                           ->with('success', 'Family updated successfully!');
+                ->with('success', 'Family updated successfully!');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error updating family', [
                 'error' => $e->getMessage(),
                 'family_id' => $family->id,
-                'data' => $request->all()
+                'data' => $request->all(),
             ]);
-            
+
             return redirect()->back()
-                           ->with('error', 'Error updating family: ' . $e->getMessage())
-                           ->withInput();
+                ->with('error', 'Error updating family: '.$e->getMessage())
+                ->withInput();
         }
     }
 
@@ -661,24 +658,24 @@ class FamilyController extends Controller
 
             // Remove family_id from all members in this family
             Member::where('family_id', $family->id)
-                  ->update(['family_id' => null]);
+                ->update(['family_id' => null]);
 
             // Delete the family
             $family->delete();
 
             DB::commit();
-            
+
             return redirect()->route('families.index')
-                           ->with('success', 'Family deleted successfully! All members have been removed from the family.');
+                ->with('success', 'Family deleted successfully! All members have been removed from the family.');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error deleting family', [
                 'error' => $e->getMessage(),
-                'family_id' => $family->id
+                'family_id' => $family->id,
             ]);
-            
+
             return redirect()->back()
-                           ->with('error', 'Error deleting family: ' . $e->getMessage());
+                ->with('error', 'Error deleting family: '.$e->getMessage());
         }
     }
 
@@ -688,25 +685,25 @@ class FamilyController extends Controller
     public function addMember(Request $request, Family $family)
     {
         $request->validate([
-            'member_id' => 'required|exists:members,id'
+            'member_id' => 'required|exists:members,id',
         ]);
 
         try {
             $member = Member::findOrFail($request->member_id);
-            
+
             // Check if member is already in a family
             if ($member->family_id) {
                 return redirect()->back()
-                               ->with('error', 'Member is already part of another family.');
+                    ->with('error', 'Member is already part of another family.');
             }
 
             $member->update(['family_id' => $family->id]);
 
             return redirect()->back()
-                           ->with('success', 'Member added to family successfully!');
+                ->with('success', 'Member added to family successfully!');
         } catch (\Exception $e) {
             return redirect()->back()
-                           ->with('error', 'Error adding member to family: ' . $e->getMessage());
+                ->with('error', 'Error adding member to family: '.$e->getMessage());
         }
     }
 
@@ -716,14 +713,14 @@ class FamilyController extends Controller
     public function removeMember(Request $request, Family $family)
     {
         $request->validate([
-            'member_id' => 'required|exists:members,id'
+            'member_id' => 'required|exists:members,id',
         ]);
 
         try {
             DB::beginTransaction();
 
             $member = Member::findOrFail($request->member_id);
-            
+
             // Check if this member is the head of family
             if ($family->head_of_family_id === $member->id) {
                 $family->update(['head_of_family_id' => null]);
@@ -734,11 +731,12 @@ class FamilyController extends Controller
             DB::commit();
 
             return redirect()->back()
-                           ->with('success', 'Member removed from family successfully!');
+                ->with('success', 'Member removed from family successfully!');
         } catch (\Exception $e) {
             DB::rollBack();
+
             return redirect()->back()
-                           ->with('error', 'Error removing member from family: ' . $e->getMessage());
+                ->with('error', 'Error removing member from family: '.$e->getMessage());
         }
     }
 }

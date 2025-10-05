@@ -2,16 +2,16 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\Family;
-use App\Models\Member;
-use App\Models\CommunityGroup;
 use App\Models\Activity;
-use App\Models\Sacrament;
 use App\Models\BaptismRecord;
-use App\Models\Tithe;
+use App\Models\CommunityGroup;
+use App\Models\Family;
 use App\Models\FamilyRelationship;
+use App\Models\Member;
+use App\Models\Sacrament;
+use App\Models\Tithe;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class SampleDataSeeder extends Seeder
 {
@@ -51,7 +51,7 @@ class SampleDataSeeder extends Seeder
         $motherName = 'Grace Wanjiku';
         $godparentName = 'James Mwangi';
         $ministerName = 'Fr. Michael Johnson';
-        
+
         $johnKamau = Member::create([
             'first_name' => 'John',
             'middle_name' => 'Mwangi',
@@ -382,21 +382,21 @@ class SampleDataSeeder extends Seeder
         // Create more sample members for testing with auto-sync fields
         for ($i = 1; $i <= 10; $i++) {
             $gender = $i % 2 == 0 ? 'Female' : 'Male';
-            $fatherName = 'Father' . $i . ' Lastname' . $i;
-            $motherName = 'Mother' . $i . ' Lastname' . $i;
-            $godparentName = 'Godparent' . $i . ' Name' . $i;
-            $ministerName = 'Fr. Minister' . $i;
-            
+            $fatherName = 'Father'.$i.' Lastname'.$i;
+            $motherName = 'Mother'.$i.' Lastname'.$i;
+            $godparentName = 'Godparent'.$i.' Name'.$i;
+            $ministerName = 'Fr. Minister'.$i;
+
             $member = Member::create([
-                'first_name' => 'Member' . $i,
-                'middle_name' => 'Middle' . $i,
-                'last_name' => 'Lastname' . $i,
+                'first_name' => 'Member'.$i,
+                'middle_name' => 'Middle'.$i,
+                'last_name' => 'Lastname'.$i,
                 'date_of_birth' => Carbon::now()->subYears(rand(18, 65))->format('Y-m-d'),
                 'gender' => $gender,
-                'id_number' => '1234567' . str_pad($i, 2, '0', STR_PAD_LEFT),
-                'phone' => '+25470000' . str_pad($i, 4, '0', STR_PAD_LEFT),
-                'email' => 'member' . $i . '@parish.com',
-                'residence' => 'Nairobi County, Area ' . $i,
+                'id_number' => '1234567'.str_pad($i, 2, '0', STR_PAD_LEFT),
+                'phone' => '+25470000'.str_pad($i, 4, '0', STR_PAD_LEFT),
+                'email' => 'member'.$i.'@parish.com',
+                'residence' => 'Nairobi County, Area '.$i,
                 'local_church' => 'Sacred Heart Kandara',
                 'small_christian_community' => $i <= 5 ? 'Tumaini SCC' : 'Upendo SCC',
                 'church_group' => $this->getRandomChurchGroup($gender),
@@ -407,7 +407,7 @@ class SampleDataSeeder extends Seeder
                 'occupation' => $this->getRandomOccupationEnum(),
                 'education_level' => $this->getRandomEducationLevel(),
                 'tribe' => $this->getRandomTribe(),
-                'clan' => 'Clan' . $i,
+                'clan' => 'Clan'.$i,
                 'is_differently_abled' => rand(0, 10) == 0, // 10% chance
                 'disability_description' => rand(0, 10) == 0 ? 'Sample disability description' : null,
                 // Main family fields (entered once)
@@ -431,7 +431,7 @@ class SampleDataSeeder extends Seeder
                     'payment_method' => $this->getRandomPaymentMethod(),
                     'date_given' => Carbon::now()->subDays(rand(1, 90))->format('Y-m-d'),
                     'purpose' => 'Monthly contribution',
-                    'receipt_number' => 'REC-' . date('Y') . '-' . str_pad($i + 100, 3, '0', STR_PAD_LEFT),
+                    'receipt_number' => 'REC-'.date('Y').'-'.str_pad($i + 100, 3, '0', STR_PAD_LEFT),
                     'recorded_by' => 1,
                 ]);
             }
@@ -443,36 +443,42 @@ class SampleDataSeeder extends Seeder
         $maleGroups = ['CMA', 'Youth', 'Choir', 'Catholic Action', 'Pioneer'];
         $femaleGroups = ['C.W.A', 'Youth', 'Choir', 'Catholic Action', 'Pioneer'];
         $groups = $gender === 'Male' ? $maleGroups : $femaleGroups;
+
         return $groups[array_rand($groups)];
     }
 
     private function getRandomOccupationEnum()
     {
         $occupations = ['employed', 'self_employed', 'not_employed'];
+
         return $occupations[array_rand($occupations)];
     }
 
     private function getRandomEducationLevel()
     {
         $levels = ['primary', 'kcpe', 'secondary', 'kcse', 'certificate', 'diploma', 'degree'];
+
         return $levels[array_rand($levels)];
     }
 
     private function getRandomTribe()
     {
         $tribes = ['Kikuyu', 'Luo', 'Luhya', 'Kalenjin', 'Kamba', 'Kisii', 'Meru', 'Mijikenda', 'Turkana', 'Maasai'];
+
         return $tribes[array_rand($tribes)];
     }
 
     private function getRandomTitheType()
     {
         $types = ['tithe', 'offering', 'special_collection', 'donation', 'thanksgiving'];
+
         return $types[array_rand($types)];
     }
 
     private function getRandomPaymentMethod()
     {
         $methods = ['cash', 'mobile_money', 'bank_transfer', 'check'];
+
         return $methods[array_rand($methods)];
     }
 }

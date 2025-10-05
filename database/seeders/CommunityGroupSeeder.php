@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\CommunityGroup;
 use App\Models\Member;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class CommunityGroupSeeder extends Seeder
 {
@@ -20,6 +20,7 @@ class CommunityGroupSeeder extends Seeder
 
         if ($members->isEmpty()) {
             $this->command->info('No members found. Please run MemberSeeder first.');
+
             return;
         }
 
@@ -113,10 +114,10 @@ class CommunityGroupSeeder extends Seeder
             try {
                 CommunityGroup::create($group);
             } catch (\Exception $e) {
-                $this->command->error('Failed to create community group: ' . $e->getMessage());
+                $this->command->error('Failed to create community group: '.$e->getMessage());
             }
         }
 
-        $this->command->info('Created ' . count($groups) . ' community groups.');
+        $this->command->info('Created '.count($groups).' community groups.');
     }
 }

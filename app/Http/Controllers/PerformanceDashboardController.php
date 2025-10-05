@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Middleware\PerformanceMonitor;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
-use App\Http\Middleware\PerformanceMonitor;
 
 class PerformanceDashboardController extends Controller
 {
@@ -22,31 +21,31 @@ class PerformanceDashboardController extends Controller
             $databaseMetrics = $this->getDatabaseMetrics();
             $systemMetrics = $this->getSystemMetrics();
             $recommendations = $this->getPerformanceRecommendations($performanceData, $databaseMetrics);
-            
+
             return Inertia::render('Admin/Performance/Dashboard', [
                 'performance' => $performanceData,
                 'database' => $databaseMetrics,
                 'system' => $systemMetrics,
                 'recommendations' => $recommendations,
-                'lastUpdated' => now()->toDateTimeString()
+                'lastUpdated' => now()->toDateTimeString(),
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Performance dashboard error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return Inertia::render('Admin/Performance/Dashboard', [
                 'error' => 'Unable to load performance data',
                 'performance' => [],
                 'database' => [],
                 'system' => [],
-                'recommendations' => []
+                'recommendations' => [],
             ]);
         }
     }
-    
+
     /**
      * Get performance data from monitoring middleware
      */
@@ -54,32 +53,32 @@ class PerformanceDashboardController extends Controller
     {
         $summary = PerformanceMonitor::getPerformanceSummary();
         $recentMetrics = Cache::get('performance_metrics_recent', []);
-        
+
         // Calculate additional metrics
-        if (!empty($recentMetrics)) {
+        if (! empty($recentMetrics)) {
             $responseTimes = array_column($recentMetrics, 'total_time');
             $queryCounts = array_column($recentMetrics, 'query_count');
-            
+
             $summary['percentiles'] = [
                 'p50' => $this->calculatePercentile($responseTimes, 50),
                 'p90' => $this->calculatePercentile($responseTimes, 90),
                 'p95' => $this->calculatePercentile($responseTimes, 95),
                 'p99' => $this->calculatePercentile($responseTimes, 99),
             ];
-            
+
             $summary['query_stats'] = [
                 'min' => min($queryCounts),
                 'max' => max($queryCounts),
                 'avg' => array_sum($queryCounts) / count($queryCounts),
             ];
-            
+
             // Get hourly trends
             $summary['hourly_trends'] = $this->getHourlyTrends();
         }
-        
+
         return $summary;
     }
-    
+
     /**
      * Get database performance metrics
      */
@@ -99,16 +98,16 @@ class PerformanceDashboardController extends Controller
                 AND TABLE_TYPE = 'BASE TABLE'
                 ORDER BY (DATA_LENGTH + INDEX_LENGTH) DESC
             ");
-            
+
             // Get slow query analysis
             $slowQueries = $this->analyzeDatabasePerformance();
-            
+
             // Get index usage statistics
             $indexStats = $this->getIndexUsageStats();
-            
+
             // Calculate database health score
             $healthScore = $this->calculateDatabaseHealthScore($tables, $slowQueries, $indexStats);
-            
+
             return [
                 'tables' => $tables,
                 'slow_queries' => $slowQueries,
@@ -117,18 +116,19 @@ class PerformanceDashboardController extends Controller
                 'total_size_mb' => array_sum(array_column($tables, 'size_mb')),
                 'total_rows' => array_sum(array_column($tables, 'row_count')),
             ];
-            
+
         } catch (\Exception $e) {
             Log::error('Database metrics error', ['error' => $e->getMessage()]);
+
             return [
                 'error' => 'Unable to retrieve database metrics',
                 'tables' => [],
                 'slow_queries' => [],
-                'index_stats' => []
+                'index_stats' => [],
             ];
         }
     }
-    
+
     /**
      * Get system performance metrics
      */
@@ -144,7 +144,7 @@ class PerformanceDashboardController extends Controller
             'current_memory_usage' => $this->formatBytes(memory_get_usage(true)),
             'peak_memory_usage' => $this->formatBytes(memory_get_peak_usage(true)),
         ];
-        
+
         // Add Laravel specific metrics
         $metrics['laravel_version'] = app()->version();
         $metrics['environment'] = app()->environment();
@@ -152,25 +152,25 @@ class PerformanceDashboardController extends Controller
         $metrics['cache_driver'] = config('cache.default');
         $metrics['session_driver'] = config('session.driver');
         $metrics['queue_driver'] = config('queue.default');
-        
+
         // Check for performance-critical settings
         $metrics['performance_checks'] = [
             'opcache_enabled' => $metrics['opcache_enabled'],
-            'debug_disabled' => !$metrics['debug_mode'],
+            'debug_disabled' => ! $metrics['debug_mode'],
             'cache_configured' => $metrics['cache_driver'] !== 'array',
             'session_optimized' => in_array($metrics['session_driver'], ['redis', 'memcached', 'database']),
         ];
-        
+
         return $metrics;
     }
-    
+
     /**
      * Generate performance recommendations based on metrics
      */
     private function getPerformanceRecommendations(array $performance, array $database): array
     {
         $recommendations = [];
-        
+
         // Response time recommendations
         if (isset($performance['avg_response_time']) && $performance['avg_response_time'] > 1000) {
             $recommendations[] = [
@@ -179,10 +179,10 @@ class PerformanceDashboardController extends Controller
                 'title' => 'Slow Average Response Time',
                 'message' => "Average response time is {$performance['avg_response_time']}ms. Target should be under 500ms.",
                 'action' => 'Implement caching, optimize database queries, or consider upgrading server resources.',
-                'priority' => 'high'
+                'priority' => 'high',
             ];
         }
-        
+
         // Query count recommendations
         if (isset($performance['avg_queries_per_request']) && $performance['avg_queries_per_request'] > 15) {
             $recommendations[] = [
@@ -191,22 +191,22 @@ class PerformanceDashboardController extends Controller
                 'title' => 'High Query Count',
                 'message' => "Average {$performance['avg_queries_per_request']} queries per request. Target should be under 10.",
                 'action' => 'Implement eager loading, use query optimization, or add result caching.',
-                'priority' => 'medium'
+                'priority' => 'medium',
             ];
         }
-        
+
         // Slow query recommendations
         if (isset($database['slow_queries']) && count($database['slow_queries']) > 0) {
             $recommendations[] = [
                 'type' => 'error',
                 'category' => 'Database',
                 'title' => 'Slow Queries Detected',
-                'message' => count($database['slow_queries']) . ' slow queries found.',
+                'message' => count($database['slow_queries']).' slow queries found.',
                 'action' => 'Review and optimize slow queries, add missing indexes.',
-                'priority' => 'high'
+                'priority' => 'high',
             ];
         }
-        
+
         // Database size recommendations
         if (isset($database['total_size_mb']) && $database['total_size_mb'] > 1000) {
             $recommendations[] = [
@@ -215,14 +215,14 @@ class PerformanceDashboardController extends Controller
                 'title' => 'Large Database Size',
                 'message' => "Database size is {$database['total_size_mb']}MB.",
                 'action' => 'Consider data archiving, cleanup old records, or database partitioning.',
-                'priority' => 'low'
+                'priority' => 'low',
             ];
         }
-        
+
         // Memory usage recommendations
         $currentMemory = memory_get_usage(true);
         $memoryLimit = $this->parseMemoryLimit(ini_get('memory_limit'));
-        
+
         if ($currentMemory > ($memoryLimit * 0.8)) {
             $recommendations[] = [
                 'type' => 'warning',
@@ -230,10 +230,10 @@ class PerformanceDashboardController extends Controller
                 'title' => 'High Memory Usage',
                 'message' => 'Memory usage is above 80% of limit.',
                 'action' => 'Optimize memory usage or increase memory_limit.',
-                'priority' => 'medium'
+                'priority' => 'medium',
             ];
         }
-        
+
         // Cache recommendations
         if (Cache::getStore() instanceof \Illuminate\Cache\ArrayStore) {
             $recommendations[] = [
@@ -242,10 +242,10 @@ class PerformanceDashboardController extends Controller
                 'title' => 'Inefficient Cache Driver',
                 'message' => 'Using array cache driver in production.',
                 'action' => 'Configure Redis or Memcached for better performance.',
-                'priority' => 'medium'
+                'priority' => 'medium',
             ];
         }
-        
+
         // Add positive recommendations for good performance
         if (isset($performance['avg_response_time']) && $performance['avg_response_time'] < 500) {
             $recommendations[] = [
@@ -254,13 +254,13 @@ class PerformanceDashboardController extends Controller
                 'title' => 'Excellent Response Time',
                 'message' => "Average response time is {$performance['avg_response_time']}ms - excellent!",
                 'action' => 'Continue monitoring to maintain this performance level.',
-                'priority' => 'low'
+                'priority' => 'low',
             ];
         }
-        
+
         return $recommendations;
     }
-    
+
     /**
      * Analyze database performance for slow queries
      */
@@ -274,27 +274,28 @@ class PerformanceDashboardController extends Controller
                     'query' => 'SELECT * FROM users WHERE email LIKE ?',
                     'avg_time' => 156.7,
                     'count' => 45,
-                    'recommendation' => 'Add index on email column, avoid SELECT *'
+                    'recommendation' => 'Add index on email column, avoid SELECT *',
                 ],
                 [
                     'query' => 'SELECT u.*, r.* FROM users u LEFT JOIN model_has_roles mhr ON u.id = mhr.model_id LEFT JOIN roles r ON r.id = mhr.role_id',
                     'avg_time' => 89.3,
                     'count' => 123,
-                    'recommendation' => 'Use eager loading or cache role assignments'
-                ]
+                    'recommendation' => 'Use eager loading or cache role assignments',
+                ],
             ];
-            
+
             // Filter only slow queries (> 100ms)
-            return array_filter($queries, function($query) {
+            return array_filter($queries, function ($query) {
                 return $query['avg_time'] > 100;
             });
-            
+
         } catch (\Exception $e) {
             Log::error('Slow query analysis error', ['error' => $e->getMessage()]);
+
             return [];
         }
     }
-    
+
     /**
      * Get index usage statistics
      */
@@ -302,7 +303,7 @@ class PerformanceDashboardController extends Controller
     {
         try {
             // Get index information for all tables
-            $indexes = DB::select("
+            $indexes = DB::select('
                 SELECT 
                     TABLE_NAME as table_name,
                     INDEX_NAME as index_name,
@@ -313,67 +314,68 @@ class PerformanceDashboardController extends Controller
                 FROM information_schema.STATISTICS 
                 WHERE TABLE_SCHEMA = DATABASE()
                 ORDER BY TABLE_NAME, INDEX_NAME
-            ");
-            
+            ');
+
             // Group by table
             $indexesByTable = [];
             foreach ($indexes as $index) {
                 $indexesByTable[$index->table_name][] = $index;
             }
-            
+
             return $indexesByTable;
-            
+
         } catch (\Exception $e) {
             Log::error('Index stats error', ['error' => $e->getMessage()]);
+
             return [];
         }
     }
-    
+
     /**
      * Calculate database health score (0-100)
      */
     private function calculateDatabaseHealthScore(array $tables, array $slowQueries, array $indexStats): int
     {
         $score = 100;
-        
+
         // Deduct points for slow queries
         $score -= min(count($slowQueries) * 10, 50);
-        
+
         // Deduct points for tables without indexes
         foreach ($tables as $table) {
-            if (!isset($indexStats[$table->name]) || count($indexStats[$table->name]) <= 1) {
+            if (! isset($indexStats[$table->name]) || count($indexStats[$table->name]) <= 1) {
                 $score -= 5; // Deduct for tables with only primary key
             }
         }
-        
+
         // Deduct points for very large tables without proper indexing
         foreach ($tables as $table) {
-            if ($table->row_count > 10000 && (!isset($indexStats[$table->name]) || count($indexStats[$table->name]) <= 2)) {
+            if ($table->row_count > 10000 && (! isset($indexStats[$table->name]) || count($indexStats[$table->name]) <= 2)) {
                 $score -= 10;
             }
         }
-        
+
         return max(0, min(100, $score));
     }
-    
+
     /**
      * Get hourly performance trends
      */
     private function getHourlyTrends(): array
     {
         $trends = [];
-        
+
         for ($i = 23; $i >= 0; $i--) {
             $hour = now()->subHours($i)->format('Y-m-d-H');
             $hourlyData = Cache::get("performance_metrics_hourly_{$hour}", null);
-            
+
             if ($hourlyData) {
                 $trends[] = [
                     'hour' => $hour,
                     'requests' => $hourlyData['request_count'],
-                    'avg_time' => $hourlyData['request_count'] > 0 ? 
+                    'avg_time' => $hourlyData['request_count'] > 0 ?
                         round($hourlyData['total_time'] / $hourlyData['request_count'], 2) : 0,
-                    'avg_queries' => $hourlyData['request_count'] > 0 ? 
+                    'avg_queries' => $hourlyData['request_count'] > 0 ?
                         round($hourlyData['total_queries'] / $hourlyData['request_count'], 2) : 0,
                     'slow_requests' => $hourlyData['slow_requests'] ?? 0,
                 ];
@@ -387,10 +389,10 @@ class PerformanceDashboardController extends Controller
                 ];
             }
         }
-        
+
         return $trends;
     }
-    
+
     /**
      * Calculate percentile from array of values
      */
@@ -399,35 +401,35 @@ class PerformanceDashboardController extends Controller
         if (empty($values)) {
             return 0;
         }
-        
+
         sort($values);
         $index = ($percentile / 100) * (count($values) - 1);
-        
+
         if (floor($index) == $index) {
             return $values[$index];
         }
-        
+
         $lower = $values[floor($index)];
         $upper = $values[ceil($index)];
         $fraction = $index - floor($index);
-        
+
         return $lower + ($fraction * ($upper - $lower));
     }
-    
+
     /**
      * Format bytes to human readable format
      */
     private function formatBytes(int $bytes, int $precision = 2): string
     {
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        
+
         for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
             $bytes /= 1024;
         }
-        
-        return round($bytes, $precision) . ' ' . $units[$i];
+
+        return round($bytes, $precision).' '.$units[$i];
     }
-    
+
     /**
      * Parse memory limit string to bytes
      */
@@ -436,7 +438,7 @@ class PerformanceDashboardController extends Controller
         $memoryLimit = trim($memoryLimit);
         $last = strtolower($memoryLimit[strlen($memoryLimit) - 1]);
         $value = (int) $memoryLimit;
-        
+
         switch ($last) {
             case 'g':
                 $value *= 1024;
@@ -445,10 +447,10 @@ class PerformanceDashboardController extends Controller
             case 'k':
                 $value *= 1024;
         }
-        
+
         return $value;
     }
-    
+
     /**
      * Clear performance cache
      */
@@ -456,22 +458,22 @@ class PerformanceDashboardController extends Controller
     {
         try {
             Cache::forget('performance_metrics_recent');
-            
+
             // Clear hourly cache for last 24 hours
             for ($i = 0; $i < 24; $i++) {
                 $hour = now()->subHours($i)->format('Y-m-d-H');
                 Cache::forget("performance_metrics_hourly_{$hour}");
             }
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Performance cache cleared successfully'
+                'message' => 'Performance cache cleared successfully',
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to clear performance cache: ' . $e->getMessage()
+                'message' => 'Failed to clear performance cache: '.$e->getMessage(),
             ], 500);
         }
     }

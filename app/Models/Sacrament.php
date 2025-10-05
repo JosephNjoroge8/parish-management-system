@@ -38,7 +38,7 @@ class Sacrament extends Model
     const SACRAMENT_TYPES = [
         'baptism' => 'Baptism',
         'confirmation' => 'Confirmation',
-        'marriage' => 'Marriage'
+        'marriage' => 'Marriage',
     ];
 
     public function member(): BelongsTo
@@ -50,17 +50,17 @@ class Sacrament extends Model
     {
         return $this->belongsTo(User::class, 'recorded_by');
     }
-    
+
     public function detailedRecord(): MorphTo
     {
         return $this->morphTo();
     }
-    
+
     public function baptismRecord()
     {
         return $this->hasOne(BaptismRecord::class, 'baptism_sacrament_id');
     }
-    
+
     public function marriageRecord()
     {
         return $this->hasOne(MarriageRecord::class, 'sacrament_id');
@@ -81,15 +81,15 @@ class Sacrament extends Model
         if ($startDate && $endDate) {
             return $query->whereBetween('sacrament_date', [$startDate, $endDate]);
         }
-        
+
         if ($startDate) {
             return $query->where('sacrament_date', '>=', $startDate);
         }
-        
+
         if ($endDate) {
             return $query->where('sacrament_date', '<=', $endDate);
         }
-        
+
         return $query;
     }
 
@@ -101,7 +101,7 @@ class Sacrament extends Model
     // Helper method to get sacrament type options for forms
     public static function getSacramentTypeOptions()
     {
-        return array_map(function($key, $value) {
+        return array_map(function ($key, $value) {
             return ['value' => $key, 'label' => $value];
         }, array_keys(self::SACRAMENT_TYPES), self::SACRAMENT_TYPES);
     }
@@ -119,7 +119,7 @@ class Sacrament extends Model
     public static function getStatistics()
     {
         $stats = [];
-        
+
         foreach (self::SACRAMENT_TYPES as $type => $name) {
             $stats[$type] = [
                 'name' => $name,
@@ -133,7 +133,7 @@ class Sacrament extends Model
                     ->count(),
             ];
         }
-        
+
         return $stats;
     }
 }

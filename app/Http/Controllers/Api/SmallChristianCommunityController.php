@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Member;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class SmallChristianCommunityController extends Controller
 {
@@ -16,11 +16,11 @@ class SmallChristianCommunityController extends Controller
     {
         $query = $request->input('q', '');
         $limit = min((int) $request->input('limit', 10), 50); // Max 50 results
-        
+
         if (strlen(trim($query)) < 2) {
             return response()->json(['data' => []]);
         }
-        
+
         // Get distinct small Christian communities that match the search query
         $communities = Member::select('small_christian_community')
             ->where('small_christian_community', 'like', "%{$query}%")
@@ -31,10 +31,10 @@ class SmallChristianCommunityController extends Controller
             ->limit($limit)
             ->pluck('small_christian_community')
             ->toArray();
-        
+
         return response()->json(['data' => $communities]);
     }
-    
+
     /**
      * Get all small Christian communities
      */
@@ -50,13 +50,13 @@ class SmallChristianCommunityController extends Controller
             ->map(function ($item) {
                 return [
                     'name' => $item->small_christian_community,
-                    'member_count' => $item->member_count
+                    'member_count' => $item->member_count,
                 ];
             });
-        
+
         return response()->json(['data' => $communities]);
     }
-    
+
     /**
      * Get members by small Christian community
      */
@@ -67,11 +67,11 @@ class SmallChristianCommunityController extends Controller
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get();
-        
+
         return response()->json([
             'data' => $members,
             'community' => $community,
-            'total_members' => $members->count()
+            'total_members' => $members->count(),
         ]);
     }
 }

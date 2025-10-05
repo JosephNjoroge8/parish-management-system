@@ -1,5 +1,7 @@
 <?php
+
 // filepath: app/Http/Middleware/CheckUserStatus.php
+
 namespace App\Http\Middleware;
 
 use Closure;
@@ -12,14 +14,15 @@ class CheckUserStatus
     {
         if (Auth::check()) {
             $user = Auth::user();
-            
+
             // Check if user has a status field and if it's active
             if (isset($user->status) && $user->status !== 'active') {
                 Auth::logout();
+
                 return redirect('/login')->with('error', 'Your account is not active.');
             }
         }
-        
+
         return $next($request);
     }
 }

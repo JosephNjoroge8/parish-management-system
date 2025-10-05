@@ -13,19 +13,19 @@ class MarriageCertificateValidator
     private array $requiredFields = [
         'basic_info' => [
             'marriage_date' => 'Marriage Date',
-            'marriage_location' => 'Marriage Location'
+            'marriage_location' => 'Marriage Location',
         ],
         'husband_details' => [
             'husband_name' => 'Husband\'s Full Name',
-            'husband_age' => 'Husband\'s Age'
+            'husband_age' => 'Husband\'s Age',
         ],
         'wife_details' => [
-            'wife_name' => 'Wife\'s Full Name', 
-            'wife_age' => 'Wife\'s Age'
+            'wife_name' => 'Wife\'s Full Name',
+            'wife_age' => 'Wife\'s Age',
         ],
         'ceremony_details' => [
-            'presence_of' => 'Officiant/Priest Name'
-        ]
+            'presence_of' => 'Officiant/Priest Name',
+        ],
     ];
 
     /**
@@ -40,7 +40,7 @@ class MarriageCertificateValidator
         'wife_mother_name' => 'Wife\'s Mother\'s Name',
         'male_witness_full_name' => 'Male Witness Name',
         'female_witness_full_name' => 'Female Witness Name',
-        'religion' => 'Religion/Ceremony Type'
+        'religion' => 'Religion/Ceremony Type',
     ];
 
     /**
@@ -48,7 +48,7 @@ class MarriageCertificateValidator
      */
     private array $optionalFields = [
         'civil_marriage_certificate_number',
-        'banns_number', 
+        'banns_number',
         'husband_county',
         'wife_county',
         'husband_father_occupation',
@@ -56,14 +56,11 @@ class MarriageCertificateValidator
         'wife_father_occupation',
         'wife_mother_occupation',
         'male_witness_father',
-        'female_witness_father'
+        'female_witness_father',
     ];
 
     /**
      * Validate member data for marriage certificate generation
-     * 
-     * @param Member $member
-     * @return array
      */
     public function validateMemberData(Member $member): array
     {
@@ -74,19 +71,20 @@ class MarriageCertificateValidator
             'missing_optional' => [],
             'field_mapping' => [],
             'warnings' => [],
-            'recommendations' => []
+            'recommendations' => [],
         ];
 
         // Check basic marriage eligibility
-        $hasMarriageData = $member->matrimony_status === 'married' || 
-                          $member->marriage_date || 
-                          $member->spouse_name || 
-                          $member->husband_name || 
+        $hasMarriageData = $member->matrimony_status === 'married' ||
+                          $member->marriage_date ||
+                          $member->spouse_name ||
+                          $member->husband_name ||
                           $member->wife_name;
 
-        if (!$hasMarriageData) {
+        if (! $hasMarriageData) {
             $validation['is_valid'] = false;
             $validation['warnings'][] = 'Member has no marriage data recorded';
+
             return $validation;
         }
 
@@ -98,15 +96,15 @@ class MarriageCertificateValidator
             foreach ($fields as $field => $label) {
                 $totalRequired++;
                 $value = $this->getFieldValue($member, $field);
-                
-                if (!empty($value)) {
+
+                if (! empty($value)) {
                     $foundRequired++;
                     $validation['field_mapping'][$field] = $value;
                 } else {
                     $validation['missing_required'][] = [
                         'field' => $field,
                         'label' => $label,
-                        'category' => $category
+                        'category' => $category,
                     ];
                 }
             }
@@ -118,13 +116,13 @@ class MarriageCertificateValidator
 
         foreach ($this->recommendedFields as $field => $label) {
             $value = $this->getFieldValue($member, $field);
-            if (!empty($value)) {
+            if (! empty($value)) {
                 $foundRecommended++;
                 $validation['field_mapping'][$field] = $value;
             } else {
                 $validation['missing_optional'][] = [
                     'field' => $field,
-                    'label' => $label
+                    'label' => $label,
                 ];
             }
         }
@@ -135,7 +133,7 @@ class MarriageCertificateValidator
 
         foreach ($this->optionalFields as $field) {
             $value = $this->getFieldValue($member, $field);
-            if (!empty($value)) {
+            if (! empty($value)) {
                 $foundOptional++;
                 $validation['field_mapping'][$field] = $value;
             }
@@ -158,62 +156,60 @@ class MarriageCertificateValidator
 
     /**
      * Get field value with fallback logic
-     * 
-     * @param Member $member
-     * @param string $field
+     *
      * @return mixed
      */
     private function getFieldValue(Member $member, string $field)
     {
         // Direct field mapping
-        if (isset($member->$field) && !empty($member->$field)) {
+        if (isset($member->$field) && ! empty($member->$field)) {
             return $member->$field;
         }
 
         // Fallback logic for common mappings
-        return match($field) {
+        return match ($field) {
             'marriage_location' => $member->marriage_location ?? 'Sacred Heart Kandara Parish',
-            
+
             // Husband details - try multiple sources
-            'husband_name' => $member->husband_name ?? 
-                ($member->gender === 'Male' ? 
-                    ($member->first_name . ' ' . ($member->middle_name ? $member->middle_name . ' ' : '') . $member->last_name) : 
+            'husband_name' => $member->husband_name ??
+                ($member->gender === 'Male' ?
+                    ($member->first_name.' '.($member->middle_name ? $member->middle_name.' ' : '').$member->last_name) :
                     $member->spouse_name),
-            'husband_age' => $member->husband_age ?? 
-                ($member->gender === 'Male' && $member->date_of_birth ? 
-                    \Carbon\Carbon::parse($member->date_of_birth)->age : 
+            'husband_age' => $member->husband_age ??
+                ($member->gender === 'Male' && $member->date_of_birth ?
+                    \Carbon\Carbon::parse($member->date_of_birth)->age :
                     $member->spouse_age),
-            'husband_occupation' => $member->husband_occupation ?? 
+            'husband_occupation' => $member->husband_occupation ??
                 ($member->gender === 'Male' ? $member->occupation : $member->spouse_occupation),
-            'husband_father_name' => $member->husband_father_name ?? 
+            'husband_father_name' => $member->husband_father_name ??
                 ($member->gender === 'Male' ? $member->father_name : $member->spouse_father_name),
-            'husband_mother_name' => $member->husband_mother_name ?? 
+            'husband_mother_name' => $member->husband_mother_name ??
                 ($member->gender === 'Male' ? $member->mother_name : $member->spouse_mother_name),
-            
+
             // Wife details - try multiple sources
-            'wife_name' => $member->wife_name ?? 
-                ($member->gender === 'Female' ? 
-                    ($member->first_name . ' ' . ($member->middle_name ? $member->middle_name . ' ' : '') . $member->last_name) : 
+            'wife_name' => $member->wife_name ??
+                ($member->gender === 'Female' ?
+                    ($member->first_name.' '.($member->middle_name ? $member->middle_name.' ' : '').$member->last_name) :
                     $member->spouse_name),
-            'wife_age' => $member->wife_age ?? 
-                ($member->gender === 'Female' && $member->date_of_birth ? 
-                    \Carbon\Carbon::parse($member->date_of_birth)->age : 
+            'wife_age' => $member->wife_age ??
+                ($member->gender === 'Female' && $member->date_of_birth ?
+                    \Carbon\Carbon::parse($member->date_of_birth)->age :
                     $member->spouse_age),
-            'wife_occupation' => $member->wife_occupation ?? 
+            'wife_occupation' => $member->wife_occupation ??
                 ($member->gender === 'Female' ? $member->occupation : $member->spouse_occupation),
-            'wife_father_name' => $member->wife_father_name ?? 
+            'wife_father_name' => $member->wife_father_name ??
                 ($member->gender === 'Female' ? $member->father_name : $member->spouse_father_name),
-            'wife_mother_name' => $member->wife_mother_name ?? 
+            'wife_mother_name' => $member->wife_mother_name ??
                 ($member->gender === 'Female' ? $member->mother_name : $member->spouse_mother_name),
-            
+
             // Ceremony details
             'religion' => $member->marriage_religion ?? 'Catholic',
             'presence_of' => $member->marriage_officiant_name ?? 'Rev. Parish Priest',
-            
+
             // Witness mappings - map to actual database fields
             'male_witness_full_name' => $member->marriage_witness1_name ?? $member->witness_1_name,
             'female_witness_full_name' => $member->marriage_witness2_name ?? $member->witness_2_name,
-            
+
             // Other mappings
             'civil_marriage_certificate_number' => $member->marriage_certificate_number,
             default => null
@@ -222,9 +218,6 @@ class MarriageCertificateValidator
 
     /**
      * Generate actionable recommendations for improving data completeness
-     * 
-     * @param Member $member
-     * @param array &$validation
      */
     private function generateRecommendations(Member $member, array &$validation): void
     {
@@ -259,9 +252,6 @@ class MarriageCertificateValidator
 
     /**
      * Get summary report for multiple members
-     * 
-     * @param Collection $members
-     * @return array
      */
     public function generateSummaryReport(Collection $members): array
     {
@@ -271,7 +261,7 @@ class MarriageCertificateValidator
             'incomplete_certificates' => 0,
             'average_completeness' => 0,
             'common_missing_fields' => [],
-            'recommendations' => []
+            'recommendations' => [],
         ];
 
         $totalCompleteness = 0;
@@ -279,7 +269,7 @@ class MarriageCertificateValidator
 
         foreach ($members as $member) {
             $validation = $this->validateMemberData($member);
-            
+
             if ($validation['is_valid']) {
                 $report['valid_certificates']++;
             } else {

@@ -1,4 +1,5 @@
 <?php
+
 // filepath: app/Http/Middleware/ActivityLogMiddleware.php
 
 namespace App\Http\Middleware;
@@ -33,7 +34,7 @@ class ActivityLogMiddleware
             'users.update',
             'users.destroy',
             'roles.assign',
-            'permissions.assign'
+            'permissions.assign',
         ];
 
         return in_array($request->route()?->getName(), $sensitiveRoutes);
@@ -42,7 +43,7 @@ class ActivityLogMiddleware
     private function logActivity(Request $request, Response $response): void
     {
         $user = Auth::user();
-        
+
         Log::info('User Activity', [
             'user_id' => $user?->id,
             'user_email' => $user?->email,
@@ -52,7 +53,7 @@ class ActivityLogMiddleware
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'status_code' => $response->getStatusCode(),
-            'timestamp' => now()->toISOString()
+            'timestamp' => now()->toISOString(),
         ]);
     }
 }

@@ -13,7 +13,7 @@ class BaptismRecord extends Model
     protected $fillable = [
         'record_number',
         'member_id',
-        
+
         // BAPTISM CARD PERSONAL INFORMATION - As specified
         'father_name', // fathers name
         'mother_name', // mothers name
@@ -22,30 +22,30 @@ class BaptismRecord extends Model
         'county', // county
         'birth_date', // date
         'residence', // residence
-        
+
         // BAPTISM INFORMATION - As specified
         'baptism_location', // BAPTISM: At
         'baptism_date', // Date
         'baptized_by', // baptized by
         'sponsor', // sponsor
-        
+
         // EUCHARIST INFORMATION - As specified
         'eucharist_location', // EUCHARIST: At
         'eucharist_date', // Date
-        
+
         // CONFIRMATION INFORMATION - As specified
         'confirmation_location', // CONFIRMATION: At
         'confirmation_date', // Date
         'confirmation_register_number', // Reg.NO
         'confirmation_number', // Conf.No
-        
+
         // MARRIAGE INFORMATION - As specified
         'marriage_spouse', // MARRIAGE: Together with
         'marriage_location', // At
         'marriage_date', // Date
         'marriage_register_number', // Reg.NO
         'marriage_number', // Marr.NO
-        
+
         // SYSTEM RELATIONSHIPS - To avoid data redundancy
         'baptism_sacrament_id',
         'eucharist_sacrament_id',
@@ -96,13 +96,13 @@ class BaptismRecord extends Model
         $lastRecord = self::where('record_number', 'LIKE', "{$prefix}-{$year}-%")
             ->orderByRaw('CAST(SUBSTRING(record_number, -5) AS UNSIGNED) DESC')
             ->first();
-            
+
         $nextNumber = 1;
         if ($lastRecord) {
             $parts = explode('-', $lastRecord->record_number);
             $nextNumber = (int) end($parts) + 1;
         }
-        
+
         return sprintf("{$prefix}-%s-%05d", $year, $nextNumber);
     }
 
@@ -113,7 +113,7 @@ class BaptismRecord extends Model
     {
         return [
             'personal_info' => [
-                'name' => $this->member ? $this->member->first_name . ' ' . $this->member->last_name : 'N/A',
+                'name' => $this->member ? $this->member->first_name.' '.$this->member->last_name : 'N/A',
                 'father_name' => $this->father_name,
                 'mother_name' => $this->mother_name,
                 'tribe' => $this->tribe,
@@ -144,7 +144,7 @@ class BaptismRecord extends Model
                 'date' => $this->marriage_date?->format('F j, Y'),
                 'register_number' => $this->marriage_register_number,
                 'marriage_number' => $this->marriage_number,
-            ]
+            ],
         ];
     }
 
@@ -155,15 +155,15 @@ class BaptismRecord extends Model
     {
         return $query->where(function ($q) use ($search) {
             $q->where('father_name', 'like', "%{$search}%")
-              ->orWhere('mother_name', 'like', "%{$search}%")
-              ->orWhere('record_number', 'like', "%{$search}%")
-              ->orWhere('baptism_location', 'like', "%{$search}%")
-              ->orWhere('birth_village', 'like', "%{$search}%")
-              ->orWhere('tribe', 'like', "%{$search}%")
-              ->orWhereHas('member', function ($memberQuery) use ($search) {
-                  $memberQuery->where('first_name', 'like', "%{$search}%")
-                             ->orWhere('last_name', 'like', "%{$search}%");
-              });
+                ->orWhere('mother_name', 'like', "%{$search}%")
+                ->orWhere('record_number', 'like', "%{$search}%")
+                ->orWhere('baptism_location', 'like', "%{$search}%")
+                ->orWhere('birth_village', 'like', "%{$search}%")
+                ->orWhere('tribe', 'like', "%{$search}%")
+                ->orWhereHas('member', function ($memberQuery) use ($search) {
+                    $memberQuery->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+                });
         });
     }
 

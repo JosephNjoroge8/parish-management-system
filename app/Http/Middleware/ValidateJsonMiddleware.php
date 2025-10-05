@@ -1,4 +1,5 @@
 <?php
+
 // filepath: app/Http/Middleware/ValidateJsonMiddleware.php
 
 namespace App\Http\Middleware;
@@ -13,9 +14,9 @@ class ValidateJsonMiddleware
     {
         if ($request->isMethod('POST') || $request->isMethod('PUT') || $request->isMethod('PATCH')) {
             if ($request->header('Content-Type') === 'application/json') {
-                if (!$request->isJson()) {
+                if (! $request->isJson()) {
                     return response()->json([
-                        'error' => 'Invalid JSON format'
+                        'error' => 'Invalid JSON format',
                     ], 400);
                 }
             }

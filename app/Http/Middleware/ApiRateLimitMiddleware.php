@@ -1,4 +1,5 @@
 <?php
+
 // filepath: app/Http/Middleware/ApiRateLimitMiddleware.php
 
 namespace App\Http\Middleware;
@@ -12,13 +13,14 @@ class ApiRateLimitMiddleware
 {
     public function handle(Request $request, Closure $next, int $maxAttempts = 60, int $decayMinutes = 1): Response
     {
-        $key = 'api:' . $request->ip();
-        
+        $key = 'api:'.$request->ip();
+
         if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
             $seconds = RateLimiter::availableIn($key);
+
             return response()->json([
-                'message' => 'Too many requests. Please try again in ' . $seconds . ' seconds.',
-                'retry_after' => $seconds
+                'message' => 'Too many requests. Please try again in '.$seconds.' seconds.',
+                'retry_after' => $seconds,
             ], 429);
         }
 

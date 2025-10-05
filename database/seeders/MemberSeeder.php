@@ -1,15 +1,15 @@
 <?php
+
 // filepath: c:\Users\Joseph Njoroge\parish-system\database\seeders\MemberSeeder.php
 
 namespace Database\Seeders;
 
+use App\Models\Family;
+use App\Models\Member;
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use App\Models\Member;
-use App\Models\Family;
-use App\Models\User;
-use Carbon\Carbon;
 
 class MemberSeeder extends Seeder
 {
@@ -20,21 +20,21 @@ class MemberSeeder extends Seeder
     {
         // Disable foreign key checks temporarily
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        
+
         // Clear existing data
         Member::truncate();
-        
+
         // Only truncate families if the table exists
         if (Schema::hasTable('families')) {
             Family::truncate();
         }
-        
+
         // Re-enable foreign key checks
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         // Check what columns exist in the families table
         $familyColumns = Schema::hasTable('families') ? Schema::getColumnListing('families') : [];
-        $this->command->info('Available family columns: ' . implode(', ', $familyColumns));
+        $this->command->info('Available family columns: '.implode(', ', $familyColumns));
 
         // Create families using the correct column structure
         $families = [];
@@ -108,7 +108,7 @@ class MemberSeeder extends Seeder
                 $families[] = $family;
             }
 
-            $this->command->info('Created ' . count($families) . ' families.');
+            $this->command->info('Created '.count($families).' families.');
         }
 
         // Sample members data - Using correct ENUM values for occupation
@@ -128,7 +128,7 @@ class MemberSeeder extends Seeder
                 'sponsor' => 'Peter Kamau',
                 'occupation' => 'employed', // Using correct ENUM value
                 'education_level' => 'University',
-                'family_id' => !empty($families) ? $families[0]->id : null,
+                'family_id' => ! empty($families) ? $families[0]->id : null,
                 'parent' => null,
                 'minister' => 'Fr. John Mukuria',
                 'tribe' => 'Kikuyu',
@@ -143,7 +143,7 @@ class MemberSeeder extends Seeder
                 'emergency_phone' => '+254787654321',
                 'notes' => 'Software Developer, IT support volunteer, Finance committee member',
             ],
-            
+
             // Njoroge Family - Spouse
             [
                 'local_church' => 'St James Kangemi',
@@ -159,7 +159,7 @@ class MemberSeeder extends Seeder
                 'sponsor' => 'Mary Wanjiku',
                 'occupation' => 'employed',
                 'education_level' => 'University',
-                'family_id' => !empty($families) ? $families[0]->id : null,
+                'family_id' => ! empty($families) ? $families[0]->id : null,
                 'parent' => null,
                 'minister' => 'Fr. John Mukuria',
                 'tribe' => 'Kikuyu',
@@ -174,7 +174,7 @@ class MemberSeeder extends Seeder
                 'emergency_phone' => '+254701234567',
                 'notes' => 'Primary School Teacher, Choir member, Sunday school teacher',
             ],
-            
+
             // Njoroge Family - Child
             [
                 'local_church' => 'St James Kangemi',
@@ -190,7 +190,7 @@ class MemberSeeder extends Seeder
                 'sponsor' => 'Joseph Njoroge',
                 'occupation' => 'not_employed', // Child - not employed
                 'education_level' => 'Primary School',
-                'family_id' => !empty($families) ? $families[0]->id : null,
+                'family_id' => ! empty($families) ? $families[0]->id : null,
                 'parent' => 'Joseph Njoroge & Grace Njoroge',
                 'minister' => 'Fr. John Mukuria',
                 'tribe' => 'Kikuyu',
@@ -205,7 +205,7 @@ class MemberSeeder extends Seeder
                 'emergency_phone' => '+254701234567',
                 'notes' => 'Primary school student, Sunday school student, altar server',
             ],
-            
+
             // Wanjiku Family - Head (Single Mother)
             [
                 'local_church' => 'St Veronica Pembe Tatu',
@@ -221,7 +221,7 @@ class MemberSeeder extends Seeder
                 'sponsor' => 'Agnes Muthoni',
                 'occupation' => 'employed',
                 'education_level' => 'Diploma',
-                'family_id' => !empty($families) && count($families) > 1 ? $families[1]->id : null,
+                'family_id' => ! empty($families) && count($families) > 1 ? $families[1]->id : null,
                 'parent' => null,
                 'minister' => 'Fr. Patrick Muriuki',
                 'tribe' => 'Kikuyu',
@@ -236,7 +236,7 @@ class MemberSeeder extends Seeder
                 'emergency_phone' => '+254798765432',
                 'notes' => 'Registered Nurse, Healthcare ministry volunteer, single mother',
             ],
-            
+
             // Wanjiku Family - Child
             [
                 'local_church' => 'St Veronica Pembe Tatu',
@@ -252,7 +252,7 @@ class MemberSeeder extends Seeder
                 'sponsor' => 'Mary Wanjiku',
                 'occupation' => 'not_employed', // Student - not employed
                 'education_level' => 'Secondary School',
-                'family_id' => !empty($families) && count($families) > 1 ? $families[1]->id : null,
+                'family_id' => ! empty($families) && count($families) > 1 ? $families[1]->id : null,
                 'parent' => 'Mary Wanjiku',
                 'minister' => 'Fr. Patrick Muriuki',
                 'tribe' => 'Kikuyu',
@@ -267,7 +267,7 @@ class MemberSeeder extends Seeder
                 'emergency_phone' => '+254712345678',
                 'notes' => 'Secondary school student, Altar server, youth group member',
             ],
-            
+
             // Mutua Family - Head
             [
                 'local_church' => 'Our Lady of Consolata Cathedral',
@@ -283,7 +283,7 @@ class MemberSeeder extends Seeder
                 'sponsor' => 'James Kiprotich',
                 'occupation' => 'self_employed', // Business owner
                 'education_level' => 'University',
-                'family_id' => !empty($families) && count($families) > 2 ? $families[2]->id : null,
+                'family_id' => ! empty($families) && count($families) > 2 ? $families[2]->id : null,
                 'parent' => null,
                 'minister' => 'Fr. Francis Gatimu',
                 'tribe' => 'Kamba',
@@ -298,7 +298,7 @@ class MemberSeeder extends Seeder
                 'emergency_phone' => '+254765432109',
                 'notes' => 'Business Owner, Finance committee member',
             ],
-            
+
             // Mutua Family - Spouse
             [
                 'local_church' => 'Our Lady of Consolata Cathedral',
@@ -314,7 +314,7 @@ class MemberSeeder extends Seeder
                 'sponsor' => 'Grace Akinyi',
                 'occupation' => 'employed',
                 'education_level' => 'University',
-                'family_id' => !empty($families) && count($families) > 2 ? $families[2]->id : null,
+                'family_id' => ! empty($families) && count($families) > 2 ? $families[2]->id : null,
                 'parent' => null,
                 'minister' => 'Fr. Francis Gatimu',
                 'tribe' => 'Meru',
@@ -329,7 +329,7 @@ class MemberSeeder extends Seeder
                 'emergency_phone' => '+254723456789',
                 'notes' => 'Certified Public Accountant, Women\'s group secretary',
             ],
-            
+
             // Individual members (not in families)
             [
                 'local_church' => 'St Peter Kiawara',
@@ -360,7 +360,7 @@ class MemberSeeder extends Seeder
                 'emergency_phone' => '+254776543210',
                 'notes' => 'Civil Engineer, Youth ministry leader',
             ],
-            
+
             [
                 'local_church' => 'Sacred Heart Kandara',
                 'church_group' => 'C.W.A',
@@ -390,7 +390,7 @@ class MemberSeeder extends Seeder
                 'emergency_phone' => '+254754321098',
                 'notes' => 'Social Worker, Community outreach coordinator',
             ],
-            
+
             [
                 'local_church' => 'St James Kangemi',
                 'church_group' => 'CMA',
@@ -451,7 +451,7 @@ class MemberSeeder extends Seeder
                 'emergency_phone' => '+254789012345',
                 'notes' => 'Marketing Executive, Communications team member',
             ],
-            
+
             [
                 'local_church' => 'Our Lady of Consolata Cathedral',
                 'church_group' => 'Choir',
@@ -489,8 +489,8 @@ class MemberSeeder extends Seeder
         }
 
         $this->command->info('Members seeder completed successfully!');
-        $this->command->info('Created ' . count($membersData) . ' members.');
-        $this->command->info('Created ' . count($families) . ' families.');
+        $this->command->info('Created '.count($membersData).' members.');
+        $this->command->info('Created '.count($families).' families.');
 
         // Generate additional random members (optional)
         $this->generateRandomMembers(10);
@@ -503,32 +503,32 @@ class MemberSeeder extends Seeder
     {
         $firstNames = [
             'male' => ['John', 'Peter', 'James', 'David', 'Michael', 'Paul', 'Daniel', 'Stephen'],
-            'female' => ['Mary', 'Grace', 'Ruth', 'Sarah', 'Rebecca', 'Rachel', 'Esther', 'Hannah']
+            'female' => ['Mary', 'Grace', 'Ruth', 'Sarah', 'Rebecca', 'Rachel', 'Esther', 'Hannah'],
         ];
 
         $middleNames = [
             'male' => ['Mwangi', 'Kariuki', 'Kamau', 'Otieno', 'Kiprop', 'Musyoki'],
-            'female' => ['Wanjiru', 'Nyokabi', 'Adhiambo', 'Kawira', 'Cheptoo', 'Wanjiku']
+            'female' => ['Wanjiru', 'Nyokabi', 'Adhiambo', 'Kawira', 'Cheptoo', 'Wanjiku'],
         ];
 
         $lastNames = ['Kamau', 'Wanjiku', 'Ochieng', 'Akinyi', 'Mutua', 'Kiprotich', 'Mwangi', 'Otieno'];
         $localChurches = [
-            'St James Kangemi', 
-            'St Veronica Pembe Tatu', 
-            'Our Lady of Consolata Cathedral', 
-            'St Peter Kiawara', 
-            'Sacred Heart Kandara'
+            'St James Kangemi',
+            'St Veronica Pembe Tatu',
+            'Our Lady of Consolata Cathedral',
+            'St Peter Kiawara',
+            'Sacred Heart Kandara',
         ];
         $churchGroups = [
-            'PMC', 
-            'Youth', 
-            'C.W.A', 
-            'CMA', 
+            'PMC',
+            'Youth',
+            'C.W.A',
+            'CMA',
             'Choir',
             'Catholic Action',
-            'Pioneer'
+            'Pioneer',
         ];
-        
+
         // Correct ENUM values for occupation
         $occupations = ['employed', 'self_employed', 'not_employed'];
         $educationLevels = ['Primary School', 'Secondary School', 'Diploma', 'University', 'Postgraduate'];
@@ -543,12 +543,12 @@ class MemberSeeder extends Seeder
             $age = rand(18, 70);
             $localChurch = $localChurches[array_rand($localChurches)];
             $churchGroup = $churchGroups[array_rand($churchGroups)];
-            
+
             $birthDate = Carbon::now()->subYears($age)->subDays(rand(1, 365));
             $baptismDate = $birthDate->copy()->addMonths(rand(2, 24));
             $confirmationDate = $age >= 14 ? $birthDate->copy()->addYears(rand(14, 16)) : null;
             $membershipDate = Carbon::now()->subDays(rand(30, 1095));
-            
+
             Member::create([
                 'local_church' => $localChurch,
                 'church_group' => $churchGroup,
@@ -557,29 +557,29 @@ class MemberSeeder extends Seeder
                 'last_name' => $lastName,
                 'date_of_birth' => $birthDate->format('Y-m-d'),
                 'gender' => $gender,
-                'phone' => '+2547' . rand(10000000, 99999999),
-                'email' => strtolower($firstName . '.' . $lastName . rand(1, 99) . '@gmail.com'),
+                'phone' => '+2547'.rand(10000000, 99999999),
+                'email' => strtolower($firstName.'.'.$lastName.rand(1, 99).'@gmail.com'),
                 'id_number' => $age >= 18 ? (string) rand(10000000, 99999999) : null,
-                'sponsor' => $firstName . ' Sponsor',
+                'sponsor' => $firstName.' Sponsor',
                 'occupation' => $occupations[array_rand($occupations)], // Correct ENUM values
                 'education_level' => $educationLevels[array_rand($educationLevels)],
                 'family_id' => null,
                 'parent' => $age < 18 ? 'Parent Name' : null,
-                'minister' => 'Fr. ' . ['John', 'Patrick', 'Francis', 'Michael', 'Joseph'][array_rand(['John', 'Patrick', 'Francis', 'Michael', 'Joseph'])] . ' Mukuria',
+                'minister' => 'Fr. '.['John', 'Patrick', 'Francis', 'Michael', 'Joseph'][array_rand(['John', 'Patrick', 'Francis', 'Michael', 'Joseph'])].' Mukuria',
                 'tribe' => $tribes[array_rand($tribes)],
                 'clan' => 'Clan Name',
                 'baptism_date' => $baptismDate->format('Y-m-d'),
-                'residence' => $localChurch . ' Area, House ' . rand(1, 100),
+                'residence' => $localChurch.' Area, House '.rand(1, 100),
                 'confirmation_date' => $confirmationDate?->format('Y-m-d'),
                 'matrimony_status' => $age >= 18 ? $matrimonyStatuses[array_rand($matrimonyStatuses)] : null,
                 'membership_date' => $membershipDate->format('Y-m-d'),
                 'membership_status' => 'active',
-                'emergency_contact' => $firstName . ' Emergency Contact',
-                'emergency_phone' => '+2547' . rand(10000000, 99999999),
+                'emergency_contact' => $firstName.' Emergency Contact',
+                'emergency_phone' => '+2547'.rand(10000000, 99999999),
                 'notes' => 'Generated test member with various professional backgrounds',
             ]);
         }
 
-        $this->command->info('Generated ' . $count . ' additional random members.');
+        $this->command->info('Generated '.$count.' additional random members.');
     }
 }

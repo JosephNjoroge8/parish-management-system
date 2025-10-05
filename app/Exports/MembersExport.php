@@ -1,28 +1,31 @@
 <?php
+
 // filepath: app/Exports/MembersExport.php
 
 namespace App\Exports;
 
-use App\Models\Member;
 use App\Helpers\DatabaseHelper;
-use Maatwebsite\Excel\Concerns\FromQuery;
-use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithColumnFormatting;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use App\Models\Member;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class MembersExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithStyles, WithTitle, WithColumnFormatting
+class MembersExport implements FromCollection, ShouldAutoSize, WithColumnFormatting, WithHeadings, WithMapping, WithStyles, WithTitle
 {
     protected array $filters;
+
     protected array $selectedFields;
+
     protected array $includeOptions;
+
     protected $membersCollection;
 
     public function __construct(array $filters = [], array $selectedFields = [], array $includeOptions = [], $membersCollection = null)
@@ -49,19 +52,20 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
             if (is_object($this->membersCollection) && method_exists($this->membersCollection, 'all')) {
                 return collect($this->membersCollection->all());
             }
+
             return collect($this->membersCollection);
         }
-        
+
         // Use comprehensive query to fetch actual database data
         $query = $this->buildComprehensiveQuery();
-        
+
         // Log query for debugging
         Log::info('MembersExport query executed', [
             'sql' => $query->toSql(),
             'bindings' => $query->getBindings(),
-            'filters' => $this->filters
+            'filters' => $this->filters,
         ]);
-        
+
         return $query->get();
     }
 
@@ -74,75 +78,75 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
                 'small_christian_community', 'membership_status', 'membership_date',
                 'baptism_date', 'confirmation_date', 'matrimony_status', 'marriage_type',
                 'occupation', 'education_level', 'tribe', 'clan', 'id_number',
-                'created_at', 'updated_at'
+                'created_at', 'updated_at',
             ]);
 
         // Apply comprehensive filters
-        if (!empty($this->filters['search'])) {
+        if (! empty($this->filters['search'])) {
             $search = trim($this->filters['search']);
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'LIKE', "%{$search}%")
-                  ->orWhere('last_name', 'LIKE', "%{$search}%")
-                  ->orWhere('middle_name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%")
-                  ->orWhere('phone', 'LIKE', "%{$search}%")
-                  ->orWhere('id_number', 'LIKE', "%{$search}%")
-                  ->orWhereRaw('CONCAT(first_name, " ", COALESCE(middle_name, ""), " ", last_name) LIKE ?', ["%{$search}%"]);
+                    ->orWhere('last_name', 'LIKE', "%{$search}%")
+                    ->orWhere('middle_name', 'LIKE', "%{$search}%")
+                    ->orWhere('email', 'LIKE', "%{$search}%")
+                    ->orWhere('phone', 'LIKE', "%{$search}%")
+                    ->orWhere('id_number', 'LIKE', "%{$search}%")
+                    ->orWhereRaw('CONCAT(first_name, " ", COALESCE(middle_name, ""), " ", last_name) LIKE ?', ["%{$search}%"]);
             });
         }
 
         // Church and community filters
-        if (!empty($this->filters['local_church'])) {
+        if (! empty($this->filters['local_church'])) {
             $query->where('local_church', $this->filters['local_church']);
         }
 
-        if (!empty($this->filters['church_group'])) {
+        if (! empty($this->filters['church_group'])) {
             $query->where('church_group', $this->filters['church_group']);
         }
 
-        if (!empty($this->filters['small_christian_community'])) {
+        if (! empty($this->filters['small_christian_community'])) {
             $query->where('small_christian_community', $this->filters['small_christian_community']);
         }
 
         // Personal information filters
-        if (!empty($this->filters['membership_status'])) {
+        if (! empty($this->filters['membership_status'])) {
             $query->where('membership_status', $this->filters['membership_status']);
         }
 
-        if (!empty($this->filters['gender'])) {
+        if (! empty($this->filters['gender'])) {
             $query->where('gender', $this->filters['gender']);
         }
 
-        if (!empty($this->filters['education_level'])) {
+        if (! empty($this->filters['education_level'])) {
             $query->where('education_level', $this->filters['education_level']);
         }
 
-        if (!empty($this->filters['occupation'])) {
+        if (! empty($this->filters['occupation'])) {
             $query->where('occupation', 'LIKE', "%{$this->filters['occupation']}%");
         }
 
-        if (!empty($this->filters['tribe'])) {
+        if (! empty($this->filters['tribe'])) {
             $query->where('tribe', $this->filters['tribe']);
         }
 
-        if (!empty($this->filters['matrimony_status'])) {
+        if (! empty($this->filters['matrimony_status'])) {
             $query->where('matrimony_status', $this->filters['matrimony_status']);
         }
 
-        if (!empty($this->filters['marriage_type'])) {
+        if (! empty($this->filters['marriage_type'])) {
             $query->where('marriage_type', $this->filters['marriage_type']);
         }
 
         // Age filters
-        if (!empty($this->filters['age_min'])) {
-            $query->whereRaw(DatabaseHelper::getAgeSQL() . ' >= ?', [(int)$this->filters['age_min']]);
+        if (! empty($this->filters['age_min'])) {
+            $query->whereRaw(DatabaseHelper::getAgeSQL().' >= ?', [(int) $this->filters['age_min']]);
         }
 
-        if (!empty($this->filters['age_max'])) {
-            $query->whereRaw(DatabaseHelper::getAgeSQL() . ' <= ?', [(int)$this->filters['age_max']]);
+        if (! empty($this->filters['age_max'])) {
+            $query->whereRaw(DatabaseHelper::getAgeSQL().' <= ?', [(int) $this->filters['age_max']]);
         }
 
-        if (!empty($this->filters['age_group'])) {
+        if (! empty($this->filters['age_group'])) {
             $this->applyEnhancedAgeGroupFilter($query, $this->filters['age_group']);
         }
 
@@ -151,7 +155,7 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
             if ($this->filters['has_baptism'] === true || $this->filters['has_baptism'] === 'true') {
                 $query->whereNotNull('baptism_date')->where('baptism_date', '!=', '');
             } elseif ($this->filters['has_baptism'] === false || $this->filters['has_baptism'] === 'false') {
-                $query->where(function($q) {
+                $query->where(function ($q) {
                     $q->whereNull('baptism_date')->orWhere('baptism_date', '');
                 });
             }
@@ -161,7 +165,7 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
             if ($this->filters['has_confirmation'] === true || $this->filters['has_confirmation'] === 'true') {
                 $query->whereNotNull('confirmation_date')->where('confirmation_date', '!=', '');
             } elseif ($this->filters['has_confirmation'] === false || $this->filters['has_confirmation'] === 'false') {
-                $query->where(function($q) {
+                $query->where(function ($q) {
                     $q->whereNull('confirmation_date')->orWhere('confirmation_date', '');
                 });
             }
@@ -176,7 +180,7 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
         $query->orderBy($sortBy, $sortDirection);
 
         // Apply limit
-        if (!empty($this->filters['limit']) && is_numeric($this->filters['limit'])) {
+        if (! empty($this->filters['limit']) && is_numeric($this->filters['limit'])) {
             $query->limit((int) $this->filters['limit']);
         }
 
@@ -203,7 +207,7 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
                 'Church Group',
                 'Membership Status',
                 'Membership Date',
-                'Created At'
+                'Created At',
             ];
         }
 
@@ -213,6 +217,7 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
         foreach ($this->selectedFields as $field) {
             $headings[] = $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field));
         }
+
         return $headings;
     }
 
@@ -245,6 +250,7 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
         foreach ($this->selectedFields as $field) {
             $data[] = $this->getFieldValue($member, $field);
         }
+
         return $data;
     }
 
@@ -254,11 +260,11 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
             1 => [
                 'font' => ['bold' => true, 'size' => 12],
                 'fill' => ['fillType' => 'solid', 'color' => ['rgb' => 'E3F2FD']],
-                'borders' => ['allBorders' => ['borderStyle' => 'thin']]
+                'borders' => ['allBorders' => ['borderStyle' => 'thin']],
             ],
             'A:AZ' => [
                 'alignment' => ['wrapText' => true, 'vertical' => 'top'],
-                'borders' => ['allBorders' => ['borderStyle' => 'thin']]
+                'borders' => ['allBorders' => ['borderStyle' => 'thin']],
             ],
         ];
     }
@@ -276,17 +282,17 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
     public function title(): string
     {
         $title = 'Members Export';
-        
-        if (!empty($this->filters['local_church'])) {
-            $title .= ' - ' . $this->filters['local_church'];
+
+        if (! empty($this->filters['local_church'])) {
+            $title .= ' - '.$this->filters['local_church'];
         }
-        
-        if (!empty($this->filters['church_group'])) {
-            $title .= ' - ' . $this->filters['church_group'];
+
+        if (! empty($this->filters['church_group'])) {
+            $title .= ' - '.$this->filters['church_group'];
         }
-        
-        $title .= ' - ' . now()->format('Y-m-d H:i');
-        
+
+        $title .= ' - '.now()->format('Y-m-d H:i');
+
         return $title;
     }
 
@@ -295,19 +301,23 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
         $names = array_filter([
             $member->first_name ?? '',
             $member->middle_name ?? '',
-            $member->last_name ?? ''
+            $member->last_name ?? '',
         ]);
+
         return implode(' ', $names);
     }
 
     private function calculateAge($dateOfBirth): string
     {
-        if (!$dateOfBirth) return '';
-        
+        if (! $dateOfBirth) {
+            return '';
+        }
+
         try {
             $birth = new \DateTime($dateOfBirth);
-            $now = new \DateTime();
-            return $birth->diff($now)->y . ' years';
+            $now = new \DateTime;
+
+            return $birth->diff($now)->y.' years';
         } catch (\Exception $e) {
             return '';
         }
@@ -315,12 +325,15 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
 
     private function formatDate($date): string
     {
-        if (!$date) return '';
-        
+        if (! $date) {
+            return '';
+        }
+
         try {
             if (is_string($date)) {
                 $date = new \DateTime($date);
             }
+
             return $date->format($this->getDateFormat());
         } catch (\Exception $e) {
             return (string) $date;
@@ -332,42 +345,42 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
         switch ($ageGroup) {
             case 'children':
             case '0-12':
-                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' BETWEEN 0 AND 12');
+                $query->whereRaw(DatabaseHelper::getAgeSQL().' BETWEEN 0 AND 12');
                 break;
             case 'youth':
             case '13-24':
-                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' BETWEEN 13 AND 24');
+                $query->whereRaw(DatabaseHelper::getAgeSQL().' BETWEEN 13 AND 24');
                 break;
             case 'young_adults':
             case '18-30':
-                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' BETWEEN 18 AND 30');
+                $query->whereRaw(DatabaseHelper::getAgeSQL().' BETWEEN 18 AND 30');
                 break;
             case 'adults':
             case '25-59':
             case '31-50':
-                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' BETWEEN 25 AND 59');
+                $query->whereRaw(DatabaseHelper::getAgeSQL().' BETWEEN 25 AND 59');
                 break;
             case 'middle_aged':
             case '51-70':
-                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' BETWEEN 51 AND 70');
+                $query->whereRaw(DatabaseHelper::getAgeSQL().' BETWEEN 51 AND 70');
                 break;
             case 'seniors':
             case '60+':
             case '70+':
-                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' >= 60');
+                $query->whereRaw(DatabaseHelper::getAgeSQL().' >= 60');
                 break;
             case 'elderly':
-                $query->whereRaw(DatabaseHelper::getAgeSQL() . ' >= 70');
+                $query->whereRaw(DatabaseHelper::getAgeSQL().' >= 70');
                 break;
             default:
                 // Handle custom age ranges like "25-40"
                 if (preg_match('/^(\\d+)-(\\d+)$/', $ageGroup, $matches)) {
-                    $minAge = (int)$matches[1];
-                    $maxAge = (int)$matches[2];
-                    $query->whereRaw(DatabaseHelper::getAgeSQL() . ' BETWEEN ? AND ?', [$minAge, $maxAge]);
+                    $minAge = (int) $matches[1];
+                    $maxAge = (int) $matches[2];
+                    $query->whereRaw(DatabaseHelper::getAgeSQL().' BETWEEN ? AND ?', [$minAge, $maxAge]);
                 } elseif (preg_match('/^(\\d+)\\+$/', $ageGroup, $matches)) {
-                    $minAge = (int)$matches[1];
-                    $query->whereRaw(DatabaseHelper::getAgeSQL() . ' >= ?', [$minAge]);
+                    $minAge = (int) $matches[1];
+                    $query->whereRaw(DatabaseHelper::getAgeSQL().' >= ?', [$minAge]);
                 }
                 break;
         }
@@ -383,7 +396,7 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
         $validFields = [
             'id', 'first_name', 'middle_name', 'last_name', 'date_of_birth',
             'gender', 'phone', 'email', 'local_church', 'church_group',
-            'membership_status', 'membership_date', 'created_at', 'updated_at'
+            'membership_status', 'membership_date', 'created_at', 'updated_at',
         ];
 
         // Check if field contains function signature
@@ -401,7 +414,7 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
 
     private function getFieldValue($member, string $field)
     {
-        return match($field) {
+        return match ($field) {
             'id' => $member->id ?? '',
             'first_name' => $member->first_name ?? '',
             'middle_name' => $member->middle_name ?? '',
@@ -479,13 +492,13 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
     private function applyDateRangeFilter($query): void
     {
         $dateRange = $this->filters['date_range'] ?? 'all';
-        
+
         if ($dateRange === 'all') {
             return;
         }
 
         $now = now();
-        
+
         switch ($dateRange) {
             case 'this_year':
                 $query->whereYear('created_at', $now->year);
@@ -500,10 +513,10 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
                 $query->where('created_at', '>=', $now->subDays(30));
                 break;
             case 'custom':
-                if (!empty($this->filters['start_date'])) {
+                if (! empty($this->filters['start_date'])) {
                     $query->whereDate('created_at', '>=', $this->filters['start_date']);
                 }
-                if (!empty($this->filters['end_date'])) {
+                if (! empty($this->filters['end_date'])) {
                     $query->whereDate('created_at', '<=', $this->filters['end_date']);
                 }
                 break;
@@ -512,7 +525,7 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
 
     private function getDateFormat(): string
     {
-        return match($this->filters['date_format'] ?? 'Y-m-d') {
+        return match ($this->filters['date_format'] ?? 'Y-m-d') {
             'd/m/Y' => 'd/m/Y',
             'm/d/Y' => 'm/d/Y',
             default => 'Y-m-d',
@@ -521,17 +534,19 @@ class MembersExport implements FromCollection, WithHeadings, WithMapping, Should
 
     private function formatPhone($phone): string
     {
-        if (!$phone) return '';
-        
+        if (! $phone) {
+            return '';
+        }
+
         // Ensure phone number is treated as text by prefixing with single quote
         // This prevents Excel from auto-formatting phone numbers
         $phone = trim($phone);
-        
+
         // If phone starts with + or contains special characters, ensure it's preserved
         if (preg_match('/^[\+\-\(\)\s\d]+$/', $phone)) {
-            return "'" . $phone; // Prefix with single quote to force text format
+            return "'".$phone; // Prefix with single quote to force text format
         }
-        
+
         return $phone;
     }
 }

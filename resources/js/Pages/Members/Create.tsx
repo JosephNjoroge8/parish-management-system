@@ -70,7 +70,11 @@ interface MemberFormData {
     baptized_by: string; // Auto-synced with 'minister' field
     sponsor: string; // Auto-synced with 'godparent' field
     father_name: string; // Entered once in church_details, displayed in baptism_details
+    father_occupation: string; // New field for member's father occupation
+    father_residence: string; // New field for member's father residence
     mother_name: string; // Entered once in church_details, displayed in baptism_details
+    mother_occupation: string; // New field for member's mother occupation
+    mother_residence: string; // New field for member's mother residence
     
     // Optional Sacrament Fields
     eucharist_location: string;
@@ -123,6 +127,7 @@ interface MemberFormData {
     // Witnesses
     marriage_witness1_name: string;
     marriage_witness2_name: string;
+    member_marriage_residence: string;
     
     // Baptism Card specific fields (to match baptism-card.blade.php expectations)
     marriage_spouse: string;           // Auto-synced from spouse_name for baptism card "With" field
@@ -418,7 +423,11 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         baptized_by: '',
         sponsor: '',
         father_name: '',
+        father_occupation: '',
+        father_residence: '',
         mother_name: '',
+        mother_occupation: '',
+        mother_residence: '',
         
         // Optional Sacrament Fields
         eucharist_location: '',
@@ -471,6 +480,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         // Witnesses
         marriage_witness1_name: '',
         marriage_witness2_name: '',
+        member_marriage_residence: '',
         
         // Baptism Card specific fields (auto-synced)
         marriage_spouse: '',
@@ -1048,19 +1058,6 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
             clearErrors();
         }
         
-        // Show loading state with progress indicator
-        const submitButton = document.querySelector('[type="submit"]') as HTMLButtonElement;
-        const originalText = submitButton?.textContent || 'Save Member';
-        if (submitButton) {
-            submitButton.innerHTML = `
-                <div class="flex items-center space-x-2">
-                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Saving Member...</span>
-                </div>
-            `;
-            submitButton.disabled = true;
-        }
-        
         // Validate essential fields
         const essentialFields = ['first_name', 'last_name', 'gender'];
         const missingEssentialFields = essentialFields.filter((field: string) => {
@@ -1069,11 +1066,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         });
         
         if (missingEssentialFields.length > 0) {
-            // Reset button state
-            if (submitButton) {
-                submitButton.textContent = originalText;
-                submitButton.disabled = false;
-            }
+            // Button state is handled by React processing prop
             
             // Show error notification
             showNotification(
@@ -1141,11 +1134,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                 // Remove progress notification
                 dismissNotification();
                 
-                // Reset button state
-                if (submitButton) {
-                    submitButton.textContent = originalText;
-                    submitButton.disabled = false;
-                }
+                // Button state is handled by React processing prop
                 
                 const errorCount = Object.keys(validationErrors).length;
                 showNotification(
@@ -1818,7 +1807,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 <div>
                                     <FormInput
                                         id="marriage_type"
-                                        label="Marriage Type"
+                                        label="Married in the"
                                         type="select"
                                         required
                                         placeholder="Select Marriage Type"
@@ -1840,6 +1829,68 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     <p className="mt-1 text-sm text-green-600">
                                         💡 Marriage certificates are available for download after registration
                                     </p>
+                                </div>
+                            )}
+
+                            {/* Parent Details Section - Required for married members for marriage certificate */}
+                            {data.matrimony_status === 'married' && (
+                                <div className="md:col-span-2 mt-6">
+                                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                                        <h4 className="text-md font-semibold text-amber-900 mb-2">Member's Parent Details</h4>
+                                        <p className="text-sm text-amber-700">
+                                            Parent occupation and residence details are required for married members to complete marriage certificates.
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <FormInput
+                                            id="father_occupation"
+                                            label="Father's Occupation"
+                                            required
+                                            maxLength={255}
+                                            value={data.father_occupation}
+                                            onChange={(value) => handleInputChange('father_occupation', value)}
+                                            placeholder="Father's occupation"
+                                            hasError={hasError('father_occupation')}
+                                            errorMessage={getErrorMessage('father_occupation')}
+                                        />
+                                        
+                                        <FormInput
+                                            id="father_residence"
+                                            label="Father's Residence"
+                                            required
+                                            maxLength={255}
+                                            value={data.father_residence}
+                                            onChange={(value) => handleInputChange('father_residence', value)}
+                                            placeholder="Father's residence"
+                                            hasError={hasError('father_residence')}
+                                            errorMessage={getErrorMessage('father_residence')}
+                                        />
+                                        
+                                        <FormInput
+                                            id="mother_occupation"
+                                            label="Mother's Occupation"
+                                            required
+                                            maxLength={255}
+                                            value={data.mother_occupation}
+                                            onChange={(value) => handleInputChange('mother_occupation', value)}
+                                            placeholder="Mother's occupation"
+                                            hasError={hasError('mother_occupation')}
+                                            errorMessage={getErrorMessage('mother_occupation')}
+                                        />
+                                        
+                                        <FormInput
+                                            id="mother_residence"
+                                            label="Mother's Residence"
+                                            required
+                                            maxLength={255}
+                                            value={data.mother_residence}
+                                            onChange={(value) => handleInputChange('mother_residence', value)}
+                                            placeholder="Mother's residence"
+                                            hasError={hasError('mother_residence')}
+                                            errorMessage={getErrorMessage('mother_residence')}
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -1871,10 +1922,34 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                     <div>
                                         <label className="text-sm font-medium text-gray-500">Father's Name:</label>
                                         <p className="text-sm text-gray-800">{data.father_name || 'Not provided'}</p>
+                                        {data.father_occupation && (
+                                            <>
+                                                <label className="text-sm font-medium text-gray-500">Father's Occupation:</label>
+                                                <p className="text-sm text-gray-800">{data.father_occupation}</p>
+                                            </>
+                                        )}
+                                        {data.father_residence && (
+                                            <>
+                                                <label className="text-sm font-medium text-gray-500">Father's Residence:</label>
+                                                <p className="text-sm text-gray-800">{data.father_residence}</p>
+                                            </>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="text-sm font-medium text-gray-500">Mother's Name:</label>
                                         <p className="text-sm text-gray-800">{data.mother_name || 'Not provided'}</p>
+                                        {data.mother_occupation && (
+                                            <>
+                                                <label className="text-sm font-medium text-gray-500">Mother's Occupation:</label>
+                                                <p className="text-sm text-gray-800">{data.mother_occupation}</p>
+                                            </>
+                                        )}
+                                        {data.mother_residence && (
+                                            <>
+                                                <label className="text-sm font-medium text-gray-500">Mother's Residence:</label>
+                                                <p className="text-sm text-gray-800">{data.mother_residence}</p>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -2230,16 +2305,12 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                             <FormInput
                                 id={data.gender === 'Male' ? 'bride_marital_status' : 'bridegroom_marital_status'}
                                 label={data.gender === 'Male' ? "Bride's Previous Marital Status" : "Bridegroom's Previous Marital Status"}
-                                type="select"
+                                type="text"
                                 required
+                                maxLength={255}
                                 value={data.gender === 'Male' ? data.bride_marital_status : data.bridegroom_marital_status}
                                 onChange={(value) => handleInputChange(data.gender === 'Male' ? 'bride_marital_status' : 'bridegroom_marital_status', value)}
-                                options={[
-                                    { value: '', label: 'Select status' },
-                                    { value: 'Single', label: 'Single' },
-                                    { value: 'Widowed', label: 'Widowed' },
-                                    { value: 'Divorced', label: 'Divorced' }
-                                ]}
+                                placeholder="e.g., Single, Widowed, Divorced, etc."
                                 hasError={hasError(data.gender === 'Male' ? 'bride_marital_status' : 'bridegroom_marital_status')}
                                 errorMessage={getErrorMessage(data.gender === 'Male' ? 'bride_marital_status' : 'bridegroom_marital_status')}
                             />
@@ -2340,7 +2411,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
 
                             <FormInput
                                 id="marriage_religion"
-                                label="Religion/Type"
+                                label="Married in the"
                                 required
                                 maxLength={255}
                                 value={data.marriage_religion}
@@ -2402,6 +2473,25 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 placeholder="Second witness full name"
                                 hasError={hasError('marriage_witness2_name')}
                                 errorMessage={getErrorMessage('marriage_witness2_name')}
+                            />
+
+                            {/* Member's Residence at Time of Marriage */}
+                            <div className="md:col-span-2 mt-6">
+                                <h4 className="text-md font-medium text-gray-700 mb-4 border-b border-gray-200 pb-2">
+                                    Member's Marriage Details
+                                </h4>
+                            </div>
+
+                            <FormInput
+                                id="member_marriage_residence"
+                                label="Member's Residence at Time of Marriage"
+                                required
+                                maxLength={255}
+                                value={data.member_marriage_residence}
+                                onChange={(value) => handleInputChange('member_marriage_residence', value)}
+                                placeholder="Your residence at the time of marriage"
+                                hasError={hasError('member_marriage_residence')}
+                                errorMessage={getErrorMessage('member_marriage_residence')}
                             />
                         </div>
                     </div>

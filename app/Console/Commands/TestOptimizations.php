@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Family;
+use App\Models\Member;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use App\Models\Member;
-use App\Models\Family;
 
 class TestOptimizations extends Command
 {
@@ -37,12 +37,12 @@ class TestOptimizations extends Command
         try {
             $memberCount = Member::count();
             $familyCount = Family::count();
-            $this->info("✓ Database connection successful");
+            $this->info('✓ Database connection successful');
             $this->line("  - Members: {$memberCount}");
             $this->line("  - Families: {$familyCount}");
             $this->newLine();
         } catch (\Exception $e) {
-            $this->error("✗ Database connection failed: " . $e->getMessage());
+            $this->error('✗ Database connection failed: '.$e->getMessage());
             $this->newLine();
         }
 
@@ -67,18 +67,18 @@ class TestOptimizations extends Command
             ];
             $end = microtime(true);
             $duration = round(($end - $start) * 1000, 2);
-            
+
             $this->info("✓ Statistics queries completed in {$duration}ms");
-            $this->line("  - Total Members: " . $stats['total_members']);
-            $this->line("  - Active: " . $stats['active_members']);
-            $this->line("  - Inactive: " . $stats['inactive_members']);
-            $this->line("  - Transferred: " . $stats['transferred_members']);
-            $this->line("  - Deceased: " . $stats['deceased_members']);
-            $this->line("  - Churches: " . count($stats['by_church']));
-            $this->line("  - Groups: " . count($stats['by_group']));
+            $this->line('  - Total Members: '.$stats['total_members']);
+            $this->line('  - Active: '.$stats['active_members']);
+            $this->line('  - Inactive: '.$stats['inactive_members']);
+            $this->line('  - Transferred: '.$stats['transferred_members']);
+            $this->line('  - Deceased: '.$stats['deceased_members']);
+            $this->line('  - Churches: '.count($stats['by_church']));
+            $this->line('  - Groups: '.count($stats['by_group']));
             $this->newLine();
         } catch (\Exception $e) {
-            $this->error("✗ Statistics query failed: " . $e->getMessage());
+            $this->error('✗ Statistics query failed: '.$e->getMessage());
             $this->newLine();
         }
 
@@ -87,26 +87,26 @@ class TestOptimizations extends Command
         try {
             if (DB::getDriverName() === 'mysql') {
                 $indexes = DB::select("SHOW INDEX FROM members WHERE Key_name LIKE 'idx_%'");
-                $this->info("✓ Found " . count($indexes) . " performance indexes on members table");
-                
+                $this->info('✓ Found '.count($indexes).' performance indexes on members table');
+
                 $familyIndexes = DB::select("SHOW INDEX FROM families WHERE Key_name LIKE 'idx_%'");
-                $this->info("✓ Found " . count($familyIndexes) . " performance indexes on families table");
+                $this->info('✓ Found '.count($familyIndexes).' performance indexes on families table');
             } else {
-                $this->warn("⚠ Index check skipped (not MySQL database)");
+                $this->warn('⚠ Index check skipped (not MySQL database)');
             }
             $this->newLine();
         } catch (\Exception $e) {
-            $this->error("✗ Index check failed: " . $e->getMessage());
+            $this->error('✗ Index check failed: '.$e->getMessage());
             $this->newLine();
         }
 
         // Test 4: Family Table Structure
         $this->info('4. Testing Family Table Structure...');
         try {
-            $columns = DB::select("DESCRIBE families");
+            $columns = DB::select('DESCRIBE families');
             $hasHeadOfFamilyId = false;
             $hasOldHeadOfFamily = false;
-            
+
             foreach ($columns as $column) {
                 if ($column->Field === 'head_of_family_id') {
                     $hasHeadOfFamilyId = true;
@@ -117,19 +117,19 @@ class TestOptimizations extends Command
                     $hasOldHeadOfFamily = true;
                 }
             }
-            
-            if (!$hasOldHeadOfFamily) {
-                $this->info("✓ Old head_of_family string column removed");
+
+            if (! $hasOldHeadOfFamily) {
+                $this->info('✓ Old head_of_family string column removed');
             } else {
-                $this->warn("⚠ Old head_of_family string column still exists");
+                $this->warn('⚠ Old head_of_family string column still exists');
             }
-            
-            if (!$hasHeadOfFamilyId) {
-                $this->warn("⚠ head_of_family_id column missing");
+
+            if (! $hasHeadOfFamilyId) {
+                $this->warn('⚠ head_of_family_id column missing');
             }
             $this->newLine();
         } catch (\Exception $e) {
-            $this->error("✗ Family table structure check failed: " . $e->getMessage());
+            $this->error('✗ Family table structure check failed: '.$e->getMessage());
             $this->newLine();
         }
 
@@ -148,17 +148,17 @@ class TestOptimizations extends Command
                 'head_of_family_id' => null,
                 'created_by' => 1,
             ];
-            
+
             // Validate without actually creating
             $family = new Family($familyData);
             if ($family->family_name && strlen($family->family_name) > 0) {
-                $this->info("✓ Family model validation passed");
-                $this->line("  - Can handle null head_of_family_id");
-                $this->line("  - Required fields validated");
+                $this->info('✓ Family model validation passed');
+                $this->line('  - Can handle null head_of_family_id');
+                $this->line('  - Required fields validated');
                 $this->newLine();
             }
         } catch (\Exception $e) {
-            $this->error("✗ Family creation test failed: " . $e->getMessage());
+            $this->error('✗ Family creation test failed: '.$e->getMessage());
             $this->newLine();
         }
 
@@ -167,42 +167,42 @@ class TestOptimizations extends Command
         try {
             $iterations = 5;
             $totalTime = 0;
-            
+
             for ($i = 0; $i < $iterations; $i++) {
                 $start = microtime(true);
-                
+
                 // Simulate the Members Index query
                 Member::with('family')
                     ->where('membership_status', 'active')
                     ->orderBy('last_name', 'asc')
                     ->paginate(15);
-                    
+
                 $end = microtime(true);
                 $totalTime += ($end - $start);
             }
-            
+
             $avgTime = round(($totalTime / $iterations) * 1000, 2);
             $this->info("✓ Average query time: {$avgTime}ms (over {$iterations} iterations)");
-            
+
             if ($avgTime < 100) {
-                $this->info("✓ Performance: Excellent");
+                $this->info('✓ Performance: Excellent');
             } elseif ($avgTime < 200) {
-                $this->info("✓ Performance: Good");
+                $this->info('✓ Performance: Good');
             } elseif ($avgTime < 500) {
-                $this->warn("⚠ Performance: Acceptable");
+                $this->warn('⚠ Performance: Acceptable');
             } else {
-                $this->warn("⚠ Performance: Needs improvement");
+                $this->warn('⚠ Performance: Needs improvement');
             }
             $this->newLine();
         } catch (\Exception $e) {
-            $this->error("✗ Performance benchmark failed: " . $e->getMessage());
+            $this->error('✗ Performance benchmark failed: '.$e->getMessage());
             $this->newLine();
         }
 
         $this->info('Optimization Test Complete!');
         $this->info('==========================');
         $this->info('If all tests passed, your system is optimized and ready for production.');
-        
+
         return 0;
     }
 }

@@ -3,19 +3,20 @@
 namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromQuery;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class OptimizedMembersExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithStyles, WithTitle, WithChunkReading, WithColumnFormatting
+class OptimizedMembersExport implements FromQuery, ShouldAutoSize, WithChunkReading, WithColumnFormatting, WithHeadings, WithMapping, WithStyles, WithTitle
 {
     protected $query;
+
     protected array $filters;
 
     public function __construct($query, array $filters = [])
@@ -47,7 +48,7 @@ class OptimizedMembersExport implements FromQuery, WithHeadings, WithMapping, Sh
             'Local Church',
             'Church Group',
             'Membership Status',
-            'Membership Date'
+            'Membership Date',
         ];
     }
 
@@ -83,36 +84,39 @@ class OptimizedMembersExport implements FromQuery, WithHeadings, WithMapping, Sh
             1 => [
                 'font' => ['bold' => true, 'size' => 12],
                 'fill' => ['fillType' => 'solid', 'color' => ['rgb' => 'E3F2FD']],
-                'borders' => ['allBorders' => ['borderStyle' => 'thin']]
-            ]
+                'borders' => ['allBorders' => ['borderStyle' => 'thin']],
+            ],
         ];
     }
 
     public function title(): string
     {
         $title = 'Members Export';
-        
-        if (!empty($this->filters['local_church'])) {
-            $title .= ' - ' . $this->filters['local_church'];
+
+        if (! empty($this->filters['local_church'])) {
+            $title .= ' - '.$this->filters['local_church'];
         }
-        
-        if (!empty($this->filters['church_group'])) {
-            $title .= ' - ' . $this->filters['church_group'];
+
+        if (! empty($this->filters['church_group'])) {
+            $title .= ' - '.$this->filters['church_group'];
         }
-        
-        $title .= ' - ' . now()->format('Y-m-d H:i');
-        
+
+        $title .= ' - '.now()->format('Y-m-d H:i');
+
         return $title;
     }
 
     private function formatDate($date): string
     {
-        if (!$date) return '';
-        
+        if (! $date) {
+            return '';
+        }
+
         try {
             if (is_string($date)) {
                 $date = new \DateTime($date);
             }
+
             return $date->format('Y-m-d');
         } catch (\Exception $e) {
             return (string) $date;
@@ -121,17 +125,19 @@ class OptimizedMembersExport implements FromQuery, WithHeadings, WithMapping, Sh
 
     private function formatPhone($phone): string
     {
-        if (!$phone) return '';
-        
+        if (! $phone) {
+            return '';
+        }
+
         // Ensure phone number is treated as text by prefixing with single quote
         // This prevents Excel from auto-formatting phone numbers
         $phone = trim($phone);
-        
+
         // If phone starts with + or contains special characters, ensure it's preserved
         if (preg_match('/^[\+\-\(\)\s\d]+$/', $phone)) {
-            return "'" . $phone; // Prefix with single quote to force text format
+            return "'".$phone; // Prefix with single quote to force text format
         }
-        
+
         return $phone;
     }
 }

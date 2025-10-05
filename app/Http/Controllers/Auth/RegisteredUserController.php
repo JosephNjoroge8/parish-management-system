@@ -9,8 +9,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,72 +36,24 @@ class RegisteredUserController extends Controller
      */
     public function create(): Response
     {
-        try {
-            // Try to get roles from Spatie package
-            if (class_exists('\Spatie\Permission\Models\Role')) {
-                $roles = \Spatie\Permission\Models\Role::all()->map(function ($role) {
-                    return [
-                        'id' => $role->id,
-                        'name' => $role->name,
-                        'display_name' => ucwords(str_replace('-', ' ', $role->name)),
-                        'permissions_count' => $role->permissions ? $role->permissions->count() : 0,
-                    ];
-                });
-            } else {
-                // Fallback roles if Spatie isn't available
-                $roles = collect([
-                    [
-                        'id' => 1,
-                        'name' => 'super-admin',
-                        'display_name' => 'Super Admin',
-                        'permissions_count' => 0,
-                    ],
-                    [
-                        'id' => 2,
-                        'name' => 'admin',
-                        'display_name' => 'Admin',
-                        'permissions_count' => 0,
-                    ],
-                    [
-                        'id' => 3,
-                        'name' => 'secretary',
-                        'display_name' => 'Secretary',
-                        'permissions_count' => 0,
-                    ],
-                    [
-                        'id' => 4,
-                        'name' => 'treasurer',
-                        'display_name' => 'Treasurer',
-                        'permissions_count' => 0,
-                    ],
-                    [
-                        'id' => 5,
-                        'name' => 'viewer',
-                        'display_name' => 'Viewer',
-                        'permissions_count' => 0,
-                    ],
-                ]);
-            }
-        } catch (\Exception $e) {
-            // Fallback roles in case of any error
-            $roles = collect([
-                [
-                    'id' => 1,
-                    'name' => 'admin',
-                    'display_name' => 'Admin',
-                    'permissions_count' => 0,
-                ],
-                [
-                    'id' => 2,
-                    'name' => 'viewer',
-                    'display_name' => 'Viewer',
-                    'permissions_count' => 0,
-                ],
-            ]);
-        }
+        // Simple admin/user system - no complex roles needed
+        $userTypes = collect([
+            [
+                'id' => 1,
+                'name' => 'admin',
+                'display_name' => 'Administrator',
+                'description' => 'Full system access',
+            ],
+            [
+                'id' => 2,
+                'name' => 'user',
+                'display_name' => 'Regular User',
+                'description' => 'Standard access',
+            ],
+        ]);
 
-        return Inertia::render('Admin/Users/Create', [
-            'roles' => $roles,
+        return Inertia::render('Auth/Register', [
+            'userTypes' => $userTypes,
         ]);
     }
 
@@ -116,7 +68,7 @@ class RegisteredUserController extends Controller
             'email' => 'required|string|email|max:255|unique:users,email',
             'phone' => 'nullable|string|max:20',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'role' => 'required|string|in:super-admin,admin,secretary,treasurer,viewer',
+            'user_type' => 'required|string|in:admin,user',
             'date_of_birth' => 'nullable|date|before:today',
             'gender' => 'nullable|in:male,female',
             'address' => 'nullable|string|max:500',
@@ -144,19 +96,12 @@ class RegisteredUserController extends Controller
                 'emergency_phone' => $request->emergency_phone,
                 'notes' => $request->notes,
                 'is_active' => $request->boolean('is_active', true),
+                'is_admin' => $request->user_type === 'admin',
                 'email_verified_at' => now(),
                 'created_by' => Auth::id(),
             ]);
 
-            // Try to assign role using Spatie
-            try {
-                if (method_exists($user, 'assignRole')) {
-                    $user->assignRole($request->role);
-                }
-            } catch (\Exception $e) {
-                // Log the error but don't fail the user creation
-                Log::warning('Failed to assign role to user: ' . $e->getMessage());
-            }
+            // Simple admin flag assignment - no external role system needed
 
             // Fire the registered event
             event(new Registered($user));
@@ -168,15 +113,18 @@ class RegisteredUserController extends Controller
                 'created_user_id' => $user->id,
                 'created_user_email' => $user->email,
                 'created_by' => Auth::id(),
-                'role_assigned' => $request->role,
+                'user_type' => $request->user_type,
+                'is_admin' => $user->is_admin,
             ]);
 
+            $userTypeDisplay = $user->is_admin ? 'Administrator' : 'Regular User';
+
             return redirect()->route('admin.users.index')
-                           ->with('success', "User '{$user->name}' created successfully with role '{$request->role}'.");
+                ->with('success', "User '{$user->name}' created successfully as {$userTypeDisplay}.");
 
         } catch (\Exception $e) {
             DB::rollback();
-            
+
             // Log the error
             Log::error('Failed to create user', [
                 'error' => $e->getMessage(),
@@ -196,7 +144,7 @@ class RegisteredUserController extends Controller
     public function show(User $user): Response
     {
         // Ensure user can only view users they created or if they're super admin
-        if (!self::userIsSuperAdmin(Auth::user()) && $user->created_by !== Auth::id()) {
+        if (! self::userIsSuperAdmin(Auth::user()) && $user->created_by !== Auth::id()) {
             abort(403, 'You can only view users you created.');
         }
 

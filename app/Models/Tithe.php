@@ -1,5 +1,7 @@
 <?php
+
 // filepath: app/Models/Tithe.php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -73,7 +75,7 @@ class Tithe extends Model
     public function scopeInMonth($query, $year, $month)
     {
         return $query->whereYear('date_given', $year)
-                    ->whereMonth('date_given', $month);
+            ->whereMonth('date_given', $month);
     }
 
     public function getTitheTypeNameAttribute(): string

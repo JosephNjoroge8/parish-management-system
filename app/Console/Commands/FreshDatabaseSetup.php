@@ -30,41 +30,42 @@ class FreshDatabaseSetup extends Command
     {
         $this->info('🏛️  Parish Management System - Fresh Database Setup');
         $this->info('====================================================');
-        
+
         // Confirmation prompt unless --force is used
-        if (!$this->option('force') && !$this->confirm('This will completely reset your database and all data will be lost. Are you sure?')) {
+        if (! $this->option('force') && ! $this->confirm('This will completely reset your database and all data will be lost. Are you sure?')) {
             $this->info('Operation cancelled.');
+
             return Command::SUCCESS;
         }
 
         try {
             $this->info('🔄 Starting fresh database setup...');
-            
+
             // Step 1: Remove problematic schema dump if exists
             $this->removeSchemaFiles();
-            
+
             // Step 2: Fresh migrate
             $this->info('📋 Running fresh migrations...');
             Artisan::call('migrate:fresh', ['--force' => true]);
             $this->info(Artisan::output());
-            
+
             // Step 3: Seed the database (this will automatically run RolePermissionSeeder first)
             $this->info('🌱 Seeding database with roles, permissions, and sample data...');
             Artisan::call('db:seed', ['--force' => true]);
             $this->info(Artisan::output());
-            
+
             // Step 4: Clear all caches to ensure fresh state
             $this->info('🧹 Clearing application caches...');
             Artisan::call('cache:clear');
             Artisan::call('config:clear');
             Artisan::call('route:clear');
             Artisan::call('view:clear');
-            
+
             // Step 5: Optimize for better performance
             $this->info('⚡ Optimizing application...');
             Artisan::call('config:cache');
             Artisan::call('route:cache');
-            
+
             $this->info('✅ Fresh database setup completed successfully!');
             $this->info('');
             $this->info('🔐 Authentication System Status:');
@@ -85,20 +86,20 @@ class FreshDatabaseSetup extends Command
             $this->info('🌐 You can now start the application:');
             $this->info('   php artisan serve');
             $this->info('   npm run dev');
-            
+
             return Command::SUCCESS;
-            
+
         } catch (\Exception $e) {
-            $this->error('❌ Setup failed: ' . $e->getMessage());
+            $this->error('❌ Setup failed: '.$e->getMessage());
             Log::error('Fresh database setup failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return Command::FAILURE;
         }
     }
-    
+
     /**
      * Remove problematic schema files that might interfere with migrations
      */
@@ -110,19 +111,19 @@ class FreshDatabaseSetup extends Command
             database_path('schema/mysql-schema.sql'),
             database_path('schema/pgsql-schema.sql'),
         ];
-        
+
         foreach ($schemaFiles as $file) {
             if (File::exists($file)) {
                 File::delete($file);
-                $this->info("🗑️  Removed schema file: " . basename($file));
+                $this->info('🗑️  Removed schema file: '.basename($file));
             }
         }
-        
+
         // Also clean the schema directory if it's empty
         $schemaDir = database_path('schema');
         if (File::isDirectory($schemaDir) && count(File::files($schemaDir)) === 0) {
             File::deleteDirectory($schemaDir);
-            $this->info("🗑️  Removed empty schema directory");
+            $this->info('🗑️  Removed empty schema directory');
         }
     }
 }

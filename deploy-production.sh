@@ -100,12 +100,69 @@ php artisan cache:clear
 php artisan optimize:clear
 print_success "All caches cleared"
 
-# Run database migrations
-print_status "Running database migrations..."
-if php artisan migrate --force --no-interaction; then
-    print_success "Database migrations completed"
+# Backup database before migrations
+print_status "Creating database backup before migrations..."
+BACKUP_DIR="backups"
+BACKUP_FILE="${BACKUP_DIR}/db_backup_$(date +%Y%m%d_%H%M%S).sql"
+
+# Create backup directory if it doesn't exist
+mkdir -p "$BACKUP_DIR"
+
+# Create database backup (adjust based on your database type)
+if command_exists mysqldump; then
+    # For MySQL
+    DB_NAME=$(php artisan tinker --execute="echo config('database.connections.mysql.database');" 2>/dev/null | grep -v "Psy Shell" | tail -1)
+    DB_USER=$(php artisan tinker --execute="echo config('database.connections.mysql.username');" 2>/dev/null | grep -v "Psy Shell" | tail -1)
+    DB_PASS=$(php artisan tinker --execute="echo config('database.connections.mysql.password');" 2>/dev/null | grep -v "Psy Shell" | tail -1)
+    DB_HOST=$(php artisan tinker --execute="echo config('database.connections.mysql.host');" 2>/dev/null | grep -v "Psy Shell" | tail -1)
+    
+    if [ -n "$DB_NAME" ] && [ "$DB_NAME" != "null" ]; then
+        if mysqldump -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" > "$BACKUP_FILE"; then
+            print_success "Database backup created: $BACKUP_FILE"
+        else
+            print_warning "Failed to create database backup"
+        fi
+    fi
+elif [ -f "database/database.sqlite" ]; then
+    # For SQLite
+    if cp database/database.sqlite "$BACKUP_DIR/database_backup_$(date +%Y%m%d_%H%M%S).sqlite"; then
+        print_success "SQLite database backup created"
+    else
+        print_warning "Failed to backup SQLite database"
+    fi
 else
-    print_warning "Database migrations failed or no new migrations"
+    print_warning "Could not determine database type for backup"
+fi
+
+# Check migration status before running
+print_status "Checking migration status..."
+php artisan migrate:status
+
+# Run database migrations safely
+print_status "Running database migrations..."
+print_warning "⚠️  About to run migrations. This may modify your database structure."
+echo "Migration status above shows what will be applied."
+
+# Check if there are pending migrations
+PENDING_MIGRATIONS=$(php artisan migrate:status | grep -c "Pending" || echo "0")
+if [ "$PENDING_MIGRATIONS" -gt 0 ]; then
+    print_warning "Found $PENDING_MIGRATIONS pending migrations"
+    
+    # Run migrations with safety checks
+    if php artisan migrate --force --no-interaction --step; then
+        print_success "Database migrations completed successfully"
+        
+        # Show final migration status
+        print_status "Final migration status:"
+        php artisan migrate:status
+    else
+        print_error "Database migrations failed!"
+        print_error "Please check the error above and restore from backup if needed:"
+        print_error "Backup location: $BACKUP_FILE"
+        exit 1
+    fi
+else
+    print_success "No pending migrations found - database is up to date"
 fi
 
 # Optimize for production

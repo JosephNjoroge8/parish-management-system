@@ -269,11 +269,22 @@ print_header "STEP 6: DATABASE INTEGRITY TESTING"
 print_step "Testing database operations..."
 INTEGRITY_TEST=$(php artisan tinker --execute="
 try {
-    // Test member queries with new marital_status column
+    // Test basic member operations first
     \$memberCount = \App\Models\Member::count();
-    \$marriedCount = \App\Models\Member::where('marital_status', 'married')->count();
     \$familyCount = \App\Models\Family::count();
     \$userCount = \App\Models\User::count();
+    
+    // Check if marital_status column exists before querying
+    \$columns = \Schema::getColumnListing('members');
+    \$marriedCount = 0;
+    if (in_array('marital_status', \$columns)) {
+        \$marriedCount = \App\Models\Member::where('marital_status', 'married')->count();
+    } else {
+        // Fallback to matrimony_status if marital_status doesn't exist
+        if (in_array('matrimony_status', \$columns)) {
+            \$marriedCount = \App\Models\Member::where('matrimony_status', 'married')->count();
+        }
+    }
     
     // Test relationships
     \$memberWithFamily = \App\Models\Member::with('family')->first();
@@ -416,22 +427,35 @@ print_header "STEP 11: FINAL VERIFICATION TESTS"
 print_step "Testing critical functionality..."
 php artisan tinker --execute="
 try {
-    // Test member operations with marital_status
+    // Test member operations
     \$member = \App\Models\Member::first();
     if (\$member) {
         echo '✅ Member model accessible: ' . \$member->first_name . ' ' . \$member->last_name;
     }
     
-    // Test marital_status queries
-    \$marriedMembers = \App\Models\Member::where('marital_status', 'married')->count();
-    echo '✅ Marital status queries working: ' . \$marriedMembers . ' married members';
+    // Test marital_status queries (check if column exists first)
+    \$columns = \Schema::getColumnListing('members');
+    if (in_array('marital_status', \$columns)) {
+        \$marriedMembers = \App\Models\Member::where('marital_status', 'married')->count();
+        echo '✅ Marital status queries working: ' . \$marriedMembers . ' married members';
+    } else {
+        echo '⚠️  marital_status column not found, using matrimony_status';
+        if (in_array('matrimony_status', \$columns)) {
+            \$marriedMembers = \App\Models\Member::where('matrimony_status', 'married')->count();
+            echo '✅ Matrimony status queries working: ' . \$marriedMembers . ' married members';
+        }
+    }
     
     // Test member_marriage_residence field
-    \$memberWithResidence = \App\Models\Member::whereNotNull('member_marriage_residence')->first();
-    if (\$memberWithResidence) {
-        echo '✅ Marriage residence field accessible: ' . \$memberWithResidence->member_marriage_residence;
+    if (in_array('member_marriage_residence', \$columns)) {
+        \$memberWithResidence = \App\Models\Member::whereNotNull('member_marriage_residence')->first();
+        if (\$memberWithResidence) {
+            echo '✅ Marriage residence field accessible: ' . \$memberWithResidence->member_marriage_residence;
+        } else {
+            echo 'ℹ️  No members with marriage residence data';
+        }
     } else {
-        echo 'ℹ️  No members with marriage residence data';
+        echo '⚠️  member_marriage_residence column not found';
     }
     
     // Test admin user

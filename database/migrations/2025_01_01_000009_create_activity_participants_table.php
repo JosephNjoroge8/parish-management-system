@@ -11,7 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('activity_participants', function (Blueprint $table) {
+        if (!Schema::hasTable('activity_participants')) {
+            Schema::create('activity_participants', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('activity_id')->index();
             $table->unsignedBigInteger('member_id')->nullable()->index();
@@ -29,7 +30,8 @@ return new class extends Migration
             $table->index(['activity_id', 'participation_status']);
             $table->index(['registration_date', 'participation_status']);
             $table->index(['participant_name', 'participation_status']);
-        });
+            });
+        }
     }
 
     /**

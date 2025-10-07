@@ -10,8 +10,24 @@ declare global {
 
     /* eslint-disable no-var */
     var route: typeof ziggyRoute;
+
+    // JSX namespace for React
+    namespace JSX {
+        interface IntrinsicElements {
+            [elemName: string]: any;
+        }
+    }
 }
 
 declare module '@inertiajs/core' {
     interface PageProps extends InertiaPageProps, AppPageProps {}
+}
+
+// Lodash types
+declare module 'lodash' {
+    export function debounce<T extends (...args: any[]) => any>(
+        func: T,
+        wait?: number,
+        options?: any
+    ): T;
 }

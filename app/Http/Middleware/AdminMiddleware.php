@@ -86,8 +86,16 @@ class AdminMiddleware
             'route' => $request->route()?->getName(),
         ]);
 
-        // Update last login timestamp
-        $user->updateLastLogin();
+        // Update last login timestamp (with safety check for production)
+        try {
+            $user->updateLastLogin();
+        } catch (\Exception $e) {
+            // Log the error but don't break the login process
+            Log::warning('Failed to update last login timestamp', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return $next($request);
     }

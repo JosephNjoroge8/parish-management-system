@@ -19,34 +19,28 @@ class SampleDataSeeder extends Seeder
     {
         // Create sample families using updateOrCreate to handle duplicates
         $family1 = Family::updateOrCreate(
-            ['family_code' => 'FAM001'],
+            ['family_name' => 'The Kamau Family'],
             [
-                'family_name' => 'The Kamau Family',
-                'address' => 'Kiambu County, Thika Town',
+                'family_head' => 'John Mwangi Kamau',
+                'family_address' => 'Kiambu County, Thika Town',
                 'phone' => '+254712345678',
                 'email' => 'kamau.family@email.com',
-                'deanery' => 'Thika Deanery',
-                'parish' => 'St. Mary\'s Parish',
-                'parish_section' => 'Central',
-                'created_by' => 1,
+                'family_status' => 'active',
             ]
         );
 
         $family2 = Family::updateOrCreate(
-            ['family_code' => 'FAM002'],
+            ['family_name' => 'The Wanjiku Family'],
             [
-                'family_name' => 'The Wanjiku Family',
-                'address' => 'Nairobi County, Kasarani',
+                'family_head' => 'Peter Wanjiku',
+                'family_address' => 'Nairobi County, Kasarani',
                 'phone' => '+254723456789',
                 'email' => 'wanjiku.family@email.com',
-                'deanery' => 'Nairobi Deanery',
-                'parish' => 'St. Mary\'s Parish',
-                'parish_section' => 'North',
-                'created_by' => 1,
+                'family_status' => 'active',
             ]
         );
 
-        // Create sample members with auto-sync fields
+        // Create sample members with comprehensive fields
         $fatherName = 'Mwangi Kamau';
         $motherName = 'Grace Wanjiku';
         $godparentName = 'James Mwangi';
@@ -67,26 +61,74 @@ class SampleDataSeeder extends Seeder
             'church_group' => 'CMA',
             'membership_status' => 'active',
             'membership_date' => '2000-01-15',
-            'baptism_date' => '1975-04-20',
-            'confirmation_date' => '1988-05-15',
             'matrimony_status' => 'married',
+            'marital_status' => 'married',
             'marriage_type' => 'church',
-            'occupation' => 'employed',
+            'occupation' => 'Teacher',
             'education_level' => 'degree',
             'family_id' => $family1->id,
             'tribe' => 'Kikuyu',
             'clan' => 'Anjiru',
+            'county' => 'Kiambu',
+            'district' => 'Thika',
+            'province' => 'Central',
+            'birth_village' => 'Thika',
             'is_differently_abled' => false,
-            // Main family fields (entered once)
-            'parent' => $fatherName, // Father's name (main field)
-            'mother_name' => $motherName, // Mother's name (main field)
-            'godparent' => $godparentName, // Godparent name (main field)
-            'minister' => $ministerName, // Minister name (main field)
-            // Auto-synced fields (populated automatically)
-            'father_name' => $fatherName, // Auto-synced from 'parent'
-            'baptized_by' => $ministerName, // Auto-synced from 'minister'
-            'sponsor' => $godparentName, // Auto-synced from 'godparent'
+            // Parent information
+            'parent' => $fatherName,
+            'father_name' => $fatherName,
+            'father_occupation' => 'Farmer',
+            'father_residence' => 'Thika, Kiambu County',
+            'mother_name' => $motherName,
+            'mother_occupation' => 'Business Woman',
+            'mother_residence' => 'Thika, Kiambu County',
+            // Sacrament information
+            'baptism_date' => '1975-04-20',
             'baptism_location' => 'St. Mary\'s Catholic Church',
+            'baptized_by' => $ministerName,
+            'sponsor' => $godparentName,
+            'confirmation_date' => '1988-05-15',
+            'confirmation_location' => 'St. Mary\'s Catholic Church',
+            'confirmation_register_number' => 'CR-1988-045',
+            'confirmation_number' => 'CON-045',
+            'eucharist_date' => '1985-06-10',
+            'eucharist_location' => 'St. Mary\'s Catholic Church',
+            'godparent' => $godparentName,
+            'godfather_name' => 'James Mwangi',
+            'godmother_name' => 'Jane Wanjiku',
+            'minister' => $ministerName,
+            // Marriage information - John's perspective
+            'marriage_date' => '2002-06-15',
+            'marriage_location' => 'St. Mary\'s Catholic Church',
+            'marriage_county' => 'Kiambu',
+            'marriage_sub_county' => 'Thika',
+            'marriage_entry_number' => 'MAR-2002-001-H', // H for Husband
+            'marriage_certificate_number' => 'MC-2002-001-H',
+            'marriage_religion' => 'Catholic',
+            'marriage_license_number' => 'ML-2002-001',
+            'marriage_officiant_name' => 'Fr. Michael Johnson',
+            'marriage_witness1_name' => 'Peter Wanjiku',
+            'marriage_witness2_name' => 'Alice Wanjiku',
+            'member_marriage_residence' => 'Thika Town, Kiambu County',
+            'spouse_name' => 'Mary Wanjiku Kamau',
+            'spouse_age' => 25,
+            'spouse_residence' => 'Thika Town',
+            'spouse_county' => 'Kiambu',
+            'spouse_marital_status' => 'Single',
+            'spouse_occupation' => 'Nurse',
+            'spouse_father_name' => 'Peter Wanjiku',
+            'spouse_father_occupation' => 'Teacher',
+            'spouse_father_residence' => 'Kasarani, Nairobi',
+            'spouse_mother_name' => 'Alice Wanjiku',
+            'spouse_mother_occupation' => 'Business',
+            'spouse_mother_residence' => 'Kasarani, Nairobi',
+            'spouse_tribe' => 'Kikuyu',
+            'spouse_clan' => 'Acheera',
+            'spouse_birth_place' => 'Nairobi',
+            'spouse_domicile' => 'Thika',
+            'spouse_baptized_at' => 'Holy Family Basilica',
+            'spouse_baptism_date' => '1978-08-15',
+            'spouse_parent_consent' => 'Yes',
         ]);
 
         $maryKamau = Member::create([
@@ -104,33 +146,53 @@ class SampleDataSeeder extends Seeder
             'church_group' => 'C.W.A',
             'membership_status' => 'active',
             'membership_date' => '2000-01-15',
-            'baptism_date' => '1978-08-15',
-            'confirmation_date' => '1991-06-10',
             'matrimony_status' => 'married',
+            'marital_status' => 'married',
             'marriage_type' => 'church',
-            'occupation' => 'employed',
+            'occupation' => 'Nurse',
             'education_level' => 'diploma',
             'family_id' => $family1->id,
             'tribe' => 'Kikuyu',
             'clan' => 'Acheera',
+            'county' => 'Nairobi',
+            'district' => 'Kasarani',
+            'province' => 'Nairobi',
+            'birth_village' => 'Kasarani',
             'is_differently_abled' => false,
-            // Main family fields
+            // Parent information
             'parent' => 'Peter Wanjiku',
-            'mother_name' => 'Alice Wanjiku',
-            'godparent' => 'Elizabeth Wanjiru',
-            'minister' => 'Fr. Paul Mbugua',
-            // Auto-synced fields
             'father_name' => 'Peter Wanjiku',
+            'father_occupation' => 'Teacher',
+            'father_residence' => 'Kasarani, Nairobi County',
+            'mother_name' => 'Alice Wanjiku',
+            'mother_occupation' => 'Business Woman',
+            'mother_residence' => 'Kasarani, Nairobi County',
+            // Sacrament information
+            'baptism_date' => '1978-08-15',
+            'baptism_location' => 'Holy Family Basilica',
             'baptized_by' => 'Fr. Paul Mbugua',
             'sponsor' => 'Elizabeth Wanjiru',
-            'baptism_location' => 'St. Mary\'s Catholic Church',
-            // Marriage information
+            'confirmation_date' => '1991-06-10',
+            'confirmation_location' => 'Holy Family Basilica',
+            'eucharist_date' => '1986-05-20',
+            'eucharist_location' => 'Holy Family Basilica',
+            'godparent' => 'Elizabeth Wanjiru',
+            'godfather_name' => 'Paul Wanjiru',
+            'godmother_name' => 'Elizabeth Wanjiru',
+            'minister' => 'Fr. Paul Mbugua',
+            // Marriage information - Mary's perspective
             'marriage_date' => '2002-06-15',
             'marriage_location' => 'St. Mary\'s Catholic Church',
             'marriage_county' => 'Kiambu',
             'marriage_sub_county' => 'Thika',
+            'marriage_entry_number' => 'MAR-2002-001-W', // W for Wife
+            'marriage_certificate_number' => 'MC-2002-001-W',
             'marriage_religion' => 'Catholic',
+            'marriage_license_number' => 'ML-2002-001',
             'marriage_officiant_name' => 'Fr. Michael Johnson',
+            'marriage_witness1_name' => 'James Mwangi',
+            'marriage_witness2_name' => 'Grace Wanjiku',
+            'member_marriage_residence' => 'Thika Town, Kiambu County',
             'spouse_name' => 'John Mwangi Kamau',
             'spouse_age' => 27,
             'spouse_residence' => 'Thika Town',
@@ -138,7 +200,18 @@ class SampleDataSeeder extends Seeder
             'spouse_marital_status' => 'Single',
             'spouse_occupation' => 'Teacher',
             'spouse_father_name' => $fatherName,
+            'spouse_father_occupation' => 'Farmer',
+            'spouse_father_residence' => 'Thika, Kiambu County',
             'spouse_mother_name' => $motherName,
+            'spouse_mother_occupation' => 'Business Woman',
+            'spouse_mother_residence' => 'Thika, Kiambu County',
+            'spouse_tribe' => 'Kikuyu',
+            'spouse_clan' => 'Anjiru',
+            'spouse_birth_place' => 'Thika',
+            'spouse_domicile' => 'Thika',
+            'spouse_baptized_at' => 'St. Mary\'s Catholic Church',
+            'spouse_baptism_date' => '1975-04-20',
+            'spouse_parent_consent' => 'Yes',
         ]);
 
         $peterKamau = Member::create([
@@ -147,6 +220,7 @@ class SampleDataSeeder extends Seeder
             'last_name' => 'Kamau',
             'date_of_birth' => '2005-09-10',
             'gender' => 'Male',
+            'id_number' => '34567890',
             'phone' => '+254712345680',
             'residence' => 'Thika Town, Kiambu County',
             'local_church' => 'St. Mary\'s Catholic Church',
@@ -154,139 +228,149 @@ class SampleDataSeeder extends Seeder
             'church_group' => 'Youth',
             'membership_status' => 'active',
             'membership_date' => '2005-10-01',
-            'baptism_date' => '2005-10-15',
-            'confirmation_date' => '2018-04-22',
             'matrimony_status' => 'single',
-            'occupation' => 'not_employed',
+            'marital_status' => 'single',
+            'occupation' => 'Student',
             'education_level' => 'secondary',
             'family_id' => $family1->id,
             'parent_id' => $johnKamau->id,
             'tribe' => 'Kikuyu',
             'clan' => 'Anjiru',
+            'county' => 'Kiambu',
+            'district' => 'Thika',
+            'province' => 'Central',
+            'birth_village' => 'Thika',
             'is_differently_abled' => false,
-            // Main family fields
+            // Parent information
             'parent' => 'John Mwangi Kamau',
-            'mother_name' => 'Mary Wanjiku Kamau',
-            'godparent' => 'James Mwangi',
-            'minister' => 'Fr. Michael Johnson',
-            // Auto-synced fields
             'father_name' => 'John Mwangi Kamau',
+            'father_occupation' => 'Teacher',
+            'father_residence' => 'Thika Town, Kiambu County',
+            'mother_name' => 'Mary Wanjiku Kamau',
+            'mother_occupation' => 'Nurse',
+            'mother_residence' => 'Thika Town, Kiambu County',
+            // Sacrament information
+            'baptism_date' => '2005-10-15',
+            'baptism_location' => 'St. Mary\'s Catholic Church',
             'baptized_by' => 'Fr. Michael Johnson',
             'sponsor' => 'James Mwangi',
-            'baptism_location' => 'St. Mary\'s Catholic Church',
+            'confirmation_date' => '2018-04-22',
             'confirmation_location' => 'St. Mary\'s Catholic Church',
+            'confirmation_register_number' => 'CR-2018-046',
+            'confirmation_number' => 'CON-003',
+            'eucharist_date' => '2013-05-15',
+            'eucharist_location' => 'St. Mary\'s Catholic Church',
+            'godparent' => 'James Mwangi',
+            'godfather_name' => 'James Mwangi',
+            'godmother_name' => 'Grace Wanjiku',
+            'minister' => 'Fr. Michael Johnson',
         ]);
 
         // Update family head
-        $family1->update(['head_of_family_id' => $johnKamau->id]);
+        $family1->update(['family_head' => 'John Mwangi Kamau']);
 
         // Create family relationships
         FamilyRelationship::create([
             'family_id' => $family1->id,
             'member_id' => $johnKamau->id,
             'relationship_type' => 'head',
-            'primary_contact' => true,
-            'emergency_contact' => true,
+            'is_primary' => true,
         ]);
 
         FamilyRelationship::create([
             'family_id' => $family1->id,
             'member_id' => $maryKamau->id,
             'relationship_type' => 'spouse',
-            'primary_contact' => true,
-            'emergency_contact' => true,
+            'is_primary' => true,
         ]);
 
         FamilyRelationship::create([
             'family_id' => $family1->id,
             'member_id' => $peterKamau->id,
             'relationship_type' => 'child',
-            'primary_contact' => false,
-            'emergency_contact' => false,
+            'is_primary' => false,
         ]);
 
         // Create community groups
         $youthGroup = CommunityGroup::create([
-            'name' => 'St. Mary\'s Youth Group',
+            'group_name' => 'St. Mary\'s Youth Group',
             'description' => 'Active youth ministry group focusing on spiritual growth and community service',
-            'group_type' => 'youth',
-            'leader_id' => $peterKamau->id,
-            'meeting_day' => 'saturday',
+            'group_leader' => 'Peter Kamau',
+            'contact_phone' => '+254712345680',
+            'contact_email' => 'youth@parish.com',
+            'meeting_day' => '2024-12-07', // Saturday
             'meeting_time' => '14:00:00',
             'meeting_location' => 'Parish Hall',
-            'is_active' => true,
-            'created_by' => 1,
+            'group_status' => 'active',
+            'max_members' => 50,
         ]);
 
         $cwaGroup = CommunityGroup::create([
-            'name' => 'Catholic Women Association',
+            'group_name' => 'Catholic Women Association',
             'description' => 'Women\'s fellowship and development group',
-            'group_type' => 'women',
-            'leader_id' => $maryKamau->id,
-            'meeting_day' => 'tuesday',
+            'group_leader' => 'Mary Kamau',
+            'contact_phone' => '+254712345679',
+            'contact_email' => 'cwa@parish.com',
+            'meeting_day' => '2024-12-03', // Tuesday
             'meeting_time' => '15:00:00',
             'meeting_location' => 'Church Hall',
-            'is_active' => true,
-            'created_by' => 1,
+            'group_status' => 'active',
+            'max_members' => 100,
         ]);
 
         $cmaGroup = CommunityGroup::create([
-            'name' => 'Catholic Men Association',
+            'group_name' => 'Catholic Men Association',
             'description' => 'Men\'s fellowship and parish development group',
-            'group_type' => 'men',
-            'leader_id' => $johnKamau->id,
-            'meeting_day' => 'sunday',
+            'group_leader' => 'John Kamau',
+            'contact_phone' => '+254712345678',
+            'contact_email' => 'cma@parish.com',
+            'meeting_day' => '2024-12-08', // Sunday
             'meeting_time' => '16:00:00',
             'meeting_location' => 'Parish Boardroom',
-            'is_active' => true,
-            'created_by' => 1,
+            'group_status' => 'active',
+            'max_members' => 80,
         ]);
 
         // Create sample activities
         Activity::create([
-            'title' => 'Sunday Mass - English',
+            'activity_name' => 'Sunday Mass - English',
             'description' => 'English mass service for the parish community',
-            'activity_type' => 'mass',
-            'start_date' => Carbon::now()->next(Carbon::SUNDAY),
+            'activity_date' => Carbon::now()->next(Carbon::SUNDAY),
             'start_time' => '09:00:00',
             'end_time' => '10:30:00',
             'location' => 'Main Church',
             'organizer' => 'Father John Smith',
-            'community_group_id' => null,
-            'registration_required' => false,
-            'status' => 'planned',
+            'activity_type' => 'worship',
+            'activity_status' => 'planned',
+            'expected_participants' => 200,
         ]);
 
         Activity::create([
-            'title' => 'Youth Fellowship Meeting',
+            'activity_name' => 'Youth Fellowship Meeting',
             'description' => 'Monthly youth fellowship and planning meeting',
-            'activity_type' => 'meeting',
-            'start_date' => Carbon::now()->addDays(7),
+            'activity_date' => Carbon::now()->addDays(7),
             'start_time' => '14:00:00',
             'end_time' => '16:00:00',
             'location' => 'Parish Hall',
             'organizer' => 'Peter Kamau',
-            'community_group_id' => $youthGroup->id,
-            'max_participants' => 50,
-            'registration_required' => true,
-            'registration_deadline' => Carbon::now()->addDays(5),
-            'status' => 'planned',
+            'activity_type' => 'meeting',
+            'activity_status' => 'planned',
+            'expected_participants' => 50,
+            'budget' => 5000.00,
         ]);
 
         Activity::create([
-            'title' => 'Parish Annual Retreat',
+            'activity_name' => 'Parish Annual Retreat',
             'description' => 'Three-day spiritual retreat for all parishioners',
-            'activity_type' => 'retreat',
-            'start_date' => Carbon::now()->addDays(30),
-            'end_date' => Carbon::now()->addDays(32),
+            'activity_date' => Carbon::now()->addDays(30),
             'start_time' => '08:00:00',
             'end_time' => '17:00:00',
             'location' => 'Retreat Center - Limuru',
             'organizer' => 'Father John Smith',
-            'max_participants' => 100,
-            'registration_required' => true,
-            'registration_deadline' => Carbon::now()->addDays(20),
-            'status' => 'planned',
+            'activity_type' => 'education',
+            'activity_status' => 'planned',
+            'expected_participants' => 100,
+            'budget' => 50000.00,
         ]);
 
         // Create sacrament records
@@ -295,15 +379,8 @@ class SampleDataSeeder extends Seeder
             'sacrament_type' => 'baptism',
             'sacrament_date' => '2005-10-15',
             'location' => 'St. Mary\'s Catholic Church',
-            'celebrant' => 'Father Michael Johnson',
-            'witness_1' => 'John Kamau',
-            'witness_2' => 'Mary Kamau',
-            'godparent_1' => 'James Mwangi',
-            'godparent_2' => 'Grace Wanjiku',
-            'certificate_number' => 'BAP-2005-00001',
-            'book_number' => 'Book 3',
-            'page_number' => '45',
-            'recorded_by' => 1,
+            'officiant' => 'Father Michael Johnson',
+            'register_number' => 'BAP-2005-00001',
         ]);
 
         $confirmationSacrament = Sacrament::create([
@@ -311,75 +388,55 @@ class SampleDataSeeder extends Seeder
             'sacrament_type' => 'confirmation',
             'sacrament_date' => '2018-04-22',
             'location' => 'St. Mary\'s Catholic Church',
-            'celebrant' => 'Bishop Anthony Muheria',
-            'witness_1' => 'John Kamau',
-            'witness_2' => 'Mary Kamau',
-            'certificate_number' => 'CON-2018-00045',
-            'book_number' => 'Book 7',
-            'page_number' => '123',
-            'recorded_by' => 1,
+            'officiant' => 'Bishop Anthony Muheria',
+            'register_number' => 'CON-2018-00045',
         ]);
 
         // Create baptism record
         BaptismRecord::create([
-            'record_number' => 'BAP-2005-00001',
             'member_id' => $peterKamau->id,
+            'baptism_date' => '2005-10-15',
+            'baptism_location' => 'St. Mary\'s Catholic Church',
+            'baptized_by' => 'Father Michael Johnson',
             'father_name' => 'John Mwangi Kamau',
             'mother_name' => 'Mary Wanjiku Kamau',
-            'tribe' => 'Kikuyu',
-            'birth_village' => 'Thika',
-            'county' => 'Kiambu',
-            'birth_date' => '2005-09-10',
-            'residence' => 'Thika Town, Kiambu County',
-            'baptism_location' => 'St. Mary\'s Catholic Church',
-            'baptism_date' => '2005-10-15',
-            'baptized_by' => 'Father Michael Johnson',
             'sponsor' => 'James Mwangi & Grace Wanjiku',
-            'confirmation_location' => 'St. Mary\'s Catholic Church',
-            'confirmation_date' => '2018-04-22',
-            'confirmation_register_number' => 'CR-2018-045',
-            'confirmation_number' => 'CON-045',
-            'baptism_sacrament_id' => $baptismSacrament->id,
-            'confirmation_sacrament_id' => $confirmationSacrament->id,
+            'register_number' => 'BAP-2005-001',
+            'certificate_number' => 'BC-2005-001',
         ]);
 
         // Create tithe records
         Tithe::create([
             'member_id' => $johnKamau->id,
+            'contributor_name' => 'John Mwangi Kamau',
             'amount' => 2000.00,
-            'tithe_type' => 'tithe',
+            'contribution_date' => Carbon::now()->subDays(7),
             'payment_method' => 'cash',
-            'date_given' => Carbon::now()->subDays(7),
-            'purpose' => 'Monthly Tithe - October 2024',
-            'receipt_number' => 'TIT-2024-001',
-            'recorded_by' => 1,
+            'tithe_type' => 'regular',
+            'reference_number' => 'TIT-2024-001',
         ]);
 
         Tithe::create([
             'member_id' => $maryKamau->id,
+            'contributor_name' => 'Mary Wanjiku Kamau',
             'amount' => 500.00,
-            'tithe_type' => 'offering',
-            'payment_method' => 'mobile_money',
-            'date_given' => Carbon::now()->subDays(14),
-            'purpose' => 'Sunday Offering',
-            'receipt_number' => 'OFF-2024-045',
+            'contribution_date' => Carbon::now()->subDays(14),
+            'payment_method' => 'mpesa',
+            'tithe_type' => 'thanksgiving',
             'reference_number' => 'MPESA123456789',
-            'recorded_by' => 1,
         ]);
 
         Tithe::create([
             'member_id' => $johnKamau->id,
+            'contributor_name' => 'John Mwangi Kamau',
             'amount' => 5000.00,
-            'tithe_type' => 'project_contribution',
+            'contribution_date' => Carbon::now()->subDays(30),
             'payment_method' => 'bank_transfer',
-            'date_given' => Carbon::now()->subDays(30),
-            'purpose' => 'New Church Building Fund',
-            'receipt_number' => 'PRJ-2024-012',
+            'tithe_type' => 'special',
             'reference_number' => 'BT20241015001',
-            'recorded_by' => 1,
         ]);
 
-        // Create more sample members for testing with auto-sync fields
+        // Create more sample members for testing
         for ($i = 1; $i <= 10; $i++) {
             $gender = $i % 2 == 0 ? 'Female' : 'Male';
             $fatherName = 'Father'.$i.' Lastname'.$i;
@@ -402,37 +459,46 @@ class SampleDataSeeder extends Seeder
                 'church_group' => $this->getRandomChurchGroup($gender),
                 'membership_status' => 'active',
                 'membership_date' => Carbon::now()->subYears(rand(1, 10))->format('Y-m-d'),
-                'baptism_date' => Carbon::now()->subYears(rand(15, 50))->format('Y-m-d'),
                 'matrimony_status' => rand(0, 1) ? 'married' : 'single',
-                'occupation' => $this->getRandomOccupationEnum(),
+                'marital_status' => rand(0, 1) ? 'married' : 'single',
+                'marriage_type' => rand(0, 1) ? 'church' : 'civil',
+                'baptism_date' => Carbon::now()->subYears(rand(15, 50))->format('Y-m-d'),
+                'occupation' => $this->getRandomOccupation(),
                 'education_level' => $this->getRandomEducationLevel(),
                 'tribe' => $this->getRandomTribe(),
                 'clan' => 'Clan'.$i,
+                'county' => 'County'.$i,
+                'district' => 'District'.$i,
+                'province' => 'Province'.$i,
+                'birth_village' => 'Village'.$i,
                 'is_differently_abled' => rand(0, 10) == 0, // 10% chance
                 'disability_description' => rand(0, 10) == 0 ? 'Sample disability description' : null,
-                // Main family fields (entered once)
+                // Parent information
                 'parent' => $fatherName,
-                'mother_name' => $motherName,
-                'godparent' => $godparentName,
-                'minister' => $ministerName,
-                // Auto-synced fields (populated automatically)
                 'father_name' => $fatherName,
+                'father_occupation' => $this->getRandomOccupation(),
+                'father_residence' => 'Father Residence '.$i,
+                'mother_name' => $motherName,
+                'mother_occupation' => $this->getRandomOccupation(),
+                'mother_residence' => 'Mother Residence '.$i,
+                // Sacrament information
+                'baptism_location' => 'Sacred Heart Kandara',
                 'baptized_by' => $ministerName,
                 'sponsor' => $godparentName,
-                'baptism_location' => 'Sacred Heart Kandara',
+                'godparent' => $godparentName,
+                'minister' => $ministerName,
             ]);
 
             // Create some random tithe records for these members
             if (rand(0, 1)) {
                 Tithe::create([
                     'member_id' => $member->id,
+                    'contributor_name' => $member->first_name.' '.$member->last_name,
                     'amount' => rand(500, 5000),
-                    'tithe_type' => $this->getRandomTitheType(),
+                    'contribution_date' => Carbon::now()->subDays(rand(1, 90))->format('Y-m-d'),
                     'payment_method' => $this->getRandomPaymentMethod(),
-                    'date_given' => Carbon::now()->subDays(rand(1, 90))->format('Y-m-d'),
-                    'purpose' => 'Monthly contribution',
-                    'receipt_number' => 'REC-'.date('Y').'-'.str_pad($i + 100, 3, '0', STR_PAD_LEFT),
-                    'recorded_by' => 1,
+                    'tithe_type' => $this->getRandomTitheType(),
+                    'reference_number' => 'REC-'.date('Y').'-'.str_pad($i + 100, 3, '0', STR_PAD_LEFT),
                 ]);
             }
         }
@@ -447,16 +513,16 @@ class SampleDataSeeder extends Seeder
         return $groups[array_rand($groups)];
     }
 
-    private function getRandomOccupationEnum()
+    private function getRandomOccupation()
     {
-        $occupations = ['employed', 'self_employed', 'not_employed'];
+        $occupations = ['Teacher', 'Nurse', 'Engineer', 'Farmer', 'Business Owner', 'Doctor', 'Lawyer', 'Accountant', 'Student', 'Retired'];
 
         return $occupations[array_rand($occupations)];
     }
 
     private function getRandomEducationLevel()
     {
-        $levels = ['primary', 'kcpe', 'secondary', 'kcse', 'certificate', 'diploma', 'degree'];
+        $levels = ['primary', 'kcpe', 'secondary', 'kcse', 'certificate', 'diploma', 'degree', 'masters', 'phd'];
 
         return $levels[array_rand($levels)];
     }
@@ -470,14 +536,14 @@ class SampleDataSeeder extends Seeder
 
     private function getRandomTitheType()
     {
-        $types = ['tithe', 'offering', 'special_collection', 'donation', 'thanksgiving'];
+        $types = ['regular', 'thanksgiving', 'special', 'pledge'];
 
         return $types[array_rand($types)];
     }
 
     private function getRandomPaymentMethod()
     {
-        $methods = ['cash', 'mobile_money', 'bank_transfer', 'check'];
+        $methods = ['cash', 'mpesa', 'bank_transfer', 'cheque'];
 
         return $methods[array_rand($methods)];
     }

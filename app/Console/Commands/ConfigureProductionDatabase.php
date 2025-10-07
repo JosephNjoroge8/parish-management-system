@@ -28,46 +28,47 @@ class ConfigureProductionDatabase extends Command
     public function handle()
     {
         $this->info('Configuring database for production environment...');
-        
+
         // Check current connection
         $connection = config('database.default');
         $this->info("Current database connection: {$connection}");
-        
+
         // If .env specifies MySQL but we're using SQLite, update the configuration
         if ($connection === 'sqlite' && env('DB_CONNECTION') === 'mysql') {
             $this->info('Changing configuration to use MySQL...');
-            
+
             // Update the database.php config directly (runtime only)
             config(['database.default' => 'mysql']);
-            
+
             $this->info('Configuration updated to use MySQL');
         }
-        
+
         // Verify connection to the database
         try {
             DB::connection()->getPdo();
-            $this->info('Database connection successful: ' . DB::connection()->getDatabaseName());
+            $this->info('Database connection successful: '.DB::connection()->getDatabaseName());
         } catch (\Exception $e) {
-            $this->error('Could not connect to the database: ' . $e->getMessage());
+            $this->error('Could not connect to the database: '.$e->getMessage());
+
             return 1;
         }
-        
+
         // Check if required tables exist
         $this->info('Checking database tables...');
-        
+
         $requiredTables = ['users', 'members', 'families', 'tithes', 'activities', 'migrations'];
         $missingTables = [];
-        
+
         foreach ($requiredTables as $table) {
-            if (!Schema::hasTable($table)) {
+            if (! Schema::hasTable($table)) {
                 $missingTables[] = $table;
             }
         }
-        
+
         if (count($missingTables) > 0) {
-            $this->warn('Missing tables: ' . implode(', ', $missingTables));
+            $this->warn('Missing tables: '.implode(', ', $missingTables));
             $this->info('Running migrations to create missing tables...');
-            
+
             // Run migrations
             $this->call('migrate', [
                 '--force' => true,
@@ -75,17 +76,18 @@ class ConfigureProductionDatabase extends Command
         } else {
             $this->info('All required tables exist.');
         }
-        
+
         // Update .env file to use MySQL if not already set
         $envContent = file_get_contents(base_path('.env'));
-        
+
         if (strpos($envContent, 'DB_CONNECTION=sqlite') !== false) {
             $this->info('Updating .env file to use MySQL as default...');
             $envContent = str_replace('DB_CONNECTION=sqlite', 'DB_CONNECTION=mysql', $envContent);
             file_put_contents(base_path('.env'), $envContent);
         }
-        
+
         $this->info('Database configuration complete!');
+
         return 0;
     }
 }

@@ -6,14 +6,13 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -23,22 +22,13 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $fillable = [
         'name',
         'email',
-        'phone',
         'password',
-        'is_active',
         'is_admin', // Simple admin flag
+        'is_active', // Active status
+        'phone', // Phone number
+        'last_login_at', // Last login timestamp
         'email_verified_at',
-        'last_login_at',
-        'profile_photo_path',
-        'created_by',
-        'date_of_birth',
-        'gender',
-        'address',
-        'occupation',
-        'emergency_contact',
-        'emergency_phone',
-        'notes',
-        'role', // Fallback role column
+        'remember_token',
     ];
 
     protected $hidden = [
@@ -49,22 +39,12 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $casts = [
         'email_verified_at' => 'datetime',
         'last_login_at' => 'datetime',
-        'date_of_birth' => 'date',
-        'is_active' => 'boolean',
         'is_admin' => 'boolean',
+        'is_active' => 'boolean',
         'password' => 'hashed',
     ];
 
-    // Relationships
-    public function createdBy()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function createdUsers()
-    {
-        return $this->hasMany(User::class, 'created_by');
-    }
+    // Relationships - removed unused relationships
 
     /**
      * Check if user has specific role - simplified for single admin system
@@ -126,26 +106,12 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     // Scopes
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
-
     public function scopeAdmins($query)
     {
-        return $query->whereIn('email', [
-            'admin@parish.com',
-            'superadmin@parish.com',
-            'administrator@parish.com',
-        ]);
+        return $query->where('is_admin', true);
     }
 
     // Methods
-    public function updateLastLogin()
-    {
-        $this->update(['last_login_at' => now()]);
-    }
-
     public function hasAccessTo(string $module): bool
     {
         return $this->hasPermissionTo("access {$module}") || $this->hasRole('super-admin');
@@ -161,8 +127,12 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->name;
     }
 
-    public function getAgeAttribute(): ?int
+    /**
+     * Update the user's last login timestamp
+     */
+    public function updateLastLogin(): void
     {
-        return $this->date_of_birth ? $this->date_of_birth->age : null;
+        $this->last_login_at = now();
+        $this->save();
     }
 }

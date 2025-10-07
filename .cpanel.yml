@@ -1,18 +1,80 @@
 ---
+# ============================================================================
+# PRODUCTION-OPTIMIZED CPANEL DEPLOYMENT CONFIGURATION
+# Parish Management System - Laravel 12 + Inertia.js + React
+# ============================================================================
+
 deployment:
   tasks:
+    # ========================================================================
+    # STEP 1: ENVIRONMENT SETUP & FILE DEPLOYMENT
+    # ========================================================================
     - export DEPLOYPATH=/home2/shemidig/parish_system/
+    - echo "🚀 Starting production deployment to $DEPLOYPATH"
+    
+    # Clear any existing deployment artifacts
+    - cd $DEPLOYPATH && rm -rf storage/framework/cache/* storage/framework/sessions/* storage/framework/views/*
+    
+    # Copy all application files
     - /bin/cp -R * $DEPLOYPATH
     - /bin/cp .env $DEPLOYPATH
     - /bin/cp .htaccess $DEPLOYPATH
+    - /bin/cp -R .git $DEPLOYPATH 2>/dev/null || echo "No git directory found"
+    
+    # ========================================================================
+    # STEP 2: DEPENDENCIES & COMPOSER OPTIMIZATION
+    # ========================================================================
+    - cd $DEPLOYPATH && composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+    - cd $DEPLOYPATH && composer dump-autoload --optimize --classmap-authoritative
+    
+    # ========================================================================
+    # STEP 3: LARAVEL OPTIMIZATION & SECURITY
+    # ========================================================================
     - cd $DEPLOYPATH && php artisan optimize:clear
     - cd $DEPLOYPATH && php artisan key:generate --force
-    - cd $DEPLOYPATH && php artisan migrate --force
     - cd $DEPLOYPATH && php artisan config:cache
     - cd $DEPLOYPATH && php artisan route:cache
     - cd $DEPLOYPATH && php artisan view:cache
-    - cd $DEPLOYPATH && php artisan storage:link
+    - cd $DEPLOYPATH && php artisan event:cache
+    
+    # ========================================================================
+    # STEP 4: DATABASE SETUP & MIGRATION
+    # ========================================================================
     - cd $DEPLOYPATH && php artisan db:configure-production
+    - cd $DEPLOYPATH && php artisan migrate --force --no-interaction
     - cd $DEPLOYPATH && php artisan db:optimize-mysql
+    
+    # ========================================================================
+    # STEP 5: STORAGE & ASSET OPTIMIZATION
+    # ========================================================================
+    - cd $DEPLOYPATH && php artisan storage:link
+    - cd $DEPLOYPATH && npm ci --production --silent 2>/dev/null || echo "NPM not available or no package.json"
+    - cd $DEPLOYPATH && npm run build 2>/dev/null || echo "Build step skipped"
+    
+    # ========================================================================
+    # STEP 6: ADMIN USER CREATION
+    # ========================================================================
+    - cd $DEPLOYPATH && php artisan admin:create-super-user
+    
+    # ========================================================================
+    # STEP 7: SECURITY & PERMISSIONS
+    # ========================================================================
     - cd $DEPLOYPATH && chmod -R 755 storage bootstrap/cache
-    - cd $DEPLOYPATH && chmod 644 .env
+    - cd $DEPLOYPATH && chmod -R 644 storage/logs
+    - cd $DEPLOYPATH && chmod 600 .env
+    - cd $DEPLOYPATH && chown -R $USER:$USER storage bootstrap/cache
+    
+    # ========================================================================
+    # STEP 8: PRODUCTION VALIDATION & CLEANUP
+    # ========================================================================
+    - cd $DEPLOYPATH && php artisan about --only=environment,cache,config 2>/dev/null || echo "Laravel about command not available"
+    - cd $DEPLOYPATH && php artisan queue:restart 2>/dev/null || echo "No queue workers to restart"
+    - cd $DEPLOYPATH && php artisan horizon:terminate 2>/dev/null || echo "Horizon not installed"
+    
+    # ========================================================================
+    # STEP 9: FINAL OPTIMIZATION
+    # ========================================================================
+    - cd $DEPLOYPATH && php artisan optimize
+    - echo "✅ Parish Management System deployment completed successfully!"
+    - echo "🔗 Visit: http://parish.quovadisyouthhub.org"
+    - echo "👤 Admin login will be displayed in the logs above"

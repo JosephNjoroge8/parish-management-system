@@ -27,6 +27,12 @@ class PasswordConfirmationTest extends TestCase
             'password' => 'password',
         ]);
 
+        // Debug the response
+        if ($response->status() !== 302) {
+            dump('Response status:', $response->status());
+            dump('Response content:', $response->getContent());
+        }
+
         $response->assertRedirect();
         $response->assertSessionHasNoErrors();
     }

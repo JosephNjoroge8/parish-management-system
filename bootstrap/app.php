@@ -13,36 +13,23 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Essential global middleware only
+        // Essential global middleware
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        // Replace default CSRF middleware with our custom one that disables during testing
+        // Use our custom CSRF middleware that disables during testing
         $middleware->web(replace: [
             \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class => \App\Http\Middleware\VerifyCsrfToken::class,
         ]);
 
-        // Remove heavy API middleware temporarily
-        // $middleware->api(append: [
-        //     \App\Http\Middleware\ApiRateLimitMiddleware::class,
-        //     \App\Http\Middleware\ValidateJsonMiddleware::class,
-        // ]);
-
-        // Remove heavy global middleware temporarily
-        // $middleware->append([
-        //     \App\Http\Middleware\SecurityHeadersMiddleware::class,
-        //     \App\Http\Middleware\ProductionSecurityMiddleware::class,
-        // ]);
-
-        // Route middleware aliases - SIMPLIFIED AND OPTIMIZED
+        // Route middleware aliases
         $middleware->alias([
-            // Core authentication middleware only
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
         ]);
 
-        // Simplified middleware groups
+        // Middleware groups
         $middleware->group('admin_only', [
             'auth',
             'verified',

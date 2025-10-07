@@ -13,30 +13,23 @@ return new class extends Migration
     {
         Schema::create('family_relationships', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('family_id');
-            $table->unsignedBigInteger('member_id');
+            $table->unsignedBigInteger('family_id')->index();
+            $table->unsignedBigInteger('member_id')->index();
             $table->enum('relationship_type', [
-                'head', 'spouse', 'child', 'parent', 'sibling',
-                'grandparent', 'grandchild', 'uncle_aunt',
-                'nephew_niece', 'cousin', 'other',
-            ]);
-            $table->boolean('primary_contact')->default(false);
-            $table->boolean('emergency_contact')->default(false);
+                'head', 'spouse', 'child', 'parent', 'sibling', 'grandparent',
+                'grandchild', 'uncle', 'aunt', 'cousin', 'other',
+            ])->index();
+            $table->boolean('is_primary')->default(false); // Primary relationship in family
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            // Foreign key constraints
-            $table->foreign('family_id')->references('id')->on('families')->onDelete('cascade');
-            $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');
+            // Ensure unique member per family
+            $table->unique(['family_id', 'member_id'], 'unique_family_member');
 
-            // Ensure unique relationship per family-member combination
-            $table->unique(['family_id', 'member_id']);
-
-            // Indexes
+            // Indexes for performance
             $table->index(['family_id', 'relationship_type']);
             $table->index(['member_id', 'relationship_type']);
-            $table->index('primary_contact');
-            $table->index('emergency_contact');
+            $table->index(['is_primary', 'family_id']);
         });
     }
 

@@ -13,25 +13,23 @@ return new class extends Migration
     {
         Schema::create('group_members', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('community_group_id');
-            $table->unsignedBigInteger('member_id');
-            $table->date('joined_date')->default(now());
-            $table->enum('role', ['member', 'leader', 'assistant_leader', 'secretary', 'treasurer'])->default('member');
-            $table->enum('status', ['active', 'inactive', 'suspended'])->default('active');
+            $table->unsignedBigInteger('group_id')->index();
+            $table->unsignedBigInteger('member_id')->index();
+            $table->date('join_date')->index();
+            $table->date('leave_date')->nullable();
+            $table->enum('membership_status', ['active', 'inactive', 'suspended', 'left'])->default('active')->index();
+            $table->enum('role', ['member', 'leader', 'secretary', 'treasurer', 'coordinator'])->default('member')->index();
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            // Foreign key constraints
-            $table->foreign('community_group_id')->references('id')->on('community_groups')->onDelete('cascade');
-            $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');
+            // Ensure unique member per group (for active memberships)
+            $table->unique(['group_id', 'member_id', 'membership_status'], 'unique_active_group_member');
 
-            // Ensure unique membership per group
-            $table->unique(['community_group_id', 'member_id']);
-
-            // Indexes
-            $table->index(['community_group_id', 'status']);
-            $table->index(['member_id', 'role']);
-            $table->index('joined_date');
+            // Indexes for performance
+            $table->index(['group_id', 'membership_status']);
+            $table->index(['member_id', 'membership_status']);
+            $table->index(['join_date', 'membership_status']);
+            $table->index(['role', 'membership_status']);
         });
     }
 

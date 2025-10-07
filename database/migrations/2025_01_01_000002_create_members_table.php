@@ -17,104 +17,118 @@ return new class extends Migration
             // ======================================
             // CORE PERSONAL INFORMATION
             // ======================================
-            $table->string('first_name', 100)->index(); // Indexed for search performance
+            $table->string('first_name', 100)->index();
             $table->string('middle_name', 100)->nullable();
-            $table->string('last_name', 100)->index(); // Indexed for search performance
-            $table->date('date_of_birth')->nullable()->index(); // Indexed for age queries
-            $table->enum('gender', ['Male', 'Female'])->nullable()->index(); // Indexed for statistics
-            $table->string('id_number', 20)->unique()->nullable(); // Unique constraint for data integrity
+            $table->string('last_name', 100)->index();
+            $table->date('date_of_birth')->nullable()->index();
+            $table->enum('gender', ['Male', 'Female'])->nullable()->index();
+            $table->string('id_number', 20)->unique()->nullable();
+
+            // ======================================
+            // MARITAL STATUS INFORMATION (UNIFIED)
+            // ======================================
+            $table->enum('matrimony_status', ['single', 'married', 'widowed', 'separated', 'divorced'])
+                ->default('single')->index();
+            $table->enum('marital_status', ['single', 'married', 'divorced', 'widowed'])
+                ->default('single')->index()->comment('Marital status compatibility field');
+            $table->enum('marriage_type', ['customary', 'church', 'civil', 'both'])->nullable();
 
             // ======================================
             // CONTACT INFORMATION
             // ======================================
-            $table->string('phone', 20)->nullable()->index(); // Indexed for contact searches
-            $table->string('email', 100)->nullable()->index(); // Indexed for contact searches
+            $table->string('phone', 20)->nullable()->index();
+            $table->string('email', 100)->nullable()->index();
             $table->text('residence')->nullable();
 
             // ======================================
-            // CHURCH INFORMATION (OPTIMIZED)
+            // CHURCH INFORMATION
             // ======================================
-            $table->string('local_church', 100)->nullable()->index(); // Indexed for church-based queries
-            $table->string('small_christian_community', 100)->nullable()->index(); // Indexed for community queries
+            $table->string('local_church', 100)->nullable()->index();
+            $table->string('small_christian_community', 100)->nullable()->index();
             $table->enum('church_group', [
                 'PMC', 'Youth', 'Young Parents', 'C.W.A', 'CMA', 'Choir', 'Catholic Action', 'Pioneer',
-            ])->nullable()->index(); // Indexed for group statistics
-            $table->json('additional_church_groups')->nullable(); // For multiple group memberships
+            ])->nullable()->index();
+            $table->json('additional_church_groups')->nullable();
 
             // ======================================
-            // MEMBERSHIP INFORMATION (OPTIMIZED)
+            // MEMBERSHIP INFORMATION
             // ======================================
             $table->enum('membership_status', ['active', 'inactive', 'transferred', 'deceased'])
-                ->default('active')->index(); // Indexed for status filtering
-            $table->date('membership_date')->nullable()->index(); // Indexed for membership analytics
-            $table->enum('matrimony_status', ['single', 'married', 'widowed', 'separated', 'divorced'])
-                ->default('single')->index(); // Indexed for marital status reports
-            $table->enum('marriage_type', ['customary', 'church', 'civil', 'both'])->nullable();
+                ->default('active')->index();
+            $table->date('membership_date')->nullable()->index();
 
             // ======================================
             // ACCESSIBILITY AND INCLUSION
             // ======================================
-            $table->boolean('is_differently_abled')->default(false)->index(); // Indexed for accessibility reports
+            $table->boolean('is_differently_abled')->default(false)->index();
             $table->text('disability_description')->nullable();
 
             // ======================================
-            // EDUCATION AND OCCUPATION (OPTIMIZED)
+            // EDUCATION AND OCCUPATION
             // ======================================
-            $table->string('occupation', 100)->nullable()->index(); // Indexed for occupation statistics
+            $table->string('occupation', 100)->nullable()->index();
             $table->enum('education_level', [
                 'none', 'primary', 'kcpe', 'secondary', 'kcse', 'certificate',
                 'diploma', 'degree', 'masters', 'phd', 'other',
-            ])->nullable()->index(); // Indexed for education statistics
+            ])->nullable()->index();
 
             // ======================================
-            // FAMILY RELATIONSHIPS (PERFORMANCE OPTIMIZED)
+            // FAMILY RELATIONSHIPS
             // ======================================
-            $table->unsignedBigInteger('family_id')->nullable()->index(); // Indexed for family queries
-            $table->unsignedBigInteger('parent_id')->nullable()->index(); // Indexed for hierarchy queries
-            $table->unsignedBigInteger('godparent_id')->nullable()->index(); // Indexed for sacrament queries
-            $table->unsignedBigInteger('minister_id')->nullable()->index(); // Indexed for ministry queries
+            $table->unsignedBigInteger('family_id')->nullable()->index();
+            $table->unsignedBigInteger('parent_id')->nullable()->index();
+            $table->unsignedBigInteger('godparent_id')->nullable()->index();
+            $table->unsignedBigInteger('minister_id')->nullable()->index();
 
             // ======================================
             // CULTURAL AND TRIBAL INFORMATION
             // ======================================
-            $table->string('tribe', 50)->nullable()->index(); // Indexed for demographic reports
+            $table->string('tribe', 50)->nullable()->index();
             $table->string('clan', 50)->nullable();
 
             // ======================================
-            // FAMILY INFORMATION (STRING FIELDS FOR DATA ENTRY)
+            // FAMILY INFORMATION (STRING FIELDS)
             // ======================================
-            $table->string('parent', 100)->nullable(); // Father's name (primary data entry field)
-            $table->string('mother_name', 100)->nullable(); // Mother's name (primary data entry field)
-            $table->string('godparent', 100)->nullable(); // Godparent name (primary data entry field)
-            $table->string('minister', 100)->nullable(); // Minister name (primary data entry field)
+            $table->string('parent', 100)->nullable(); // Father's name
+            $table->string('mother_name', 100)->nullable();
+            $table->string('godparent', 100)->nullable();
+            $table->string('minister', 100)->nullable();
 
             // ======================================
-            // GEOGRAPHICAL INFORMATION (OPTIMIZED)
+            // PARENT DETAILS (COMPREHENSIVE)
+            // ======================================
+            $table->string('father_name', 100)->nullable();
+            $table->string('father_occupation', 100)->nullable();
+            $table->string('father_residence', 200)->nullable();
+            $table->string('mother_occupation', 100)->nullable();
+            $table->string('mother_residence', 200)->nullable();
+
+            // ======================================
+            // GEOGRAPHICAL INFORMATION
             // ======================================
             $table->string('birth_village', 100)->nullable();
-            $table->string('county', 50)->nullable()->index(); // Indexed for location reports
+            $table->string('county', 50)->nullable()->index();
             $table->string('district', 50)->nullable();
             $table->string('province', 50)->nullable();
 
             // ======================================
-            // SACRAMENT INFORMATION (AUTO-SYNCED FIELDS)
+            // SACRAMENT INFORMATION
             // ======================================
 
             // Baptism Information
-            $table->date('baptism_date')->nullable()->index(); // Indexed for sacrament reports
+            $table->date('baptism_date')->nullable()->index();
             $table->string('baptism_location', 100)->nullable();
-            $table->string('baptized_by', 100)->nullable(); // Auto-synced from 'minister'
-            $table->string('sponsor', 100)->nullable(); // Auto-synced from 'godparent'
-            $table->string('father_name', 100)->nullable(); // Auto-synced from 'parent'
+            $table->string('baptized_by', 100)->nullable();
+            $table->string('sponsor', 100)->nullable();
 
             // Confirmation Information
-            $table->date('confirmation_date')->nullable()->index(); // Indexed for sacrament reports
+            $table->date('confirmation_date')->nullable()->index();
             $table->string('confirmation_location', 100)->nullable();
-            $table->string('confirmation_register_number', 50)->nullable()->unique(); // Unique for certificate tracking
-            $table->string('confirmation_number', 50)->nullable()->unique(); // Unique for certificate tracking
+            $table->string('confirmation_register_number', 50)->nullable()->unique();
+            $table->string('confirmation_number', 50)->nullable()->unique();
 
             // First Communion Information
-            $table->date('eucharist_date')->nullable()->index(); // Indexed for sacrament reports
+            $table->date('eucharist_date')->nullable()->index();
             $table->string('eucharist_location', 100)->nullable();
 
             // Extended Godparent Information
@@ -126,22 +140,23 @@ return new class extends Migration
             // ======================================
 
             // Core Marriage Details
-            $table->date('marriage_date')->nullable()->index(); // Indexed for marriage reports
+            $table->date('marriage_date')->nullable()->index();
             $table->string('marriage_location', 100)->nullable();
             $table->string('marriage_county', 50)->nullable();
             $table->string('marriage_sub_county', 50)->nullable();
-            $table->string('marriage_entry_number', 50)->nullable()->unique(); // Unique for certificate tracking
-            $table->string('marriage_certificate_number', 50)->nullable()->unique(); // Unique for certificate tracking
+            $table->string('marriage_entry_number', 50)->nullable()->unique();
+            $table->string('marriage_certificate_number', 50)->nullable()->unique();
             $table->string('marriage_religion', 50)->nullable();
             $table->string('marriage_license_number', 50)->nullable();
             $table->string('marriage_officiant_name', 100)->nullable();
             $table->string('marriage_witness1_name', 100)->nullable();
             $table->string('marriage_witness2_name', 100)->nullable();
+            $table->string('member_marriage_residence', 255)->nullable();
 
             // ======================================
             // SPOUSE INFORMATION (DETAILED)
             // ======================================
-            $table->string('spouse_name', 100)->nullable()->index(); // Indexed for spouse searches
+            $table->string('spouse_name', 100)->nullable()->index();
             $table->integer('spouse_age')->nullable();
             $table->string('spouse_residence', 200)->nullable();
             $table->string('spouse_county', 50)->nullable();
@@ -167,7 +182,7 @@ return new class extends Migration
             $table->enum('spouse_parent_consent', ['Yes', 'No'])->nullable();
 
             // ======================================
-            // MARRIAGE CERTIFICATE TEMPLATE FIELDS (AUTO-POPULATED)
+            // MARRIAGE CERTIFICATE TEMPLATE FIELDS
             // ======================================
 
             // Husband Fields (auto-populated based on gender)
@@ -201,25 +216,25 @@ return new class extends Migration
             // ======================================
             // LEGACY MARRIAGE FIELDS (COMPATIBILITY)
             // ======================================
-            $table->string('marriage_spouse', 100)->nullable(); // Legacy compatibility
-            $table->string('marriage_register_number', 50)->nullable(); // Legacy compatibility
-            $table->string('marriage_number', 50)->nullable(); // Legacy compatibility
-            $table->string('married_by', 100)->nullable(); // Legacy compatibility
-            $table->string('witness_1_name', 100)->nullable(); // Legacy compatibility
-            $table->string('witness_2_name', 100)->nullable(); // Legacy compatibility
-            $table->string('marriage_church', 100)->nullable(); // Legacy compatibility
+            $table->string('marriage_spouse', 100)->nullable();
+            $table->string('marriage_register_number', 50)->nullable();
+            $table->string('marriage_number', 50)->nullable();
+            $table->string('married_by', 100)->nullable();
+            $table->string('witness_1_name', 100)->nullable();
+            $table->string('witness_2_name', 100)->nullable();
+            $table->string('marriage_church', 100)->nullable();
 
             // ======================================
-            // MARRIAGE CERTIFICATE TEMPLATE MAPPINGS (AUTO-SYNCED)
+            // MARRIAGE CERTIFICATE TEMPLATE MAPPINGS
             // ======================================
-            $table->string('sub_county', 50)->nullable(); // Auto-synced from marriage_sub_county
-            $table->string('entry_number', 50)->nullable(); // Auto-synced from marriage_entry_number
-            $table->string('certificate_number', 50)->nullable(); // Auto-synced from marriage_certificate_number
-            $table->string('officiant_name', 100)->nullable(); // Auto-synced from marriage_officiant_name
-            $table->string('witness1_name', 100)->nullable(); // Auto-synced from marriage_witness1_name
-            $table->string('witness2_name', 100)->nullable(); // Auto-synced from marriage_witness2_name
-            $table->string('religion', 50)->nullable(); // Auto-synced from marriage_religion
-            $table->string('license_number', 50)->nullable(); // Auto-synced from marriage_license_number
+            $table->string('sub_county', 50)->nullable();
+            $table->string('entry_number', 50)->nullable();
+            $table->string('certificate_number', 50)->nullable();
+            $table->string('officiant_name', 100)->nullable();
+            $table->string('witness1_name', 100)->nullable();
+            $table->string('witness2_name', 100)->nullable();
+            $table->string('religion', 50)->nullable();
+            $table->string('license_number', 50)->nullable();
 
             // ======================================
             // CHURCH MARRIAGE PROCESS (BANAS & DISPENSATION)
@@ -267,14 +282,14 @@ return new class extends Migration
             $table->timestamps();
 
             // ======================================
-            // PERFORMANCE INDEXES (OPTIMIZED FOR QUERIES)
+            // PERFORMANCE INDEXES
             // ======================================
 
-            // Name-based searches (most common queries)
+            // Name-based searches
             $table->index(['first_name', 'last_name'], 'idx_member_full_name');
             $table->index(['last_name', 'first_name'], 'idx_member_name_reverse');
 
-            // Church-based queries (very common)
+            // Church-based queries
             $table->index(['local_church', 'membership_status'], 'idx_church_status');
             $table->index(['local_church', 'church_group'], 'idx_church_group');
             $table->index(['small_christian_community', 'membership_status'], 'idx_community_status');
@@ -282,6 +297,7 @@ return new class extends Migration
             // Status and demographic queries
             $table->index(['membership_status', 'gender'], 'idx_status_gender');
             $table->index(['matrimony_status', 'gender'], 'idx_matrimony_gender');
+            $table->index(['marital_status', 'gender'], 'idx_marital_gender');
             $table->index(['date_of_birth', 'gender'], 'idx_age_gender');
 
             // Family and relationship queries
@@ -307,13 +323,14 @@ return new class extends Migration
             $table->index(['spouse_name'], 'idx_spouse_search');
             $table->index(['marriage_date', 'marriage_location'], 'idx_marriage_details');
 
-            // Certificate tracking (unique constraints for data integrity)
+            // Certificate tracking
             $table->index(['marriage_certificate_number'], 'idx_marriage_cert_num');
             $table->index(['confirmation_register_number'], 'idx_confirmation_reg_num');
 
             // Compound indexes for complex queries
             $table->index(['membership_status', 'local_church', 'church_group'], 'idx_membership_compound');
             $table->index(['gender', 'matrimony_status', 'membership_status'], 'idx_demographics_compound');
+            $table->index(['gender', 'marital_status', 'membership_status'], 'idx_marital_demographics_compound');
             $table->index(['created_at', 'membership_status'], 'idx_registration_timeline');
         });
     }

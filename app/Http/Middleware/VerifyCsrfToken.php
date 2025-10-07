@@ -12,7 +12,7 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        //
+        // Add any routes that should be exempt from CSRF protection
     ];
 
     /**
@@ -21,7 +21,7 @@ class VerifyCsrfToken extends Middleware
     protected function tokensMatch($request): bool
     {
         // Disable CSRF protection during testing
-        if (app()->environment('testing')) {
+        if (app()->environment('testing') || defined('PHPUNIT_RUNNING') || app()->runningUnitTests()) {
             return true;
         }
 

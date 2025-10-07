@@ -21,16 +21,8 @@ class UserSeeder extends Seeder
                 ['email' => 'admin@parish.com'],
                 [
                     'name' => 'Parish Administrator',
-                    'phone' => '+254700000001',
                     'password' => Hash::make('admin123'),
-                    'is_active' => true,
                     'is_admin' => true, // Simple admin flag
-                    'date_of_birth' => '1980-01-01',
-                    'gender' => 'Male',
-                    'address' => 'Parish Office',
-                    'occupation' => 'Parish Administrator',
-                    'emergency_contact' => 'Emergency Contact Admin',
-                    'emergency_phone' => '+254700000011',
                     'email_verified_at' => now(),
                 ]
             );

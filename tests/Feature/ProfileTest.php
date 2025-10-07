@@ -76,8 +76,8 @@ class ProfileTest extends TestCase
             ->assertRedirect('/');
 
         $this->assertGuest();
-        // Check soft deletion instead of null since User model uses SoftDeletes
-        $this->assertNotNull($user->fresh()->deleted_at);
+        // Check user is actually deleted since User model doesn't use SoftDeletes
+        $this->assertNull($user->fresh());
     }
 
     public function test_correct_password_must_be_provided_to_delete_account(): void

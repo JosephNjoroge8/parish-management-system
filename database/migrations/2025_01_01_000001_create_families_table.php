@@ -13,23 +13,18 @@ return new class extends Migration
     {
         Schema::create('families', function (Blueprint $table) {
             $table->id();
-            $table->string('family_name');
-            $table->string('family_code')->unique()->nullable();
-            $table->text('address')->nullable();
+            $table->string('family_name', 100)->index();
+            $table->string('family_head', 100)->nullable();
+            $table->text('family_address')->nullable();
             $table->string('phone', 20)->nullable();
-            $table->string('email')->nullable();
-            $table->string('deanery')->nullable();
-            $table->string('parish')->nullable();
-            $table->string('parish_section')->nullable();
-            $table->unsignedBigInteger('head_of_family_id')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
+            $table->string('email', 100)->nullable();
+            $table->enum('family_status', ['active', 'inactive', 'transferred'])->default('active')->index();
+            $table->text('notes')->nullable();
             $table->timestamps();
 
-            // Indexes for performance
-            $table->index(['family_name', 'parish']);
-            $table->index('family_code');
-            $table->index('head_of_family_id');
-            $table->index('created_by');
+            // Indexes for better performance
+            $table->index(['family_name', 'family_status']);
+            $table->index(['family_head']);
         });
     }
 

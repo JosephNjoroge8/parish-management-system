@@ -13,27 +13,22 @@ return new class extends Migration
     {
         Schema::create('activity_participants', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('activity_id');
-            $table->unsignedBigInteger('member_id');
-            $table->datetime('registered_at')->nullable();
-            $table->boolean('attended')->default(false);
-            $table->enum('role', ['participant', 'organizer', 'leader', 'volunteer'])->default('participant');
+            $table->unsignedBigInteger('activity_id')->index();
+            $table->unsignedBigInteger('member_id')->nullable()->index();
+            $table->string('participant_name', 100)->index(); // In case member_id is not available
+            $table->enum('participation_status', ['registered', 'attended', 'absent', 'cancelled'])->default('registered')->index();
+            $table->date('registration_date')->index();
+            $table->decimal('contribution', 10, 2)->nullable(); // If activity involves contributions
             $table->text('notes')->nullable();
-            $table->unsignedBigInteger('registered_by')->nullable();
             $table->timestamps();
 
-            // Foreign key constraints
-            $table->foreign('activity_id')->references('id')->on('activities')->onDelete('cascade');
-            $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');
-            $table->foreign('registered_by')->references('id')->on('users')->onDelete('set null');
-
             // Ensure unique participation per activity
-            $table->unique(['activity_id', 'member_id']);
+            $table->unique(['activity_id', 'member_id'], 'unique_activity_member');
 
             // Indexes for performance
-            $table->index(['activity_id', 'attended']);
-            $table->index(['member_id', 'role']);
-            $table->index('registered_at');
+            $table->index(['activity_id', 'participation_status']);
+            $table->index(['registration_date', 'participation_status']);
+            $table->index(['participant_name', 'participation_status']);
         });
     }
 

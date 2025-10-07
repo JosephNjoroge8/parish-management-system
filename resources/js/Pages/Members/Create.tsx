@@ -1197,8 +1197,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
             baseTabs.push({ id: 'baptism_details', name: 'Baptism Record', icon: AlertCircle });
         }
         
-        // Add marriage details tab if married and church marriage
-        if (['married', 'separated', 'widowed'].includes(data.matrimony_status)) {
+        // Add marriage details tab ONLY if married AND church marriage
+        if (['married', 'separated', 'widowed'].includes(data.matrimony_status) && data.marriage_type === 'church') {
             baseTabs.push({ id: 'marriage_details', name: 'Marriage Record', icon: AlertCircle });
         }
         
@@ -2150,13 +2150,29 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                 );
 
             case 'marriage_details':
+                // Only show marriage details for church marriages
+                if (data.marriage_type !== 'church') {
+                    return (
+                        <div className="space-y-6">
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                                <h3 className="text-lg font-semibold text-yellow-900 mb-2">Marriage Details Not Required</h3>
+                                <p className="text-sm text-yellow-700">
+                                    Marriage details are only required for church marriages. 
+                                    Since this member was married in a {data.marriage_type} ceremony, 
+                                    no additional marriage certificate details are needed.
+                                </p>
+                            </div>
+                        </div>
+                    );
+                }
+                
                 return (
                     <div className="space-y-6">
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                            <h3 className="text-lg font-semibold text-blue-900 mb-2">Marriage Certificate Details</h3>
+                            <h3 className="text-lg font-semibold text-blue-900 mb-2">Church Marriage Certificate Details</h3>
                             <p className="text-sm text-blue-700">
-                                Fill in the essential details required for the official marriage certificate.
-                                Only complete this section if the member is married.
+                                Fill in the essential details required for the official church marriage certificate.
+                                These details are required for church marriages only.
                             </p>
                         </div>
                         

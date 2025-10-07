@@ -2,7 +2,7 @@
 
 /**
  * Parish Management System
- * 
+ *
  * cPanel-compatible index.php that works from document root
  */
 
@@ -14,5 +14,5 @@ if (file_exists(LARAVEL_ROOT.'/public/index.php')) {
     // Require the original index.php from the public directory
     require LARAVEL_ROOT.'/public/index.php';
 } else {
-    die('Could not find the public/index.php file.');
+    exit('Could not find the public/index.php file.');
 }

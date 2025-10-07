@@ -13,33 +13,19 @@ return new class extends Migration
     {
         Schema::create('sacraments', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('member_id');
-            $table->enum('sacrament_type', ['baptism', 'confirmation', 'marriage']);
-            $table->date('sacrament_date');
-            $table->string('location');
-            $table->string('celebrant'); // Priest/Minister who performed the sacrament
-            $table->string('witness_1')->nullable();
-            $table->string('witness_2')->nullable();
-            $table->string('godparent_1')->nullable();
-            $table->string('godparent_2')->nullable();
-            $table->string('certificate_number')->nullable();
-            $table->string('book_number')->nullable();
-            $table->string('page_number')->nullable();
+            $table->unsignedBigInteger('member_id')->index();
+            $table->enum('sacrament_type', ['baptism', 'confirmation', 'eucharist', 'marriage', 'ordination', 'anointing']);
+            $table->date('sacrament_date')->index();
+            $table->string('location', 100)->nullable();
+            $table->string('officiant', 100)->nullable();
+            $table->string('register_number', 50)->nullable();
             $table->text('notes')->nullable();
-            $table->unsignedBigInteger('recorded_by')->nullable();
             $table->timestamps();
-
-            // Foreign key constraints
-            $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');
-            $table->foreign('recorded_by')->references('id')->on('users')->onDelete('set null');
 
             // Indexes for performance
             $table->index(['member_id', 'sacrament_type']);
-            $table->index('sacrament_type');
-            $table->index('sacrament_date');
-            $table->index(['sacrament_type', 'sacrament_date']);
-            $table->index('certificate_number');
-            $table->index('location');
+            $table->index(['sacrament_date', 'sacrament_type']);
+            $table->index(['location', 'sacrament_type']);
         });
     }
 

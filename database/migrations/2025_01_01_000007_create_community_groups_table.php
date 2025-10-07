@@ -13,25 +13,23 @@ return new class extends Migration
     {
         Schema::create('community_groups', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('group_name', 100)->unique()->index();
             $table->text('description')->nullable();
-            $table->enum('group_type', ['youth', 'women', 'men', 'children', 'choir', 'prayer', 'bible_study', 'other']);
-            $table->unsignedBigInteger('leader_id')->nullable();
-            $table->enum('meeting_day', ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])->nullable();
+            $table->string('group_leader', 100)->nullable();
+            $table->string('contact_phone', 20)->nullable();
+            $table->string('contact_email', 100)->nullable();
+            $table->date('meeting_day')->nullable(); // Use date for specific meeting schedule
             $table->time('meeting_time')->nullable();
-            $table->string('meeting_location')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->unsignedBigInteger('created_by')->nullable();
+            $table->string('meeting_location', 100)->nullable();
+            $table->enum('group_status', ['active', 'inactive', 'suspended'])->default('active')->index();
+            $table->integer('max_members')->nullable();
+            $table->text('requirements')->nullable();
+            $table->text('notes')->nullable();
             $table->timestamps();
 
-            // Foreign key constraints
-            $table->foreign('leader_id')->references('id')->on('members')->onDelete('set null');
-            $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
-
-            // Indexes
-            $table->index(['group_type', 'is_active']);
-            $table->index('leader_id');
-            $table->index('meeting_day');
+            // Indexes for performance
+            $table->index(['group_status', 'group_name']);
+            $table->index(['group_leader']);
         });
     }
 

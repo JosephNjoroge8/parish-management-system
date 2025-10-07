@@ -13,29 +13,21 @@ return new class extends Migration
     {
         Schema::create('tithes', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('member_id');
+            $table->unsignedBigInteger('member_id')->nullable()->index();
+            $table->string('contributor_name', 100)->index(); // In case member_id is not available
             $table->decimal('amount', 10, 2);
-            $table->enum('tithe_type', ['tithe', 'offering', 'special_collection', 'donation', 'thanksgiving', 'project_contribution']);
-            $table->enum('payment_method', ['cash', 'check', 'mobile_money', 'bank_transfer', 'card']);
-            $table->date('date_given');
-            $table->string('purpose')->nullable();
-            $table->string('receipt_number')->nullable();
-            $table->string('reference_number')->nullable();
+            $table->date('contribution_date')->index();
+            $table->enum('payment_method', ['cash', 'mpesa', 'bank_transfer', 'cheque'])->default('cash');
+            $table->string('reference_number', 50)->nullable();
+            $table->enum('tithe_type', ['regular', 'thanksgiving', 'special', 'pledge'])->default('regular');
             $table->text('notes')->nullable();
-            $table->unsignedBigInteger('recorded_by')->nullable();
             $table->timestamps();
 
-            // Foreign key constraints
-            $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');
-            $table->foreign('recorded_by')->references('id')->on('users')->onDelete('set null');
-
             // Indexes for performance
-            $table->index(['member_id', 'date_given']);
-            $table->index(['tithe_type', 'date_given']);
-            $table->index('date_given');
-            $table->index('payment_method');
-            $table->index('receipt_number');
-            $table->index(['date_given', 'amount']);
+            $table->index(['contribution_date', 'tithe_type']);
+            $table->index(['contributor_name', 'contribution_date']);
+            $table->index(['amount', 'contribution_date']);
+            $table->index(['payment_method', 'contribution_date']);
         });
     }
 

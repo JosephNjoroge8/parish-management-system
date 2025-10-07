@@ -49,7 +49,7 @@ class TitheSeeder extends Seeder
                     'amount' => $this->getRandomAmount($age),
                     'tithe_type' => $this->getRandomContributionType(),
                     'payment_method' => $this->getRandomPaymentMethod(),
-                    'date_given' => $contributionDate->format('Y-m-d'),
+                    'contribution_date' => $contributionDate->format('Y-m-d'),
                     'purpose' => $this->getContributionPurpose(),
                     'receipt_number' => 'RCP'.str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT),
                     'reference_number' => 'REF'.str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT).$contributionDate->format('y'),

@@ -17,7 +17,7 @@ class Tithe extends Model
         'amount',
         'tithe_type',
         'payment_method',
-        'date_given',
+        'contribution_date',
         'purpose',
         'receipt_number',
         'reference_number',
@@ -27,7 +27,7 @@ class Tithe extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'date_given' => 'date',
+        'contribution_date' => 'date',
     ];
 
     const TITHE_TYPES = [
@@ -64,18 +64,18 @@ class Tithe extends Model
 
     public function scopeInDateRange($query, $startDate, $endDate)
     {
-        return $query->whereBetween('date_given', [$startDate, $endDate]);
+        return $query->whereBetween('contribution_date', [$startDate, $endDate]);
     }
 
     public function scopeInYear($query, $year)
     {
-        return $query->whereYear('date_given', $year);
+        return $query->whereYear('contribution_date', $year);
     }
 
     public function scopeInMonth($query, $year, $month)
     {
-        return $query->whereYear('date_given', $year)
-            ->whereMonth('date_given', $month);
+        return $query->whereYear('contribution_date', $year)
+            ->whereMonth('contribution_date', $month);
     }
 
     public function getTitheTypeNameAttribute(): string

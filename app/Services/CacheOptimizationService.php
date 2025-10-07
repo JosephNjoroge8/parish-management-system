@@ -95,8 +95,8 @@ class CacheOptimizationService
                 (SELECT COUNT(*) FROM families WHERE EXISTS(SELECT 1 FROM members WHERE family_id = families.id AND membership_status = 'active')) as active_families,
                 
                 -- Financial statistics
-                (SELECT COALESCE(SUM(amount), 0) FROM tithes WHERE MONTH(date_given) = ? AND YEAR(date_given) = ?) as tithes_this_month,
-                (SELECT COALESCE(SUM(amount), 0) FROM tithes WHERE YEAR(date_given) = ?) as tithes_this_year,
+                (SELECT COALESCE(SUM(amount), 0) FROM tithes WHERE MONTH(contribution_date) = ? AND YEAR(contribution_date) = ?) as tithes_this_month,
+                (SELECT COALESCE(SUM(amount), 0) FROM tithes WHERE YEAR(contribution_date) = ?) as tithes_this_year,
                 
                 -- Activity statistics
                 (SELECT COUNT(*) FROM activities WHERE status IN ('planned', 'active')) as upcoming_activities,
@@ -135,10 +135,10 @@ class CacheOptimizationService
     {
         $result = DB::table('tithes')
             ->selectRaw('
-                COALESCE(SUM(CASE WHEN MONTH(date_given) = ? AND YEAR(date_given) = ? THEN amount END), 0) as total_this_month,
-                COALESCE(SUM(CASE WHEN YEAR(date_given) = ? THEN amount END), 0) as total_this_year,
-                COALESCE(AVG(CASE WHEN MONTH(date_given) = ? AND YEAR(date_given) = ? THEN amount END), 0) as avg_this_month,
-                COUNT(DISTINCT CASE WHEN MONTH(date_given) = ? AND YEAR(date_given) = ? THEN member_id END) as contributors_this_month
+                COALESCE(SUM(CASE WHEN MONTH(contribution_date) = ? AND YEAR(contribution_date) = ? THEN amount END), 0) as total_this_month,
+                COALESCE(SUM(CASE WHEN YEAR(contribution_date) = ? THEN amount END), 0) as total_this_year,
+                COALESCE(AVG(CASE WHEN MONTH(contribution_date) = ? AND YEAR(contribution_date) = ? THEN amount END), 0) as avg_this_month,
+                COUNT(DISTINCT CASE WHEN MONTH(contribution_date) = ? AND YEAR(contribution_date) = ? THEN member_id END) as contributors_this_month
             ')
             ->addBinding([$month, $year, $year, $month, $year, $month, $year])
             ->first();

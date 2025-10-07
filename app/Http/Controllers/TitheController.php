@@ -39,21 +39,21 @@ class TitheController extends Controller
         }
 
         if ($request->filled('date_from') && $request->filled('date_to')) {
-            $query->whereBetween('date_given', [
+            $query->whereBetween('contribution_date', [
                 $request->get('date_from'),
                 $request->get('date_to'),
             ]);
         }
 
         if ($request->filled('year')) {
-            DatabaseCompatibilityHelper::whereYear($query, 'date_given', $request->get('year'));
+            DatabaseCompatibilityHelper::whereYear($query, 'contribution_date', $request->get('year'));
         }
 
         if ($request->filled('month')) {
-            DatabaseCompatibilityHelper::whereMonth($query, 'date_given', $request->get('month'));
+            DatabaseCompatibilityHelper::whereMonth($query, 'contribution_date', $request->get('month'));
         }
 
-        $tithes = $query->orderBy('date_given', 'desc')
+        $tithes = $query->orderBy('contribution_date', 'desc')
             ->paginate(15)
             ->withQueryString();
 
@@ -62,11 +62,11 @@ class TitheController extends Controller
             'total_amount' => $query->sum('amount'),
             'this_month' => DatabaseCompatibilityHelper::whereYear(
                 DatabaseCompatibilityHelper::whereMonth(
-                    Tithe::query(), 'date_given', now()->month
-                ), 'date_given', now()->year
+                    Tithe::query(), 'contribution_date', now()->month
+                ), 'contribution_date', now()->year
             )->sum('amount'),
             'this_year' => DatabaseCompatibilityHelper::whereYear(
-                Tithe::query(), 'date_given', now()->year
+                Tithe::query(), 'contribution_date', now()->year
             )->sum('amount'),
             'total_records' => $query->count(),
             'by_type' => Tithe::select('tithe_type', DB::raw('SUM(amount) as total'))
@@ -79,7 +79,7 @@ class TitheController extends Controller
 
         // Get available years for filter
         $years = DatabaseCompatibilityHelper::getDistinctYears(
-            Tithe::query(), 'date_given'
+            Tithe::query(), 'contribution_date'
         );
 
         return Inertia::render('Tithes/Index', [
@@ -105,7 +105,7 @@ class TitheController extends Controller
         $validated = $request->validate([
             'member_id' => 'nullable|string|max:255',
             'amount' => 'required|numeric|min:1',
-            'date_given' => 'required|date',
+            'contribution_date' => 'required|date',
             'payment_method' => 'required|string',
             'reference_number' => 'nullable|string|max:255',
             'tithe_type' => 'required|string',
@@ -144,7 +144,7 @@ class TitheController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'tithe_type' => 'required|in:'.implode(',', array_keys(Tithe::TITHE_TYPES)),
             'payment_method' => 'required|in:'.implode(',', array_keys(Tithe::PAYMENT_METHODS)),
-            'date_given' => 'required|date',
+            'contribution_date' => 'required|date',
             'purpose' => 'nullable|string|max:255',
             'receipt_number' => 'nullable|string|max:100',
             'reference_number' => 'nullable|string|max:100',
@@ -168,14 +168,14 @@ class TitheController extends Controller
     public function memberTithes(Member $member)
     {
         $tithes = $member->tithes()
-            ->orderBy('date_given', 'desc')
+            ->orderBy('contribution_date', 'desc')
             ->paginate(10);
 
         $totals = [
             'total_amount' => $member->tithes()->sum('amount'),
-            'this_year' => $member->tithes()->whereYear('date_given', now()->year)->sum('amount'),
-            'this_month' => $member->tithes()->whereYear('date_given', now()->year)
-                ->whereMonth('date_given', now()->month)
+            'this_year' => $member->tithes()->whereYear('contribution_date', now()->year)->sum('amount'),
+            'this_month' => $member->tithes()->whereYear('contribution_date', now()->year)
+                ->whereMonth('contribution_date', now()->month)
                 ->sum('amount'),
         ];
 
@@ -191,10 +191,10 @@ class TitheController extends Controller
         $year = $request->get('year', now()->year);
         $month = $request->get('month');
 
-        $query = Tithe::whereYear('date_given', $year);
+        $query = Tithe::whereYear('contribution_date', $year);
 
         if ($month) {
-            $query->whereMonth('date_given', $month);
+            $query->whereMonth('contribution_date', $month);
         }
 
         $reports = [
@@ -206,9 +206,9 @@ class TitheController extends Controller
             'by_method' => $query->select('payment_method', DB::raw('SUM(amount) as total'), DB::raw('COUNT(*) as count'))
                 ->groupBy('payment_method')
                 ->get(),
-            'monthly_totals' => Tithe::whereRaw('YEAR(date_given) = ?', [$year])
-                ->select(DB::raw('MONTH(date_given) as month'), DB::raw('SUM(amount) as total'))
-                ->groupBy(DB::raw('MONTH(date_given)'))
+            'monthly_totals' => Tithe::whereRaw('YEAR(contribution_date) = ?', [$year])
+                ->select(DB::raw('MONTH(contribution_date) as month'), DB::raw('SUM(amount) as total'))
+                ->groupBy(DB::raw('MONTH(contribution_date)'))
                 ->orderBy('month')
                 ->get(),
         ];

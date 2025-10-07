@@ -18,19 +18,14 @@ class MemberSeeder extends Seeder
      */
     public function run(): void
     {
-        // Disable foreign key checks temporarily
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-
-        // Clear existing data
+        // For SQLite, we don't need to disable foreign key checks
+        // Just clear existing data
         Member::truncate();
 
         // Only truncate families if the table exists
         if (Schema::hasTable('families')) {
             Family::truncate();
         }
-
-        // Re-enable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         // Check what columns exist in the families table
         $familyColumns = Schema::hasTable('families') ? Schema::getColumnListing('families') : [];
@@ -42,63 +37,53 @@ class MemberSeeder extends Seeder
             $familiesData = [
                 [
                     'family_name' => 'Njoroge Family',
-                    'head_of_family' => 'Joseph Mwangi Njoroge', // String field as required
-                    'address' => 'P.O. Box 123, Kangemi, Nairobi',
+                    'family_head' => 'Joseph Mwangi Njoroge', // Use correct column name
+                    'family_address' => 'P.O. Box 123, Kangemi, Nairobi', // Use correct column name
                     'phone' => '+254701234567',
                     'email' => 'njoroge.family@gmail.com',
                     'deanery' => 'Nairobi West Deanery',
-                    'parish' => 'St James Kangemi Parish',
-                    'family_code' => 'FAM001',
                     'parish_section' => 'Kangemi Section',
-                    'created_by' => 1,
+                    'family_status' => 'active',
                 ],
                 [
                     'family_name' => 'Wanjiku Family',
-                    'head_of_family' => 'Mary Nyokabi Wanjiku',
-                    'address' => 'P.O. Box 456, Pembe Tatu, Kiambu',
+                    'family_head' => 'Mary Nyokabi Wanjiku',
+                    'family_address' => 'P.O. Box 456, Pembe Tatu, Kiambu',
                     'phone' => '+254712345678',
                     'email' => 'wanjiku.family@yahoo.com',
                     'deanery' => 'Kiambu Deanery',
-                    'parish' => 'St Veronica Pembe Tatu Parish',
-                    'family_code' => 'FAM002',
                     'parish_section' => 'Pembe Tatu Section',
-                    'created_by' => 1,
+                    'family_status' => 'active',
                 ],
                 [
                     'family_name' => 'Mutua Family',
-                    'head_of_family' => 'Peter Musyoki Mutua',
-                    'address' => 'P.O. Box 789, Cathedral, Nairobi',
+                    'family_head' => 'Peter Musyoki Mutua',
+                    'family_address' => 'P.O. Box 789, Cathedral, Nairobi',
                     'phone' => '+254723456789',
                     'email' => 'mutua.family@gmail.com',
                     'deanery' => 'Nairobi Central Deanery',
-                    'parish' => 'Our Lady of Consolata Cathedral Parish',
-                    'family_code' => 'FAM003',
                     'parish_section' => 'Cathedral Section',
-                    'created_by' => 1,
+                    'family_status' => 'active',
                 ],
                 [
                     'family_name' => 'Ochieng Family',
-                    'head_of_family' => 'James Otieno Ochieng',
-                    'address' => 'P.O. Box 321, Kiawara, Kiambu',
+                    'family_head' => 'James Otieno Ochieng',
+                    'family_address' => 'P.O. Box 321, Kiawara, Kiambu',
                     'phone' => '+254734567890',
                     'email' => 'ochieng.family@hotmail.com',
                     'deanery' => 'Kiambu Deanery',
-                    'parish' => 'St Peter Kiawara Parish',
-                    'family_code' => 'FAM004',
                     'parish_section' => 'Kiawara Section',
-                    'created_by' => 1,
+                    'family_status' => 'active',
                 ],
                 [
                     'family_name' => 'Akinyi Family',
-                    'head_of_family' => 'Grace Adhiambo Akinyi',
-                    'address' => 'P.O. Box 654, Kandara, Murang\'a',
+                    'family_head' => 'Grace Adhiambo Akinyi',
+                    'family_address' => 'P.O. Box 654, Kandara, Murang\'a',
                     'phone' => '+254745678901',
                     'email' => 'akinyi.family@gmail.com',
                     'deanery' => 'Murang\'a Deanery',
-                    'parish' => 'Sacred Heart Kandara Parish',
-                    'family_code' => 'FAM005',
                     'parish_section' => 'Kandara Section',
-                    'created_by' => 1,
+                    'family_status' => 'active',
                 ],
             ];
 
@@ -493,7 +478,7 @@ class MemberSeeder extends Seeder
         $this->command->info('Created '.count($families).' families.');
 
         // Generate additional random members (optional)
-        $this->generateRandomMembers(10);
+        $this->generateRandomMembers(15); // Increased to 15 for more test data
     }
 
     /**
@@ -534,6 +519,7 @@ class MemberSeeder extends Seeder
         $educationLevels = ['Primary School', 'Secondary School', 'Diploma', 'University', 'Postgraduate'];
         $tribes = ['Kikuyu', 'Luo', 'Kamba', 'Kalenjin', 'Meru', 'Kisii'];
         $matrimonyStatuses = ['single', 'married', 'divorced', 'widowed'];
+        $membershipStatuses = ['active', 'inactive', 'pending', 'suspended']; // Different statuses for testing
 
         for ($i = 1; $i <= $count; $i++) {
             $gender = rand(0, 1) ? 'male' : 'female';
@@ -573,7 +559,7 @@ class MemberSeeder extends Seeder
                 'confirmation_date' => $confirmationDate?->format('Y-m-d'),
                 'matrimony_status' => $age >= 18 ? $matrimonyStatuses[array_rand($matrimonyStatuses)] : null,
                 'membership_date' => $membershipDate->format('Y-m-d'),
-                'membership_status' => 'active',
+                'membership_status' => $membershipStatuses[array_rand($membershipStatuses)], // Random status for testing
                 'emergency_contact' => $firstName.' Emergency Contact',
                 'emergency_phone' => '+2547'.rand(10000000, 99999999),
                 'notes' => 'Generated test member with various professional backgrounds',

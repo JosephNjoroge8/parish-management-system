@@ -6,26 +6,33 @@ deployment:
     - export DEPLOYPATH=/home2/shemidig/parish_system
     - export PHPVER=82
     
-    # Sync changed files only
-    - rsync -rltDzc --exclude='.env' --exclude='.git/' --exclude='node_modules/' --exclude='vendor/' --exclude='storage/' --exclude='bootstrap/cache/' --exclude='.cpanel.yml' --exclude='*.log' $REPOPATH/ $DEPLOYPATH/
+    # Backup previous deployment
+    - /bin/rm -Rf ${DEPLOYPATH}_old 2>/dev/null || true
+    - /bin/cp -R ${DEPLOYPATH} ${DEPLOYPATH}_old 2>/dev/null || true
+    
+    # Sync repository to production (excluding sensitive files)
+    - /bin/rsync -aP --exclude '.git' --exclude '.env' --exclude 'node_modules' --exclude 'vendor' --exclude 'storage/logs' --exclude 'storage/app/public' --exclude 'storage/framework/cache' --exclude 'storage/framework/sessions' --exclude 'storage/framework/views' --exclude 'bootstrap/cache' ${REPOPATH}/ ${DEPLOYPATH} --delete-after
+    
+    # Set correct permissions
+    - /bin/chmod 755 ${DEPLOYPATH}
+    - /bin/find ${DEPLOYPATH} -type d -exec /bin/chmod 755 '{}' \;
+    - /bin/find ${DEPLOYPATH} -type f -exec /bin/chmod 644 '{}' \;
+    - /bin/chmod -R 755 ${DEPLOYPATH}/storage
+    - /bin/chmod -R 755 ${DEPLOYPATH}/bootstrap/cache
     
     # Clear bootstrap cache
-    - rm -rf $DEPLOYPATH/bootstrap/cache/*.php 2>/dev/null || true
+    - /bin/rm -rf ${DEPLOYPATH}/bootstrap/cache/*.php 2>/dev/null || true
     
-    # Update autoloader
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} /opt/cpanel/composer/bin/composer dump-autoload --optimize --quiet 2>/dev/null || true
+    # Update Composer autoloader
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} /opt/cpanel/composer/bin/composer dump-autoload --optimize --quiet 2>/dev/null || true
     
-    # Migrations
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan migrate --force --no-interaction --quiet 2>/dev/null || true
+    # Run migrations
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan migrate --force --no-interaction --quiet 2>/dev/null || true
     
-    # Refresh caches
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan config:cache --quiet 2>/dev/null || true
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan route:cache --quiet 2>/dev/null || true
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan view:clear --quiet 2>/dev/null || true
+    # Refresh Laravel caches
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan config:cache --quiet 2>/dev/null || true
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan route:cache --quiet 2>/dev/null || true
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan view:clear --quiet 2>/dev/null || true
     
-    # Permissions
-    - chmod -R 755 $DEPLOYPATH/storage 2>/dev/null || true
-    - chmod -R 755 $DEPLOYPATH/bootstrap/cache 2>/dev/null || true
-    
-    # Restart queue
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan queue:restart 2>/dev/null || true
+    # Restart queue workers
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan queue:restart 2>/dev/null || true

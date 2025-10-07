@@ -20,6 +20,7 @@ class MemberMarriageResidenceTest extends TestCase
     /** @test */
     public function member_marriage_residence_is_required_for_married_members()
     {
+        $this->withoutMiddleware();
         $this->actingAs($this->user);
 
         $response = $this->post(route('members.store'), [
@@ -58,6 +59,7 @@ class MemberMarriageResidenceTest extends TestCase
     /** @test */
     public function member_marriage_residence_is_not_required_for_single_members()
     {
+        $this->withoutMiddleware();
         $this->actingAs($this->user);
 
         $response = $this->post(route('members.store'), [
@@ -87,6 +89,7 @@ class MemberMarriageResidenceTest extends TestCase
     /** @test */
     public function married_member_can_be_created_with_marriage_residence()
     {
+        $this->withoutMiddleware();
         $this->actingAs($this->user);
 
         $response = $this->post(route('members.store'), [
@@ -129,6 +132,7 @@ class MemberMarriageResidenceTest extends TestCase
 
     public function test_member_marriage_residence_can_be_updated()
     {
+        $this->withoutMiddleware();
         $this->actingAs($this->user);
 
         $member = Member::factory()->create([
@@ -174,6 +178,7 @@ class MemberMarriageResidenceTest extends TestCase
     /** @test */
     public function member_marriage_residence_is_required_when_updating_to_married_status()
     {
+        $this->withoutMiddleware();
         $this->actingAs($this->user);
 
         $member = Member::factory()->create([

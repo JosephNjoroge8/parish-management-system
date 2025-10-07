@@ -64,14 +64,16 @@ class CreateSuperAdminUser extends Command
             foreach ($validator->errors()->all() as $error) {
                 $this->error("   • {$error}");
             }
+
             return Command::FAILURE;
         }
 
         // Check if user already exists
         $existingUser = User::where('email', $email)->first();
         if ($existingUser) {
-            if (!$this->option('force') && !$this->confirm("User with email {$email} already exists. Update to super admin?")) {
+            if (! $this->option('force') && ! $this->confirm("User with email {$email} already exists. Update to super admin?")) {
                 $this->info('Operation cancelled.');
+
                 return Command::SUCCESS;
             }
 

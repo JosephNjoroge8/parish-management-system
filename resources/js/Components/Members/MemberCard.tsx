@@ -1,19 +1,8 @@
-import { memo, useState, useCallback } from 'react';
-import { Eye, Edit, Trash2, Phone, Mail, MapPin, Calendar, ChevronDown, CheckCircle, AlertCircle, UserX, Users } from 'lucide-react';
+import { memo, useState, useCallback, useMemo } from 'react';
+import { Eye, Edit, Trash2, Phone, Mail, MapPin, Calendar } from 'lucide-react';
 import { Link } from '@inertiajs/react';
 import { Member } from './types';
-
-// Safe route helper
-const safeRoute = (name: string, id: number): string => {
-    try {
-        return typeof route === 'function' ? route(name, id) : `/members/${id}`;
-    } catch (error) {
-        console.warn('Route helper failed, using fallback');
-        if (name === 'members.show') return `/members/${id}`;
-        if (name === 'members.edit') return `/members/${id}/edit`;
-        return `/members/${id}`;
-    }
-};
+import { memberRoute } from './SafeRouteHelper';
 
 interface MemberCardProps {
     member: Member;
@@ -24,38 +13,6 @@ interface MemberCardProps {
     canChangeStatus?: boolean;
 }
 
-// Status configuration
-const STATUS_CONFIG = {
-    active: {
-        label: 'Active',
-        icon: CheckCircle,
-        bgColor: 'bg-green-100',
-        textColor: 'text-green-800',
-        borderColor: 'border-green-200',
-    },
-    inactive: {
-        label: 'Inactive',
-        icon: AlertCircle,
-        bgColor: 'bg-yellow-100',
-        textColor: 'text-yellow-800',
-        borderColor: 'border-yellow-200',
-    },
-    transferred: {
-        label: 'Transferred',
-        icon: Users,
-        bgColor: 'bg-blue-100',
-        textColor: 'text-blue-800',
-        borderColor: 'border-blue-200',
-    },
-    deceased: {
-        label: 'Deceased',
-        icon: UserX,
-        bgColor: 'bg-gray-100',
-        textColor: 'text-gray-800',
-        borderColor: 'border-gray-200',
-    },
-};
-
 const MemberCard = memo<MemberCardProps>(({ 
     member, 
     isSelected, 
@@ -64,200 +21,144 @@ const MemberCard = memo<MemberCardProps>(({
     onStatusChange,
     canChangeStatus = true 
 }) => {
-    const [showStatusDropdown, setShowStatusDropdown] = useState(false);
     const [isChangingStatus, setIsChangingStatus] = useState(false);
+    
+    // Memoize computed values
+    const memberName = useMemo(() => {
+        return `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown Member';
+    }, [member.first_name, member.last_name]);
 
-    const currentStatus = member.membership_status?.toLowerCase() || 'active';
-    const statusConfig = STATUS_CONFIG[currentStatus as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.active;
-    const StatusIcon = statusConfig.icon;
-
-    const handleStatusChange = useCallback(async (newStatus: string) => {
-        if (!onStatusChange || isChangingStatus) return;
-        
-        setIsChangingStatus(true);
-        setShowStatusDropdown(false);
-        
+    const memberAge = useMemo(() => {
+        if (!member.date_of_birth) return null;
         try {
-            await onStatusChange(member.id, newStatus);
-        } catch (error) {
-            console.error('Status change error:', error);
-        } finally {
-            setIsChangingStatus(false);
+            const birthDate = new Date(member.date_of_birth);
+            const today = new Date();
+            const age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                return age - 1;
+            }
+            return age;
+        } catch {
+            return null;
         }
-    }, [onStatusChange, isChangingStatus, member.id]);
+    }, [member.date_of_birth]);
 
     const handleToggleSelection = useCallback(() => {
         onToggleSelection(member.id);
     }, [onToggleSelection, member.id]);
 
-    const handleDeleteMember = useCallback(() => {
+    const handleDelete = useCallback(() => {
         onDelete(member);
     }, [onDelete, member]);
 
-    const handleDropdownToggle = useCallback(() => {
-        setShowStatusDropdown(!showStatusDropdown);
-    }, [showStatusDropdown]);
-
-    const closeDropdown = useCallback(() => {
-        setShowStatusDropdown(false);
-    }, []);
-
     return (
-        <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6">
-            {/* Selection Checkbox */}
-            <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center">
-                    <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={handleToggleSelection}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    />
-                    <div className="ml-3">
-                        <h3 className="text-lg font-medium text-gray-900">
-                            {member.full_name}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                            ID: {member.id_number || `#${member.id}`}
-                        </p>
+        <div className={`
+            bg-white rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md
+            ${isSelected ? 'ring-2 ring-indigo-500 border-indigo-200' : 'border-gray-200 hover:border-gray-300'}
+        `}>
+            <div className="p-6">
+                {/* Header with selection */}
+                <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                        <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={handleToggleSelection}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                            aria-label={`Select ${memberName}`}
+                        />
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-900 truncate" title={memberName}>
+                                {memberName}
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                                {member.member_number ? `#${member.member_number}` : `ID: ${member.id}`}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
+                        {member.membership_status || 'Active'}
                     </div>
                 </div>
-                
-                {/* Status badge with dropdown */}
-                <div className="relative">
-                    {canChangeStatus && onStatusChange ? (
-                        <button
-                            type="button"
-                            onClick={handleDropdownToggle}
-                            disabled={isChangingStatus}
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                                isChangingStatus ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                            }`}
-                        >
-                            <StatusIcon className="w-3 h-3 mr-1" />
-                            {isChangingStatus ? 'Updating...' : statusConfig.label}
-                            {!isChangingStatus && <ChevronDown className="w-3 h-3 ml-1" />}
-                        </button>
-                    ) : (
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor}`}>
-                            <StatusIcon className="w-3 h-3 mr-1" />
-                            {statusConfig.label}
-                        </span>
-                    )}
 
-                    {/* Status dropdown */}
-                    {showStatusDropdown && (
-                        <div className="absolute right-0 mt-1 w-36 bg-white rounded-md shadow-lg border border-gray-200 z-10">
-                            <div className="py-1">
-                                {Object.entries(STATUS_CONFIG).map(([status, config]) => {
-                                    const Icon = config.icon;
-                                    const isCurrentStatus = status === currentStatus;
-                                    
-                                    return (
-                                        <button
-                                            key={status}
-                                            onClick={() => handleStatusChange(status)}
-                                            disabled={isCurrentStatus || isChangingStatus}
-                                            className={`w-full text-left px-3 py-2 text-sm flex items-center transition-colors ${
-                                                isCurrentStatus
-                                                    ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                                                    : 'text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none'
-                                            }`}
-                                        >
-                                            <Icon className="w-3 h-3 mr-2" />
-                                            {config.label}
-                                            {isCurrentStatus && (
-                                                <span className="ml-auto text-xs">(Current)</span>
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                {/* Member Details */}
+                <div className="space-y-2 mb-4">
+                    {member.phone && (
+                        <div className="flex items-center text-sm text-gray-600">
+                            <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                            <span className="truncate">{member.phone}</span>
+                        </div>
+                    )}
+                    
+                    {member.email && (
+                        <div className="flex items-center text-sm text-gray-600">
+                            <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                            <span className="truncate">{member.email}</span>
+                        </div>
+                    )}
+                    
+                    {member.residence && (
+                        <div className="flex items-center text-sm text-gray-600">
+                            <MapPin className="w-4 h-4 mr-2 text-gray-400" />
+                            <span className="truncate">{member.residence}</span>
+                        </div>
+                    )}
+                    
+                    {memberAge && (
+                        <div className="flex items-center text-sm text-gray-600">
+                            <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+                            <span>{memberAge} years old</span>
                         </div>
                     )}
                 </div>
-            </div>
 
-            {/* Member Details */}
-            <div className="space-y-2 mb-4">
-                <div className="flex items-center text-sm text-gray-600">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    {member.date_of_birth && (
-                        <>Age: {new Date().getFullYear() - new Date(member.date_of_birth).getFullYear()}</>
-                    )}
-                    {member.gender && (
-                        <>{member.date_of_birth ? ' • ' : ''}{member.gender}</>
-                    )}
+                {/* Church Information */}
+                <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                    <div className="text-sm">
+                        <p className="font-medium text-gray-900 truncate" title={member.local_church}>
+                            {member.local_church || 'No church assigned'}
+                        </p>
+                        <p className="text-gray-600 truncate" title={member.church_group}>
+                            {member.church_group || 'No group assigned'}
+                        </p>
+                    </div>
                 </div>
-                
-                {member.phone && (
-                    <div className="flex items-center text-sm text-gray-600">
-                        <Phone className="h-4 w-4 mr-2" />
-                        {member.phone}
-                    </div>
-                )}
-                
-                {member.email && (
-                    <div className="flex items-center text-sm text-gray-600">
-                        <Mail className="h-4 w-4 mr-2" />
-                        {member.email}
-                    </div>
-                )}
-                
-                {member.residence && (
-                    <div className="flex items-center text-sm text-gray-600">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        {member.residence}
-                    </div>
-                )}
-            </div>
 
-            {/* Church Information */}
-            <div className="border-t pt-3 mb-4">
-                <div className="text-sm">
-                    <p><span className="font-medium">Church:</span> {member.local_church}</p>
-                    <p><span className="font-medium">Group:</span> {member.church_group}</p>
-                    {member.family && (
-                        <p><span className="font-medium">Family:</span> {member.family.family_name}</p>
-                    )}
+                {/* Action Buttons */}
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="flex space-x-2">
+                        <Link
+                            href={memberRoute('show', member.id)}
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                            title={`View ${memberName} details`}
+                        >
+                            <Eye className="w-3 h-3 mr-1" />
+                            View
+                        </Link>
+                        
+                        <Link
+                            href={memberRoute('edit', member.id)}
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                            title={`Edit ${memberName}`}
+                        >
+                            <Edit className="w-3 h-3 mr-1" />
+                            Edit
+                        </Link>
+                    </div>
+                    
+                    <button
+                        onClick={handleDelete}
+                        className="inline-flex items-center px-3 py-1.5 border border-red-300 rounded-md text-xs font-medium text-red-700 bg-white hover:bg-red-50 transition-colors"
+                        title={`Delete ${memberName}`}
+                    >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Delete
+                    </button>
                 </div>
             </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end space-x-2">
-                <Link
-                    href={safeRoute('members.show', member.id)}
-                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                    <Eye className="h-3 w-3 mr-1" />
-                    View
-                </Link>
-                
-                <Link
-                    href={safeRoute('members.edit', member.id)}
-                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                    <Edit className="h-3 w-3 mr-1" />
-                    Edit
-                </Link>
-                
-                <button
-                    type="button"
-                    onClick={handleDeleteMember}
-                    className="inline-flex items-center px-3 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                >
-                    <Trash2 className="h-3 w-3 mr-1" />
-                    Delete
-                </button>
-            </div>
-            
-            {/* Click outside to close dropdown */}
-            {showStatusDropdown && (
-                <div
-                    className="fixed inset-0 z-0"
-                    onClick={closeDropdown}
-                />
-            )}
         </div>
     );
 });

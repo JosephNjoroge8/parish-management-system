@@ -93,7 +93,7 @@ class AdminMiddleware
             // Log the error but don't break the login process
             Log::warning('Failed to update last login timestamp', [
                 'user_id' => $user->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
 

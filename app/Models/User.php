@@ -140,8 +140,9 @@ class User extends Authenticatable implements MustVerifyEmail
             if (str_contains($e->getMessage(), 'last_login_at') && str_contains($e->getMessage(), 'Unknown column')) {
                 \Log::warning('last_login_at column not found in users table - skipping update', [
                     'user_id' => $this->id,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
+
                 return;
             }
             // Re-throw if it's a different error

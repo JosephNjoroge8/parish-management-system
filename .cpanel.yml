@@ -6,10 +6,6 @@ deployment:
     - export DEPLOYPATH=/home2/shemidig/parish_system
     - export PHPVER=82
     
-    # Backup previous deployment
-    - /bin/rm -Rf ${DEPLOYPATH}_old 2>/dev/null || true
-    - /bin/cp -R ${DEPLOYPATH} ${DEPLOYPATH}_old 2>/dev/null || true
-    
     # Sync repository to production (excluding sensitive files)
     - /bin/rsync -aP --exclude '.git' --exclude '.env' --exclude 'node_modules' --exclude 'vendor' --exclude 'storage/logs' --exclude 'storage/app/public' --exclude 'storage/framework/cache' --exclude 'storage/framework/sessions' --exclude 'storage/framework/views' --exclude 'bootstrap/cache' ${REPOPATH}/ ${DEPLOYPATH} --delete-after
     

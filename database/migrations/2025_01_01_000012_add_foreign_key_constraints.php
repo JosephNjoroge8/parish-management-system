@@ -13,23 +13,23 @@ return new class extends Migration
     {
         // Add foreign key constraints only if they don't exist
         Schema::table('members', function (Blueprint $table) {
-            if (!$this->foreignKeyExists('members', 'members_family_id_foreign')) {
+            if (! $this->foreignKeyExists('members', 'members_family_id_foreign')) {
                 $table->foreign('family_id')->references('id')->on('families')->onDelete('set null');
             }
-            if (!$this->foreignKeyExists('members', 'members_parent_id_foreign')) {
+            if (! $this->foreignKeyExists('members', 'members_parent_id_foreign')) {
                 $table->foreign('parent_id')->references('id')->on('members')->onDelete('set null');
             }
-            if (!$this->foreignKeyExists('members', 'members_godparent_id_foreign')) {
+            if (! $this->foreignKeyExists('members', 'members_godparent_id_foreign')) {
                 $table->foreign('godparent_id')->references('id')->on('members')->onDelete('set null');
             }
-            if (!$this->foreignKeyExists('members', 'members_minister_id_foreign')) {
+            if (! $this->foreignKeyExists('members', 'members_minister_id_foreign')) {
                 $table->foreign('minister_id')->references('id')->on('members')->onDelete('set null');
             }
         });
 
         if (Schema::hasTable('sacraments')) {
             Schema::table('sacraments', function (Blueprint $table) {
-                if (!$this->foreignKeyExists('sacraments', 'sacraments_member_id_foreign')) {
+                if (! $this->foreignKeyExists('sacraments', 'sacraments_member_id_foreign')) {
                     $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');
                 }
             });
@@ -37,7 +37,7 @@ return new class extends Migration
 
         if (Schema::hasTable('baptism_records')) {
             Schema::table('baptism_records', function (Blueprint $table) {
-                if (!$this->foreignKeyExists('baptism_records', 'baptism_records_member_id_foreign')) {
+                if (! $this->foreignKeyExists('baptism_records', 'baptism_records_member_id_foreign')) {
                     $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');
                 }
             });
@@ -45,10 +45,10 @@ return new class extends Migration
 
         if (Schema::hasTable('marriage_records')) {
             Schema::table('marriage_records', function (Blueprint $table) {
-                if (!$this->foreignKeyExists('marriage_records', 'marriage_records_husband_member_id_foreign')) {
+                if (! $this->foreignKeyExists('marriage_records', 'marriage_records_husband_member_id_foreign')) {
                     $table->foreign('husband_member_id')->references('id')->on('members')->onDelete('set null');
                 }
-                if (!$this->foreignKeyExists('marriage_records', 'marriage_records_wife_member_id_foreign')) {
+                if (! $this->foreignKeyExists('marriage_records', 'marriage_records_wife_member_id_foreign')) {
                     $table->foreign('wife_member_id')->references('id')->on('members')->onDelete('set null');
                 }
             });
@@ -56,7 +56,7 @@ return new class extends Migration
 
         if (Schema::hasTable('tithes')) {
             Schema::table('tithes', function (Blueprint $table) {
-                if (!$this->foreignKeyExists('tithes', 'tithes_member_id_foreign')) {
+                if (! $this->foreignKeyExists('tithes', 'tithes_member_id_foreign')) {
                     $table->foreign('member_id')->references('id')->on('members')->onDelete('set null');
                 }
             });
@@ -64,10 +64,10 @@ return new class extends Migration
 
         if (Schema::hasTable('activity_participants')) {
             Schema::table('activity_participants', function (Blueprint $table) {
-                if (!$this->foreignKeyExists('activity_participants', 'activity_participants_activity_id_foreign')) {
+                if (! $this->foreignKeyExists('activity_participants', 'activity_participants_activity_id_foreign')) {
                     $table->foreign('activity_id')->references('id')->on('activities')->onDelete('cascade');
                 }
-                if (!$this->foreignKeyExists('activity_participants', 'activity_participants_member_id_foreign')) {
+                if (! $this->foreignKeyExists('activity_participants', 'activity_participants_member_id_foreign')) {
                     $table->foreign('member_id')->references('id')->on('members')->onDelete('set null');
                 }
             });
@@ -75,10 +75,10 @@ return new class extends Migration
 
         if (Schema::hasTable('family_relationships')) {
             Schema::table('family_relationships', function (Blueprint $table) {
-                if (!$this->foreignKeyExists('family_relationships', 'family_relationships_family_id_foreign')) {
+                if (! $this->foreignKeyExists('family_relationships', 'family_relationships_family_id_foreign')) {
                     $table->foreign('family_id')->references('id')->on('families')->onDelete('cascade');
                 }
-                if (!$this->foreignKeyExists('family_relationships', 'family_relationships_member_id_foreign')) {
+                if (! $this->foreignKeyExists('family_relationships', 'family_relationships_member_id_foreign')) {
                     $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');
                 }
             });
@@ -86,10 +86,10 @@ return new class extends Migration
 
         if (Schema::hasTable('group_members')) {
             Schema::table('group_members', function (Blueprint $table) {
-                if (!$this->foreignKeyExists('group_members', 'group_members_group_id_foreign')) {
+                if (! $this->foreignKeyExists('group_members', 'group_members_group_id_foreign')) {
                     $table->foreign('group_id')->references('id')->on('community_groups')->onDelete('cascade');
                 }
-                if (!$this->foreignKeyExists('group_members', 'group_members_member_id_foreign')) {
+                if (! $this->foreignKeyExists('group_members', 'group_members_member_id_foreign')) {
                     $table->foreign('member_id')->references('id')->on('members')->onDelete('cascade');
                 }
             });
@@ -97,20 +97,20 @@ return new class extends Migration
 
         // Add performance indexes only if they don't exist
         Schema::table('members', function (Blueprint $table) {
-            if (!$this->indexExists('members', 'idx_status_created')) {
+            if (! $this->indexExists('members', 'idx_status_created')) {
                 $table->index(['membership_status', 'created_at'], 'idx_status_created');
             }
-            if (!$this->indexExists('members', 'idx_church_matrimony')) {
+            if (! $this->indexExists('members', 'idx_church_matrimony')) {
                 $table->index(['local_church', 'matrimony_status'], 'idx_church_matrimony');
             }
-            if (!$this->indexExists('members', 'idx_contact_info')) {
+            if (! $this->indexExists('members', 'idx_contact_info')) {
                 $table->index(['phone', 'email'], 'idx_contact_info');
             }
         });
 
         if (Schema::hasTable('tithes')) {
             Schema::table('tithes', function (Blueprint $table) {
-                if (!$this->indexExists('tithes', 'idx_date_amount')) {
+                if (! $this->indexExists('tithes', 'idx_date_amount')) {
                     $table->index(['contribution_date', 'amount'], 'idx_date_amount');
                 }
             });
@@ -118,7 +118,7 @@ return new class extends Migration
 
         if (Schema::hasTable('activities')) {
             Schema::table('activities', function (Blueprint $table) {
-                if (!$this->indexExists('activities', 'idx_date_status')) {
+                if (! $this->indexExists('activities', 'idx_date_status')) {
                     $table->index(['activity_date', 'activity_status'], 'idx_date_status');
                 }
             });
@@ -130,15 +130,36 @@ return new class extends Migration
      */
     private function foreignKeyExists($table, $foreignKey)
     {
-        $sm = Schema::getConnection()->getDoctrineSchemaManager();
-        $foreignKeys = $sm->listTableForeignKeys($table);
-        
-        foreach ($foreignKeys as $key) {
-            if ($key->getName() === $foreignKey) {
-                return true;
+        // For SQLite and other databases, we'll use a try-catch approach
+        // since Schema introspection varies by database type
+        try {
+            $connection = Schema::getConnection();
+            $driver = $connection->getDriverName();
+
+            if ($driver === 'sqlite') {
+                // SQLite doesn't support checking foreign keys via schema manager
+                // We'll assume foreign keys don't exist for SQLite to avoid errors
+                return false;
             }
+
+            // For MySQL and other databases, check information_schema
+            if ($driver === 'mysql') {
+                $result = $connection->select('
+                    SELECT CONSTRAINT_NAME 
+                    FROM information_schema.KEY_COLUMN_USAGE 
+                    WHERE TABLE_SCHEMA = DATABASE() 
+                    AND TABLE_NAME = ? 
+                    AND CONSTRAINT_NAME = ?
+                ', [$table, $foreignKey]);
+
+                return count($result) > 0;
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            // If we can't check, assume it doesn't exist
+            return false;
         }
-        return false;
     }
 
     /**
@@ -146,10 +167,39 @@ return new class extends Migration
      */
     private function indexExists($table, $index)
     {
-        $sm = Schema::getConnection()->getDoctrineSchemaManager();
-        $indexes = $sm->listTableIndexes($table);
-        
-        return array_key_exists($index, $indexes);
+        try {
+            $connection = Schema::getConnection();
+            $driver = $connection->getDriverName();
+
+            if ($driver === 'sqlite') {
+                // SQLite index checking
+                $result = $connection->select("
+                    SELECT name FROM sqlite_master 
+                    WHERE type = 'index' 
+                    AND tbl_name = ? 
+                    AND name = ?
+                ", [$table, $index]);
+
+                return count($result) > 0;
+            }
+
+            if ($driver === 'mysql') {
+                $result = $connection->select('
+                    SELECT INDEX_NAME 
+                    FROM information_schema.STATISTICS 
+                    WHERE TABLE_SCHEMA = DATABASE() 
+                    AND TABLE_NAME = ? 
+                    AND INDEX_NAME = ?
+                ', [$table, $index]);
+
+                return count($result) > 0;
+            }
+
+            return false;
+        } catch (\Exception $e) {
+            // If we can't check, assume it doesn't exist
+            return false;
+        }
     }
 
     /**

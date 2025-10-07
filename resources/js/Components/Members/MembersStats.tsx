@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Users, UserCheck, UserPlus, Calendar } from 'lucide-react';
 import { Stats } from './types';
 

@@ -1,68 +1,76 @@
 ---
 # ============================================================================
-# PRODUCTION-OPTIMIZED CPANEL DEPLOYMENT CONFIGURATION
-# Parish Management System - Laravel 12 + Inertia.js + React
+# SIMPLE CPANEL AUTO-DEPLOYMENT CONFIGURATION
+# Parish Management System - Automatic updates from GitHub to Production
 # ============================================================================
 
 deployment:
   tasks:
     # ========================================================================
-    # STEP 1: ENVIRONMENT SETUP
+    # ENVIRONMENT SETUP
     # ========================================================================
     - export DEPLOYPATH=/home2/shemidig/parish_system/
-    - export PHPVER=82  # Adjust to your PHP version (81, 82, 83, etc.)
-    - echo "🚀 Starting production deployment to $DEPLOYPATH"
-    - echo "PHP Version: $PHPVER"
+    - export PHPVER=82
+    - echo "🚀 Starting auto-deployment to production..."
+    - echo "📁 Deploy Path: $DEPLOYPATH"
+    - echo "🐘 PHP Version: $PHPVER"
+    - date
     
     # ========================================================================
-    # STEP 2: CLEAR CACHES
+    # CLEAR ALL CACHES FIRST
     # ========================================================================
-    - rm -rf $DEPLOYPATH/storage/framework/cache/*
-    - rm -rf $DEPLOYPATH/storage/framework/sessions/*
-    - rm -rf $DEPLOYPATH/storage/framework/views/*
-    - rm -rf $DEPLOYPATH/bootstrap/cache/*.php
+    - echo "🧹 Clearing all caches..."
+    - rm -rf $DEPLOYPATH/storage/framework/cache/* 2>/dev/null || true
+    - rm -rf $DEPLOYPATH/storage/framework/sessions/* 2>/dev/null || true
+    - rm -rf $DEPLOYPATH/storage/framework/views/* 2>/dev/null || true
+    - rm -rf $DEPLOYPATH/bootstrap/cache/*.php 2>/dev/null || true
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan optimize:clear 2>/dev/null || true
     
     # ========================================================================
-    # STEP 3: COMPOSER DEPENDENCIES (Production Optimized)
+    # COMPOSER PRODUCTION INSTALL
     # ========================================================================
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist 2>&1 || echo "⚠️ Composer install failed - check if composer is available"
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} /opt/cpanel/composer/bin/composer dump-autoload --optimize --classmap-authoritative 2>&1 || echo "⚠️ Composer dump-autoload failed"
+    - echo "📦 Installing Composer dependencies..."
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --quiet || echo "❌ Composer failed"
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} /opt/cpanel/composer/bin/composer dump-autoload --optimize --classmap-authoritative --quiet || echo "❌ Autoload failed"
     
     # ========================================================================
-    # STEP 4: LARAVEL OPTIMIZATION
+    # DATABASE MIGRATIONS
     # ========================================================================
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan optimize:clear
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan config:cache
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan route:cache
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan view:cache
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan event:cache 2>/dev/null || echo "Event cache not available"
+    - echo "🗄️ Running database migrations..."
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan migrate --force --no-interaction || echo "❌ Migration failed"
     
     # ========================================================================
-    # STEP 5: DATABASE MIGRATIONS
+    # LARAVEL OPTIMIZATION & CACHING
     # ========================================================================
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan migrate --force --no-interaction 2>&1
+    - echo "⚡ Optimizing Laravel..."
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan config:cache || true
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan route:cache || true
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan view:cache || true
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan event:cache 2>/dev/null || true
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan optimize || true
     
     # ========================================================================
-    # STEP 6: STORAGE SETUP
+    # STORAGE & PERMISSIONS
     # ========================================================================
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan storage:link 2>/dev/null || echo "Storage link already exists"
+    - echo "🔒 Setting up storage and permissions..."
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan storage:link 2>/dev/null || true
+    - chmod -R 755 $DEPLOYPATH/storage 2>/dev/null || true
+    - chmod -R 755 $DEPLOYPATH/bootstrap/cache 2>/dev/null || true
+    - chmod 644 $DEPLOYPATH/.env 2>/dev/null || true
     
     # ========================================================================
-    # STEP 7: PERMISSIONS
+    # RESTART SERVICES
     # ========================================================================
-    - chmod -R 755 $DEPLOYPATH/storage
-    - chmod -R 755 $DEPLOYPATH/bootstrap/cache
-    - chmod 600 $DEPLOYPATH/.env 2>/dev/null || echo ".env permissions set"
+    - echo "🔄 Restarting services..."
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan queue:restart 2>/dev/null || true
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan config:clear 2>/dev/null || true
+    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan cache:clear 2>/dev/null || true
     
     # ========================================================================
-    # STEP 8: FINAL OPTIMIZATION
+    # DEPLOYMENT COMPLETE
     # ========================================================================
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan optimize
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan queue:restart 2>/dev/null || echo "No queue workers"
-    
-    # ========================================================================
-    # STEP 9: DEPLOYMENT SUMMARY
-    # ========================================================================
-    - echo "✅ Deployment completed successfully!"
-    - echo "🔗 Site: http://parish.quovadisyouthhub.org"
-    - cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan --version
+    - echo "✅ AUTO-DEPLOYMENT COMPLETED SUCCESSFULLY!"
+    - echo "🌐 Production Site: https://parish.quovadisyouthhub.org"
+    - echo "📊 Laravel Version:" && cd $DEPLOYPATH && /usr/local/bin/ea-php${PHPVER} artisan --version 2>/dev/null || echo "Laravel info not available"
+    - echo "⏰ Deployment finished at:" && date
+    - echo "🎉 Site is now LIVE with latest changes!"

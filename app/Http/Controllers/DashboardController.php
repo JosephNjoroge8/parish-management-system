@@ -526,9 +526,9 @@ class DashboardController extends Controller
                     // Optimized tithe query
                     $recentTithes = DB::table('tithes')
                         ->leftJoin('members', 'tithes.member_id', '=', 'members.id')
-                        ->select('tithes.id', 'tithes.amount', 'tithes.date_given', 'members.first_name', 'members.last_name')
+                        ->select('tithes.id', 'tithes.amount', 'tithes.contribution_date', 'members.first_name', 'members.last_name')
                         ->where('tithes.amount', '>', 1000)
-                        ->orderBy('tithes.date_given', 'desc')
+                        ->orderBy('tithes.contribution_date', 'desc')
                         ->limit(3)
                         ->get();
 
@@ -539,7 +539,7 @@ class DashboardController extends Controller
                             'type' => 'tithe',
                             'title' => 'Tithe: KES '.number_format($tithe->amount, 2),
                             'description' => 'From: '.$memberName,
-                            'time' => Carbon::parse($tithe->date_given)->diffForHumans(),
+                            'time' => Carbon::parse($tithe->contribution_date)->diffForHumans(),
                             'icon' => 'dollar-sign',
                             'color' => 'emerald',
                             'link' => route('tithes.show', $tithe->id),
@@ -862,11 +862,11 @@ class DashboardController extends Controller
             }
 
             if ($this->userHasPermission($user, 'view financial reports')) {
-                $thisMonthTithes = Tithe::whereMonth('date_given', now()->month)
-                    ->whereYear('date_given', now()->year)
+                $thisMonthTithes = Tithe::whereMonth('contribution_date', now()->month)
+                    ->whereYear('contribution_date', now()->year)
                     ->sum('amount');
-                $lastMonthTithes = Tithe::whereMonth('date_given', now()->subMonth()->month)
-                    ->whereYear('date_given', now()->year)
+                $lastMonthTithes = Tithe::whereMonth('contribution_date', now()->subMonth()->month)
+                    ->whereYear('contribution_date', now()->year)
                     ->sum('amount');
 
                 if ($thisMonthTithes < ($lastMonthTithes * 0.8) && $lastMonthTithes > 0) {
@@ -938,16 +938,16 @@ class DashboardController extends Controller
         // Use DatabaseCompatibilityHelper for cross-database compatibility
         if (DatabaseCompatibilityHelper::isSqlite()) {
             return DB::table('tithes')
-                ->selectRaw("strftime('%Y-%m', date_given) as month, SUM(amount) as total")
-                ->where('date_given', '>=', now()->subMonths(6))
+                ->selectRaw("strftime('%Y-%m', contribution_date) as month, SUM(amount) as total")
+                ->where('contribution_date', '>=', now()->subMonths(6))
                 ->groupBy('month')
                 ->orderBy('month')
                 ->get()
                 ->toArray();
         } else {
             return DB::table('tithes')
-                ->selectRaw('DATE_FORMAT(date_given, "%Y-%m") as month, SUM(amount) as total')
-                ->where('date_given', '>=', now()->subMonths(6))
+                ->selectRaw('DATE_FORMAT(contribution_date, "%Y-%m") as month, SUM(amount) as total')
+                ->where('contribution_date', '>=', now()->subMonths(6))
                 ->groupBy('month')
                 ->orderBy('month')
                 ->get()

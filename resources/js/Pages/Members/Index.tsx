@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { debounce } from 'lodash';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -19,7 +19,9 @@ import MembersStats from '@/Components/Members/MembersStats';
 import MembersSearchAndFilters from '@/Components/Members/MembersSearchAndFilters';
 import MembersGrid from '@/Components/Members/MembersGrid';
 import MembersPagination from '@/Components/Members/MembersPagination';
+import MembersErrorBoundary from '@/Components/Members/MembersErrorBoundary';
 import { MembersIndexProps, Member, Filters } from '@/Components/Members/types';
+import { safeRoute, buildQueryString } from '@/Components/Members/SafeRouteHelper';
 
 // Type for Inertia errors
 interface InertiaErrors {
@@ -50,7 +52,18 @@ const createDebouncedSearch = () => {
                     return acc;
                 }, {} as Record<string, string>);
             
-            router.get(route('members.index', cleanParams), undefined, {
+            // Safe route generation with fallback
+            const getRouteUrl = () => {
+                try {
+                    return typeof route === 'function' ? route('members.index', cleanParams) : '/members';
+                } catch (error) {
+                    console.warn('Route helper not available, using fallback URL');
+                    const params = new URLSearchParams(cleanParams);
+                    return `/members${params.toString() ? `?${params.toString()}` : ''}`;
+                }
+            };
+
+            router.get(safeRoute('members.index', cleanParams), undefined, {
                 preserveScroll: true,
                 preserveState: true,
                 only: ['members', 'stats'],
@@ -118,7 +131,18 @@ export default function MembersIndex({
                     return acc;
                 }, {} as Record<string, string>);
 
-            router.get(route('members.index', cleanParams), undefined, {
+            // Safe route generation
+            const getRouteUrl = () => {
+                try {
+                    return typeof route === 'function' ? route('members.index', cleanParams) : '/members';
+                } catch (error) {
+                    console.warn('Route helper not available, using fallback URL');
+                    const params = new URLSearchParams(cleanParams);
+                    return `/members${params.toString() ? `?${params.toString()}` : ''}`;
+                }
+            };
+
+            router.get(getRouteUrl(), undefined, {
                 preserveScroll: true,
                 preserveState: true,
                 only: ['members', 'stats'],
@@ -130,7 +154,16 @@ export default function MembersIndex({
 
     // Clear filters
     const handleClearFilters = useCallback(() => {
-        router.get(route('members.index'), undefined, {
+        const getRouteUrl = () => {
+            try {
+                return typeof route === 'function' ? route('members.index') : '/members';
+            } catch (error) {
+                console.warn('Route helper not available, using fallback URL');
+                return '/members';
+            }
+        };
+
+        router.get(getRouteUrl(), undefined, {
             preserveScroll: true,
             preserveState: true,
             only: ['members', 'stats'],
@@ -180,7 +213,18 @@ export default function MembersIndex({
         if (!memberToDelete) return;
 
         setIsDeleting(true);
-        router.delete(route('members.destroy', memberToDelete.id), {
+        
+        // Safe route generation
+        const getRouteUrl = () => {
+            try {
+                                        return safeRoute('members.destroy', memberToDelete.id);
+            } catch (error) {
+                console.warn('Route helper not available, using fallback URL');
+                return `/members/${memberToDelete.id}`;
+            }
+        };
+
+        router.delete(getRouteUrl(), {
             onSuccess: () => {
                 setShowDeleteModal(false);
                 setMemberToDelete(null);
@@ -201,7 +245,17 @@ export default function MembersIndex({
     const handleStatusChange = useCallback(async (memberId: number, newStatus: string) => {
         try {
             await new Promise((resolve, reject) => {
-                router.patch(route('members.update-status', memberId), 
+                // Safe route generation
+                const getRouteUrl = () => {
+                    try {
+                        return safeRoute('members.update-status', memberId);
+                    } catch (error) {
+                        console.warn('Route helper not available, using fallback URL');
+                        return `/members/${memberId}/update-status`;
+                    }
+                };
+
+                router.patch(getRouteUrl(), 
                     { membership_status: newStatus },
                     {
                         preserveState: true,
@@ -235,7 +289,17 @@ export default function MembersIndex({
     }, [selectedMembers.length]);
 
     const confirmBulkDelete = useCallback(() => {
-        router.post(route('members.bulk-delete'), {
+        // Safe route generation
+        const getRouteUrl = () => {
+            try {
+                return safeRoute('members.bulk-delete');
+            } catch (error) {
+                console.warn('Route helper not available, using fallback URL');
+                return '/members/bulk-delete';
+            }
+        };
+
+        router.post(getRouteUrl(), {
             member_ids: selectedMembers
         }, {
             onSuccess: () => {
@@ -266,7 +330,17 @@ export default function MembersIndex({
         
         exportParams.append('format', format);
         
-        const url = route('members.export') + '?' + exportParams.toString();
+        // Safe route generation
+        const getRouteUrl = () => {
+            try {
+                return safeRoute('members.export');
+            } catch (error) {
+                console.warn('Route helper not available, using fallback URL');
+                return '/members/export';
+            }
+        };
+        
+        const url = getRouteUrl() + '?' + exportParams.toString();
         window.open(url, '_blank');
     }, [filters]);
 
@@ -279,7 +353,17 @@ export default function MembersIndex({
 
         setIsImporting(true);
         
-        router.post(route('members.import'), formData, {
+        // Safe route generation
+        const getRouteUrl = () => {
+            try {
+                return safeRoute('members.import');
+            } catch (error) {
+                console.warn('Route helper not available, using fallback URL');
+                return '/members/import';
+            }
+        };
+        
+        router.post(getRouteUrl(), formData, {
             onSuccess: () => {
                 setShowImportModal(false);
                 setImportFile(null);
@@ -361,7 +445,14 @@ export default function MembersIndex({
 
                         {/* Add Member Button */}
                         <Link
-                            href={route('members.create')}
+                            href={(() => {
+                                try {
+                                    return safeRoute('members.create');
+                                } catch (error) {
+                                    console.warn('Route helper not available, using fallback URL');
+                                    return '/members/create';
+                                }
+                            })()}
                             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
                             <Plus className="h-4 w-4 mr-2" />
@@ -375,22 +466,26 @@ export default function MembersIndex({
 
             <div className="py-12">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                    {/* Statistics Cards */}
-                    <MembersStats stats={stats} isLoading={isLoading} />
+                    <MembersErrorBoundary>
+                        {/* Statistics Cards */}
+                        <MembersStats stats={stats} isLoading={isLoading} />
+                    </MembersErrorBoundary>
 
-                    {/* Search and Filters */}
-                    <MembersSearchAndFilters
-                        filters={filters}
-                        filterOptions={filterOptions}
-                        showFilters={showFilters}
-                        isLoading={isLoading}
-                        searchInputRef={searchInputRef}
-                        onSearchChange={handleSearchChange}
-                        onFilterChange={handleFilterChange}
-                        onToggleFilters={handleToggleFilters}
-                        onClearFilters={handleClearFilters}
-                        onRefresh={handleRefresh}
-                    />
+                    <MembersErrorBoundary>
+                        {/* Search and Filters */}
+                        <MembersSearchAndFilters
+                            filters={filters}
+                            filterOptions={filterOptions}
+                            showFilters={showFilters}
+                            isLoading={isLoading}
+                            searchInputRef={searchInputRef}
+                            onSearchChange={handleSearchChange}
+                            onFilterChange={handleFilterChange}
+                            onToggleFilters={handleToggleFilters}
+                            onClearFilters={handleClearFilters}
+                            onRefresh={handleRefresh}
+                        />
+                    </MembersErrorBoundary>
 
                     {/* Selection Bar */}
                     {members.data.length > 0 && (
@@ -427,20 +522,24 @@ export default function MembersIndex({
                         </div>
                     )}
 
-                    {/* Members Grid */}
-                    <div className="mb-6">
-                        <MembersGrid
-                            members={members.data}
-                            selectedMembers={selectedMembers}
-                            isLoading={isLoading}
-                            onToggleSelection={handleToggleSelection}
-                            onDelete={handleDeleteMember}
-                            onStatusChange={handleStatusChange}
-                        />
-                    </div>
+                    <MembersErrorBoundary>
+                        {/* Members Grid */}
+                        <div className="mb-6">
+                            <MembersGrid
+                                members={members.data}
+                                selectedMembers={selectedMembers}
+                                isLoading={isLoading}
+                                onToggleSelection={handleToggleSelection}
+                                onDelete={handleDeleteMember}
+                                onStatusChange={handleStatusChange}
+                            />
+                        </div>
+                    </MembersErrorBoundary>
 
-                    {/* Pagination */}
-                    <MembersPagination members={members} filters={filters} />
+                    <MembersErrorBoundary>
+                        {/* Pagination */}
+                        <MembersPagination members={members} filters={filters} />
+                    </MembersErrorBoundary>
                 </div>
             </div>
 

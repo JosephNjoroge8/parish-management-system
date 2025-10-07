@@ -132,7 +132,7 @@ export interface Tithe {
     member_id?: number;
     member?: Member;
     amount: number;
-    date_given: string;
+    contribution_date: string;
     type: 'tithe' | 'offering' | 'special_offering' | 'donation';
     payment_method: 'cash' | 'check' | 'bank_transfer' | 'mobile_money';
     reference_number?: string;

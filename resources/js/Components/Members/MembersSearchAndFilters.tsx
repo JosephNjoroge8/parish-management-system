@@ -1,4 +1,4 @@
- import React, { memo, useCallback, useState, useEffect } from 'react';
+ import { memo, useCallback, useState, useEffect } from 'react';
 import { Search, Filter, X, RefreshCw } from 'lucide-react';
 import { Filters, FilterOptions } from './types';
 

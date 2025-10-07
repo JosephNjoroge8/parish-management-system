@@ -1,7 +1,19 @@
-import React, { memo, useState } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { Eye, Edit, Trash2, Phone, Mail, MapPin, Calendar, ChevronDown, CheckCircle, AlertCircle, UserX, Users } from 'lucide-react';
 import { Link } from '@inertiajs/react';
 import { Member } from './types';
+
+// Safe route helper
+const safeRoute = (name: string, id: number): string => {
+    try {
+        return typeof route === 'function' ? route(name, id) : `/members/${id}`;
+    } catch (error) {
+        console.warn('Route helper failed, using fallback');
+        if (name === 'members.show') return `/members/${id}`;
+        if (name === 'members.edit') return `/members/${id}/edit`;
+        return `/members/${id}`;
+    }
+};
 
 interface MemberCardProps {
     member: Member;
@@ -59,7 +71,7 @@ const MemberCard = memo<MemberCardProps>(({
     const statusConfig = STATUS_CONFIG[currentStatus as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.active;
     const StatusIcon = statusConfig.icon;
 
-    const handleStatusChange = async (newStatus: string) => {
+    const handleStatusChange = useCallback(async (newStatus: string) => {
         if (!onStatusChange || isChangingStatus) return;
         
         setIsChangingStatus(true);
@@ -67,10 +79,29 @@ const MemberCard = memo<MemberCardProps>(({
         
         try {
             await onStatusChange(member.id, newStatus);
+        } catch (error) {
+            console.error('Status change error:', error);
         } finally {
             setIsChangingStatus(false);
         }
-    };
+    }, [onStatusChange, isChangingStatus, member.id]);
+
+    const handleToggleSelection = useCallback(() => {
+        onToggleSelection(member.id);
+    }, [onToggleSelection, member.id]);
+
+    const handleDeleteMember = useCallback(() => {
+        onDelete(member);
+    }, [onDelete, member]);
+
+    const handleDropdownToggle = useCallback(() => {
+        setShowStatusDropdown(!showStatusDropdown);
+    }, [showStatusDropdown]);
+
+    const closeDropdown = useCallback(() => {
+        setShowStatusDropdown(false);
+    }, []);
+
     return (
         <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6">
             {/* Selection Checkbox */}
@@ -79,7 +110,7 @@ const MemberCard = memo<MemberCardProps>(({
                     <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => onToggleSelection(member.id)}
+                        onChange={handleToggleSelection}
                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
                     <div className="ml-3">
@@ -97,7 +128,7 @@ const MemberCard = memo<MemberCardProps>(({
                     {canChangeStatus && onStatusChange ? (
                         <button
                             type="button"
-                            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                            onClick={handleDropdownToggle}
                             disabled={isChangingStatus}
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
                                 isChangingStatus ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
@@ -195,7 +226,7 @@ const MemberCard = memo<MemberCardProps>(({
             {/* Action Buttons */}
             <div className="flex justify-end space-x-2">
                 <Link
-                    href={route('members.show', member.id)}
+                    href={safeRoute('members.show', member.id)}
                     className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                     <Eye className="h-3 w-3 mr-1" />
@@ -203,7 +234,7 @@ const MemberCard = memo<MemberCardProps>(({
                 </Link>
                 
                 <Link
-                    href={route('members.edit', member.id)}
+                    href={safeRoute('members.edit', member.id)}
                     className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                     <Edit className="h-3 w-3 mr-1" />
@@ -212,7 +243,7 @@ const MemberCard = memo<MemberCardProps>(({
                 
                 <button
                     type="button"
-                    onClick={() => onDelete(member)}
+                    onClick={handleDeleteMember}
                     className="inline-flex items-center px-3 py-1.5 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                 >
                     <Trash2 className="h-3 w-3 mr-1" />
@@ -224,7 +255,7 @@ const MemberCard = memo<MemberCardProps>(({
             {showStatusDropdown && (
                 <div
                     className="fixed inset-0 z-0"
-                    onClick={() => setShowStatusDropdown(false)}
+                    onClick={closeDropdown}
                 />
             )}
         </div>

@@ -1,7 +1,17 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Link } from '@inertiajs/react';
 import { PaginatedMembers, Filters } from './types';
+
+// Safe route helper
+const safeRoute = (name: string = 'members.index'): string => {
+    try {
+        return typeof route === 'function' ? route(name) : '/members';
+    } catch (error) {
+        console.warn('Route helper failed, using fallback');
+        return '/members';
+    }
+};
 
 interface MembersPaginationProps {
     members: PaginatedMembers;
@@ -35,7 +45,14 @@ const MembersPagination = memo<MembersPaginationProps>(({ members, filters }) =>
             params.append('page', String(page));
         }
         
-        return route('members.index') + (params.toString() ? `?${params.toString()}` : '');
+        // Safe route generation
+        try {
+            const baseUrl = safeRoute('members.index');
+            return baseUrl + (params.toString() ? `?${params.toString()}` : '');
+        } catch (error) {
+            console.warn('Route helper not available, using fallback URL');
+            return '/members' + (params.toString() ? `?${params.toString()}` : '');
+        }
     };
 
     // Per page options
@@ -52,7 +69,14 @@ const MembersPagination = memo<MembersPaginationProps>(({ members, filters }) =>
         
         params.append('per_page', String(newPerPage));
         
-        window.location.href = route('members.index') + `?${params.toString()}`;
+        // Safe route generation
+        try {
+            const baseUrl = safeRoute('members.index');
+            window.location.href = baseUrl + `?${params.toString()}`;
+        } catch (error) {
+            console.warn('Route helper not available, using fallback URL');
+            window.location.href = `/members?${params.toString()}`;
+        }
     };
 
     if (total === 0) {

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Save, ArrowLeft, DollarSign, CreditCard, User, FileText } from 'lucide-react';
@@ -314,7 +315,7 @@ export default function CreateTithing({ auth, members = [], member_id }: CreateT
         const payload = {
             ...data,
             tithe_type: data.offering_type,
-            date_given: data.payment_date,
+            contribution_date: data.payment_date,
             recorded_by: data.received_by,
         };
         delete (payload as any).offering_type;

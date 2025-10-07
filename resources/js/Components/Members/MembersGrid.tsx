@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import MemberCard from './MemberCard';
 import { Member } from './types';
 

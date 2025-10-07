@@ -89,7 +89,7 @@ class OptimizeSystem extends Command
             ],
             'tithes' => [
                 'member_id' => 'idx_tithes_member_opt',
-                'date_given' => 'idx_tithes_date_opt',
+                'contribution_date' => 'idx_tithes_date_opt',
                 'offering_type' => 'idx_tithes_type_opt',
             ],
             'sacraments' => [

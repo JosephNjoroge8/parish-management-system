@@ -738,6 +738,8 @@ class MemberController extends Controller
     private function clearMemberCache(): void
     {
         try {
+            // Clear all relevant caches for real-time updates
+            Cache::forget('member_stats');  // Main stats cache
             Cache::forget('optimized_stats');
             Cache::forget('dashboard_core_'.Auth::id());
             Cache::forget('parish_overview');
@@ -1251,6 +1253,9 @@ class MemberController extends Controller
 
             $member->update($memberData);
 
+            // Clear cache for real-time stats updates
+            $this->clearMemberCache();
+
             return redirect()->route('members.show', $member)->with('success', 'Member updated successfully.');
         } catch (\Exception $e) {
             Log::error('Failed to update member: '.$e->getMessage());
@@ -1266,6 +1271,9 @@ class MemberController extends Controller
     {
         try {
             $member->delete();
+
+            // Clear cache for real-time stats updates
+            $this->clearMemberCache();
 
             return redirect()->route('members.index')->with('success', 'Member deleted successfully.');
         } catch (\Exception $e) {
@@ -2078,8 +2086,8 @@ class MemberController extends Controller
 
     private function getStats(): array
     {
-        // Cache stats for 5 minutes to improve performance
-        return Cache::remember('member_stats', 300, function () {
+        // Cache stats for 1 minute for better real-time performance
+        return Cache::remember('member_stats', 60, function () {
             try {
                 $totalMembers = Member::count();
                 $currentMonth = now();
@@ -2134,8 +2142,15 @@ class MemberController extends Controller
                 ]);
 
                 return [
+                    // Frontend Stats (Main Display)
                     'total_members' => $totalMembers,
                     'active_members' => $activeMembers,
+                    'inactive_members' => $inactiveMembers,
+                    'transferred_members' => $transferredMembers,
+                    'deceased_members' => $deceasedMembers,
+                    'recent_registrations' => $newThisMonth,
+                    
+                    // Legacy Support & Additional Data
                     'new_this_month' => $newThisMonth,
                     'by_church' => $churchStats,
                     'by_group' => $groupStats,
@@ -2152,6 +2167,7 @@ class MemberController extends Controller
                         'inactive_members' => $inactiveMembers,
                         'transferred_members' => $transferredMembers,
                         'deceased_members' => $deceasedMembers,
+                        'recent_registrations' => $newThisMonth,
                         'active_percentage' => $totalMembers > 0 ? round(($activeMembers / $totalMembers) * 100, 1) : 0,
                         'new_this_month' => $newThisMonth,
                         'male_members' => $genderStats['MALE'] ?? 0,

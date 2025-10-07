@@ -72,6 +72,8 @@ interface Stats {
     total_members: number;
     active_members: number;
     inactive_members: number;
+    transferred_members: number;
+    deceased_members: number;
     recent_registrations: number;
 }
 
@@ -114,11 +116,6 @@ const MEMBER_STATUS_CONFIG = {
         color: 'bg-red-100 text-red-800',
         icon: UserX 
     },
-    pending: { 
-        label: 'Pending', 
-        color: 'bg-yellow-100 text-yellow-800',
-        icon: Clock 
-    },
     transferred: { 
         label: 'Transferred', 
         color: 'bg-blue-100 text-blue-800',
@@ -152,6 +149,20 @@ const STATS_CARDS_CONFIG = [
         icon: UserX,
         bgColor: 'bg-red-500',
         textColor: 'text-red-600'
+    },
+    {
+        key: 'transferred_members' as keyof Stats,
+        title: 'Transferred Members',
+        icon: Users,
+        bgColor: 'bg-blue-500',
+        textColor: 'text-blue-600'
+    },
+    {
+        key: 'deceased_members' as keyof Stats,
+        title: 'Deceased Members',
+        icon: X,
+        bgColor: 'bg-gray-500',
+        textColor: 'text-gray-600'
     },
     {
         key: 'recent_registrations' as keyof Stats,
@@ -235,7 +246,7 @@ const MembersStats = memo<{ stats: Stats; isLoading: boolean }>(({ stats, isLoad
     );
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
             {statsData.map(({ key, title, icon: Icon, bgColor, textColor, formattedValue }) => (
                 <div key={key} className="bg-white overflow-hidden shadow rounded-lg">
                     <div className="p-5">

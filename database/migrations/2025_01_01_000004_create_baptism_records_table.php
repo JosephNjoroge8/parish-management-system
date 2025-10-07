@@ -25,10 +25,10 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            // Indexes for performance
-            $table->index(['baptism_date', 'baptism_location']);
-            $table->index(['baptized_by']);
-            $table->index(['register_number']);
+            // Indexes for performance with custom names to avoid MySQL 64-char limit
+            $table->index(['baptism_date', 'baptism_location'], 'idx_baptism_date_loc');
+            $table->index(['baptized_by'], 'idx_baptized_by');
+            $table->index(['register_number'], 'idx_register_num');
         });
     }
 

@@ -242,8 +242,10 @@ const FormInput = ({
     hasError?: boolean;
     errorMessage?: string;
 }) => {
-    const inputClassName = `w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-        hasError ? 'border-red-500 focus:ring-red-200' : 'border-gray-300'
+    const inputClassName = `w-full px-4 py-2 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${
+        hasError 
+            ? 'border-red-500 focus:ring-red-200 bg-red-50' 
+            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400'
     } ${className}`;
 
     let InputComponent;
@@ -313,9 +315,12 @@ const FormInput = ({
             </label>
             {InputComponent}
             {hasError && (
-                <p className="mt-1 text-sm text-red-600" role="alert">
-                    {errorMessage}
-                </p>
+                <div className="mt-2 flex items-start space-x-2">
+                    <span className="text-red-500 text-sm">⚠️</span>
+                    <p className="text-sm text-red-600" role="alert">
+                        {errorMessage}
+                    </p>
+                </div>
             )}
         </div>
     );
@@ -947,7 +952,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
     useEffect(() => {
         // The marriage certificate template expects specific field names that differ from our form fields
         // Add the correctly named fields to the data for certificate generation
-        if (data.matrimony_status === 'married') {
+        // ONLY apply this for church marriages - civil and customary marriages are treated like single persons
+        if (data.matrimony_status === 'married' && data.marriage_type === 'church') {
             setData(prev => ({
                 ...prev,
                 // Map form fields to certificate template expectations
@@ -962,21 +968,23 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                 license_number: data.marriage_license_number,  // Template expects license_number
             }));
         }
-    }, [data.matrimony_status, data.marriage_sub_county, data.marriage_entry_number, 
+    }, [data.matrimony_status, data.marriage_type, data.marriage_sub_county, data.marriage_entry_number, 
         data.marriage_certificate_number, data.marriage_officiant_name, data.marriage_witness1_name, 
         data.marriage_witness2_name, data.marriage_religion, data.marriage_license_number, setData]);
 
     // Auto-sync county field for marriage certificate (use marriage_county if available, otherwise use existing county)
+    // ONLY apply this for church marriages - civil and customary marriages don't affect county field
     useEffect(() => {
-        if (data.matrimony_status === 'married' && data.marriage_county && data.marriage_county !== data.county) {
+        if (data.matrimony_status === 'married' && data.marriage_type === 'church' && data.marriage_county && data.marriage_county !== data.county) {
             setData(prev => ({ ...prev, county: data.marriage_county }));
         }
-    }, [data.matrimony_status, data.marriage_county, data.county, setData]);
+    }, [data.matrimony_status, data.marriage_type, data.marriage_county, data.county, setData]);
 
     // Auto-sync marriage certificate specific fields based on member gender
+    // ONLY apply this for church marriages - civil and customary marriages don't sync certificate fields
     useEffect(() => {
         const spouseName = data.gender === 'Male' ? data.bride_name : data.bridegroom_name;
-        if (data.matrimony_status === 'married' && data.gender && spouseName) {
+        if (data.matrimony_status === 'married' && data.marriage_type === 'church' && data.gender && spouseName) {
             // Determine who is husband/wife based on member's gender
             const isHusband = data.gender === 'Male';
             
@@ -1040,7 +1048,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                 }));
             }
         }
-    }, [data.matrimony_status, data.gender, data.bride_name, data.bridegroom_name, data.first_name, data.middle_name, data.last_name, 
+    }, [data.matrimony_status, data.marriage_type, data.gender, data.bride_name, data.bridegroom_name, data.first_name, data.middle_name, data.last_name, 
         data.date_of_birth, data.residence, data.county, data.marriage_county, data.occupation, 
         data.father_name, data.parent, data.mother_name, data.bride_age, data.bride_residence, 
         data.bride_county, data.bride_marital_status, data.bride_occupation, data.bride_father_name, 
@@ -1054,39 +1062,53 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
     const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
         e.preventDefault();
         
-        if (clearErrors) {
-            clearErrors();
-        }
+        // Don't manually clear errors here - Inertia will handle this automatically on POST
+        // The clearErrors() call was causing DOM manipulation conflicts during form submission
         
-        // Validate essential fields
-        const essentialFields = ['first_name', 'last_name', 'gender'];
+        // Enhanced validation for essential fields with better UX
+        const essentialFields = ['first_name', 'last_name', 'gender', 'local_church', 'church_group'];
         const missingEssentialFields = essentialFields.filter((field: string) => {
             const value = data[field as keyof MemberFormData];
             return typeof value === 'string' ? !value.trim() : !value;
         });
         
         if (missingEssentialFields.length > 0) {
-            // Button state is handled by React processing prop
+            // Create user-friendly field names
+            const friendlyFieldNames = missingEssentialFields.map(field => {
+                const friendlyNames: { [key: string]: string } = {
+                    'first_name': 'First Name',
+                    'last_name': 'Last Name', 
+                    'gender': 'Gender',
+                    'local_church': 'Local Church',
+                    'church_group': 'Church Group'
+                };
+                return friendlyNames[field] || field.replace(/_/g, ' ');
+            });
             
-            // Show error notification
+            // Show enhanced error notification with guidance
             showNotification(
-                'Missing Required Fields', 
-                `Please fill in: ${missingEssentialFields.join(', ').replace(/_/g, ' ')}`, 
-                'error'
+                '📝 Required Information Missing', 
+                `Please complete these required fields: ${friendlyFieldNames.join(', ')}. These are essential for member registration.`, 
+                'error',
+                8000 // Show longer for required field errors
             );
             
-            // Focus on first missing field
+            // Focus on first missing field (use setTimeout to avoid DOM conflicts)
             const firstMissingField = missingEssentialFields[0];
-            const element = document.getElementById(firstMissingField);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                element.focus();
-                // Highlight field with error for better visibility
-                element.classList.add('border-red-500', 'bg-red-50');
-                setTimeout(() => {
-                    element.classList.remove('border-red-500', 'bg-red-50');
-                }, 6000);  // Increased from 3000ms to 6000ms for better visibility
-            }
+            setTimeout(() => {
+                const element = document.getElementById(firstMissingField);
+                if (element && element.offsetParent !== null) { // Check if element is visible
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    element.focus();
+                    // Highlight field with error for better visibility
+                    element.classList.add('border-red-500', 'bg-red-50');
+                    setTimeout(() => {
+                        if (element.offsetParent !== null) { // Check again before modifying
+                            element.classList.remove('border-red-500', 'bg-red-50');
+                        }
+                    }, 6000);
+                }
+            }, 10); // Small delay to avoid DOM manipulation conflicts
             return;
         }
         
@@ -1134,29 +1156,51 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                 // Remove progress notification
                 dismissNotification();
                 
-                // Button state is handled by React processing prop
-                
+                // Enhanced error handling with better UX
                 const errorCount = Object.keys(validationErrors).length;
+                const errorFields = Object.keys(validationErrors);
+                
+                // Create a more informative error summary
+                let errorSummary = '';
+                if (errorCount === 1) {
+                    const fieldName = errorFields[0].replace(/_/g, ' ');
+                    errorSummary = `Please fix the issue with ${fieldName}`;
+                } else if (errorCount <= 3) {
+                    const fieldNames = errorFields.map(field => field.replace(/_/g, ' ')).join(', ');
+                    errorSummary = `Please fix issues with: ${fieldNames}`;
+                } else {
+                    errorSummary = `Please fix ${errorCount} validation errors in the form`;
+                }
+                
                 showNotification(
-                    'Validation Errors Found', 
-                    `Please correct ${errorCount} error${errorCount > 1 ? 's' : ''} in the form below.`, 
-                    'error'
+                    '⚠️ Form Validation Errors', 
+                    errorSummary + '. The form will scroll to the first error automatically.', 
+                    'error',
+                    8000 // Show longer for error messages
                 );
                 
-                // Auto-focus and scroll to first error
-                const firstErrorField = Object.keys(validationErrors)[0];
+                // Auto-focus and scroll to first error (use setTimeout to avoid DOM conflicts)
+                const firstErrorField = errorFields[0];
                 if (firstErrorField) {
-                    const element = document.getElementById(firstErrorField);
-                    if (element) {
-                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        element.focus();
-                        
-                        // Highlight the error field
-                        element.classList.add('border-red-500', 'bg-red-50');
-                        setTimeout(() => {
-                            element.classList.remove('border-red-500', 'bg-red-50');
-                        }, 5000);
-                    }
+                    setTimeout(() => {
+                        const element = document.getElementById(firstErrorField);
+                        if (element && element.offsetParent !== null) { // Check if element is visible
+                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            element.focus();
+                            
+                            // Enhanced error highlighting with animation
+                            element.classList.add('border-red-500', 'bg-red-50', 'ring-2', 'ring-red-200');
+                            // Add a gentle shake animation
+                            element.style.animation = 'shake 0.5s ease-in-out';
+                            
+                            setTimeout(() => {
+                                if (element.offsetParent !== null) { // Check again before modifying
+                                    element.classList.remove('border-red-500', 'bg-red-50', 'ring-2', 'ring-red-200');
+                                    element.style.animation = '';
+                                }
+                            }, 6000); // Keep highlighting longer for better visibility
+                        }
+                    }, 100); // Slightly longer delay for better reliability
                     
                     // Auto-switch to appropriate tab
                     if (['local_church', 'church_group', 'membership_date', 'membership_status'].includes(firstErrorField)) {
@@ -1173,15 +1217,33 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
         });
     }, [clearErrors, requiredFields, data, post]);
 
-    // Calculate progress percentage
-    const progressPercentage = useMemo(() => {
+    // Enhanced progress calculation with completion status
+    const progressStats = useMemo(() => {
+        const essentialFields = ['first_name', 'last_name', 'gender', 'local_church', 'church_group'];
         const totalRequiredFields = requiredFields.length;
         const completedFields = requiredFields.filter((field: string) => {
             const value = data[field as keyof MemberFormData];
             return typeof value === 'string' ? value.trim() !== '' : Boolean(value);
         }).length;
         
-        return totalRequiredFields > 0 ? Math.round((completedFields / totalRequiredFields) * 100) : 0;
+        const essentialCompleted = essentialFields.filter((field: string) => {
+            const value = data[field as keyof MemberFormData];
+            return typeof value === 'string' ? value.trim() !== '' : Boolean(value);
+        }).length;
+        
+        const percentage = totalRequiredFields > 0 ? Math.round((completedFields / totalRequiredFields) * 100) : 0;
+        const isEssentialComplete = essentialCompleted === essentialFields.length;
+        const canSubmit = isEssentialComplete; // Can submit if essential fields are complete
+        
+        return {
+            percentage,
+            completedFields,
+            totalRequiredFields,
+            essentialCompleted,
+            essentialTotal: essentialFields.length,
+            isEssentialComplete,
+            canSubmit
+        };
     }, [requiredFields, data]);
 
     // Tabs configuration with dynamic baptism and marriage sections
@@ -1833,7 +1895,7 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                             )}
 
                             {/* Parent Details Section - Required for married members for marriage certificate */}
-                            {data.matrimony_status === 'married' && (
+                            {data.matrimony_status === 'married' && data.marriage_type === 'church' && (
                                 <div className="md:col-span-2 mt-6">
                                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
                                         <h4 className="text-md font-semibold text-amber-900 mb-2">Member's Parent Details</h4>
@@ -2085,8 +2147,8 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                                 />
                             </div>
 
-                            {/* Marriage Information (for baptism card) */}
-                            {data.matrimony_status === 'married' && (
+                            {/* Marriage Information (for baptism card) - only for church marriages */}
+                            {data.matrimony_status === 'married' && data.marriage_type === 'church' && (
                                 <>
                                     <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
                                         <h4 className="text-sm font-medium text-gray-700 mb-2">Marriage Spouse (Auto-synced)</h4>
@@ -2584,7 +2646,15 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
     }, [activeTab, data, isFieldVisible, isFieldRequired, handleInputChange, FormInput, FamilySearchField, selectedFamily, churchGroups, localChurches, educationLevels, validateChurchGroupGender, inheritFamilyData, hasError, getErrorMessage, selectedAdditionalGroups, setSelectedAdditionalGroups, setData]);
 
     return (
-        <AuthenticatedLayout
+        <>
+            <style>{`
+                @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+                    20%, 40%, 60%, 80% { transform: translateX(5px); }
+                }
+            `}</style>
+            <AuthenticatedLayout
             header={
                 <div className="flex items-center space-x-4">
                     <Link
@@ -2600,13 +2670,32 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                         <p className="text-sm text-gray-600">
                             Enter member information to add them to the parish database
                         </p>
-                        <div className="mt-2">
-                            <div className="bg-gray-200 rounded-full h-1.5">
+                        <div className="mt-3">
+                            <div className="flex items-center justify-between text-sm mb-1">
+                                <span className="text-gray-700">
+                                    {progressStats.isEssentialComplete ? '✅ Ready to Submit' : '📝 Essential Fields Required'} 
+                                </span>
+                                <span className="text-gray-500">
+                                    {progressStats.completedFields}/{progressStats.totalRequiredFields} completed
+                                </span>
+                            </div>
+                            <div className="bg-gray-200 rounded-full h-2">
                                 <div 
-                                    className="bg-blue-500 h-1.5 rounded-full transition-all duration-300 ease-out"
-                                    style={{ width: `${progressPercentage}%` }}
+                                    className={`h-2 rounded-full transition-all duration-500 ease-out ${
+                                        progressStats.isEssentialComplete 
+                                            ? 'bg-green-500' 
+                                            : progressStats.percentage > 50 
+                                                ? 'bg-blue-500' 
+                                                : 'bg-yellow-500'
+                                    }`}
+                                    style={{ width: `${progressStats.percentage}%` }}
                                 ></div>
                             </div>
+                            {!progressStats.isEssentialComplete && (
+                                <p className="text-xs text-amber-600 mt-1">
+                                    Complete essential fields: First Name, Last Name, Gender, Local Church, Church Group
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -2715,5 +2804,6 @@ export default function CreateMember({ auth, families = [] }: CreateMemberProps)
                 </div>
             </div>
         </AuthenticatedLayout>
+        </>
     );
 }

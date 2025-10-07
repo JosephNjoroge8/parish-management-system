@@ -852,14 +852,14 @@ export default function EditMember({ auth, member, families = [] }: EditMemberPr
         }
         
         // Add marriage details tab if married and church marriage
-        if (['married', 'separated', 'widowed'].includes(data.matrimony_status)) {
+        if (data.matrimony_status === 'married' && data.marriage_type === 'church') {
             baseTabs.push({ id: 'marriage_details', name: 'Marriage Record', icon: AlertCircle });
         }
         
         baseTabs.push({ id: 'contact', name: 'Contact Info', icon: AlertCircle });
         
         return baseTabs;
-    }, [data.baptism_date, data.matrimony_status]);
+    }, [data.baptism_date, data.matrimony_status, data.marriage_type]);
 
     // Utility functions
     const isFieldVisible = useCallback((fieldName: string): boolean => {

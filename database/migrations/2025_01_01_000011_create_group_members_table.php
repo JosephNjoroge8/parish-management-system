@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('group_members')) {
+        if (! Schema::hasTable('group_members')) {
             Schema::create('group_members', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedBigInteger('group_id')->index();
@@ -26,11 +26,11 @@ return new class extends Migration
                 // Ensure unique member per group (for active memberships)
                 $table->unique(['group_id', 'member_id', 'membership_status'], 'unique_active_group_member');
 
-                // Indexes for performance
-                $table->index(['group_id', 'membership_status']);
-                $table->index(['member_id', 'membership_status']);
-                $table->index(['join_date', 'membership_status']);
-                $table->index(['role', 'membership_status']);
+                // Performance indexes with custom names
+                $table->index(['group_id', 'membership_status'], 'idx_group_status');
+                $table->index(['member_id', 'membership_status'], 'idx_member_status');
+                $table->index(['join_date', 'membership_status'], 'idx_join_status');
+                $table->index(['role', 'membership_status'], 'idx_role_status');
             });
         }
     }

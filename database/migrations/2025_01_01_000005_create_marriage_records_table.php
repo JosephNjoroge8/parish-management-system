@@ -59,11 +59,11 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            // Indexes for performance
-            $table->index(['marriage_date', 'marriage_location']);
-            $table->index(['husband_name', 'wife_name']);
-            $table->index(['officiant_name']);
-            $table->index(['certificate_number']);
+            // Indexes for performance with custom names to avoid MySQL 64-char limit
+            $table->index(['marriage_date', 'marriage_location'], 'idx_marriage_date_loc');
+            $table->index(['husband_name', 'wife_name'], 'idx_husband_wife');
+            $table->index(['officiant_name'], 'idx_officiant');
+            $table->index(['certificate_number'], 'idx_cert_num');
         });
     }
 

@@ -292,18 +292,18 @@ class MemberController extends Controller
                 'last_name' => 'required|string|max:255|min:2',
                 'gender' => 'required|in:Male,Female',
 
-                // Core optional fields with enhanced validation
+                // Core optional fields with enhanced validation - more lenient approach
                 'middle_name' => 'nullable|string|max:255',
-                'date_of_birth' => 'nullable|date|before:today',
+                'date_of_birth' => 'nullable|date',
                 'phone' => 'nullable|string|max:20',
-                'email' => 'nullable|email:rfc,dns|max:255|unique:members,email',
+                'email' => 'nullable|email|max:255|unique:members,email',
                 'id_number' => 'nullable|string|max:20|unique:members,id_number',
                 'residence' => 'nullable|string|max:500',
 
-                // Church fields with specific validation
-                'local_church' => 'required|string|in:St James Kangemi,St Veronica Pembe Tatu,Our Lady of Consolata Cathedral,St Peter Kiawara,Sacred Heart Kandara',
+                // Church fields with flexible validation - allow custom entries
+                'local_church' => 'required|string|max:255',
                 'small_christian_community' => 'nullable|string|max:255',
-                'church_group' => 'required|string|in:PMC,Youth,Young Parents,C.W.A,CMA,Choir,Catholic Action,Pioneer',
+                'church_group' => 'required|string|max:255',
                 'additional_church_groups' => 'nullable|array',
 
                 // Membership fields
@@ -335,7 +335,7 @@ class MemberController extends Controller
                 'baptism_date' => 'nullable|date|before_or_equal:today',
                 'baptism_location' => 'nullable|string|max:255',
                 'baptized_by' => 'nullable|string|max:255',
-                'confirmation_date' => 'nullable|date|before_or_equal:today|after_or_equal:baptism_date',
+                'confirmation_date' => 'nullable|date|before_or_equal:today',
                 'confirmation_location' => 'nullable|string|max:255',
                 'confirmation_register_number' => 'nullable|string|max:50',
                 'confirmation_number' => 'nullable|string|max:50',
@@ -394,33 +394,33 @@ class MemberController extends Controller
                 // Accept all other fields as nullable
                 '*' => 'nullable',
             ], [
-                // Custom error messages for better UX
-                'first_name.required' => 'First name is required',
-                'first_name.min' => 'First name must be at least 2 characters',
-                'last_name.required' => 'Last name is required',
-                'last_name.min' => 'Last name must be at least 2 characters',
-                'gender.required' => 'Please select a gender',
-                'gender.in' => 'Gender must be either Male or Female',
-                'local_church.required' => 'Please select a local church',
-                'local_church.in' => 'Please select a valid local church from the list',
-                'church_group.required' => 'Please select a church group',
-                'church_group.in' => 'Please select a valid church group from the list',
-                'email.email' => 'Please enter a valid email address',
-                'email.unique' => 'This email address is already registered',
-                'id_number.unique' => 'This ID number is already registered',
-                'date_of_birth.before' => 'Date of birth must be in the past',
-                'confirmation_date.after_or_equal' => 'Confirmation date must be on or after baptism date',
+                // Enhanced error messages for better UX - friendly and helpful
+                'first_name.required' => 'Please enter the member\'s first name',
+                'first_name.min' => 'First name should be at least 2 characters long',
+                'last_name.required' => 'Please enter the member\'s last name',
+                'last_name.min' => 'Last name should be at least 2 characters long',
+                'gender.required' => 'Please select the member\'s gender',
+                'gender.in' => 'Please select either Male or Female',
+                'local_church.required' => 'Please specify the member\'s local church',
+                'local_church.max' => 'Church name is too long (maximum 255 characters)',
+                'church_group.required' => 'Please specify the member\'s primary church group',
+                'church_group.max' => 'Church group name is too long (maximum 255 characters)',
+                'email.email' => 'Please enter a valid email address (e.g., john@example.com)',
+                'email.unique' => 'This email is already registered. If this is the same person, please check existing members or use a different email.',
+                'id_number.unique' => 'This ID number is already registered. If this is the same person, please check existing members.',
+                'date_of_birth.date' => 'Please enter a valid date for date of birth',
                 'marriage_date.before_or_equal' => 'Marriage date cannot be in the future',
                 'membership_date.before_or_equal' => 'Membership date cannot be in the future',
-                'bridegroom_age.min' => 'Bridegroom age must be at least 1',
-                'bridegroom_age.max' => 'Bridegroom age cannot exceed 120',
-                'bride_age.min' => 'Bride age must be at least 1',
-                'bride_age.max' => 'Bride age cannot exceed 120',
-                'notes.max' => 'Notes cannot exceed 2000 characters',
+                'bridegroom_age.min' => 'Bridegroom age must be at least 1 year',
+                'bridegroom_age.max' => 'Bridegroom age seems too high (maximum 120 years)',
+                'bride_age.min' => 'Bride age must be at least 1 year',
+                'bride_age.max' => 'Bride age seems too high (maximum 120 years)',
+                'notes.max' => 'Notes are too long (maximum 2000 characters)',
             ]);
 
-            // Enhanced conditional validation for married members
-            if ($validated['matrimony_status'] === 'married') {
+            // Enhanced conditional validation for married members - only apply to church marriages
+            // Civil and customary marriages are treated like single persons with no additional validation
+            if ($validated['matrimony_status'] === 'married' && isset($validated['marriage_type']) && $validated['marriage_type'] === 'church') {
                 // Determine which partner fields to validate based on member's gender
                 $partnerNameField = $validated['gender'] === 'Male' ? 'bride_name' : 'bridegroom_name';
 
@@ -436,30 +436,47 @@ class MemberController extends Controller
                 $partnerTitle = $validated['gender'] === 'Male' ? 'Bride' : 'Bridegroom';
 
                 $request->validate($conditionalRules, [
-                    $partnerNameField.'.required' => $partnerTitle.' name is required for married members',
-                    'marriage_date.required' => 'Marriage date is required for married members',
-                    'marriage_location.required' => 'Marriage location is required for married members',
-                    'marriage_county.required' => 'Marriage county is required for married members',
-                    'marriage_sub_county.required' => 'Marriage sub-county is required for married members',
-                    'member_marriage_residence.required' => 'Member\'s residence at time of marriage is required for married members',
+                    $partnerNameField.'.required' => $partnerTitle.' name is required for church marriage certificates',
+                    'marriage_date.required' => 'Marriage date is required for church marriage records',
+                    'marriage_location.required' => 'Marriage location (church name) is required for church marriage certificates',
+                    'marriage_county.required' => 'Marriage county is required for church marriages',
+                    'marriage_sub_county.required' => 'Marriage sub-county is required for church marriages',
+                    'member_marriage_residence.required' => 'Member marriage residence is required for church marriages',
                 ]);
             }
 
-            // Check for potential duplicate member
-            $duplicateCheck = Member::where(function ($query) use ($validated) {
-                $query->where('first_name', $validated['first_name'])
-                    ->where('last_name', $validated['last_name']);
+            // Additional custom validation for date logic
+            if (! empty($validated['confirmation_date']) && ! empty($validated['baptism_date'])) {
+                $baptismDate = \Carbon\Carbon::parse($validated['baptism_date']);
+                $confirmationDate = \Carbon\Carbon::parse($validated['confirmation_date']);
 
-                if (! empty($validated['date_of_birth'])) {
-                    $query->where('date_of_birth', $validated['date_of_birth']);
+                if ($confirmationDate->lt($baptismDate)) {
+                    return back()->withErrors([
+                        'confirmation_date' => 'Confirmation date cannot be before baptism date.',
+                    ])->withInput();
                 }
-            })->first();
-
-            if ($duplicateCheck) {
-                return back()->withErrors([
-                    'first_name' => 'A member with similar details already exists. Please check the member list.',
-                ])->withInput();
             }
+
+            // Check for potential duplicate member - more lenient approach
+            $duplicateCheck = null;
+            if (! empty($validated['id_number'])) {
+                // Only check for duplicates if ID number is provided and matches exactly
+                $duplicateCheck = Member::where('id_number', $validated['id_number'])->first();
+                if ($duplicateCheck) {
+                    return back()->withErrors([
+                        'id_number' => 'A member with this ID number already exists. Please verify the ID number or check if this person is already registered.',
+                    ])->withInput();
+                }
+            } elseif (! empty($validated['email'])) {
+                // Check email duplicates (already handled by validation, but provide better message)
+                $duplicateCheck = Member::where('email', $validated['email'])->first();
+                if ($duplicateCheck) {
+                    return back()->withErrors([
+                        'email' => 'A member with this email already exists. Please use a different email or check existing members.',
+                    ])->withInput();
+                }
+            }
+            // Remove strict name+DOB duplicate check to allow family members with similar names
 
             // Process and clean the data
             $memberData = $this->processValidatedMemberData($validated);
@@ -597,7 +614,12 @@ class MemberController extends Controller
 
         // Family relationships
         $memberData['family_id'] = (! empty($validated['family_id']) && $validated['family_id'] !== '' && is_numeric($validated['family_id'])) ? (int) $validated['family_id'] : null;
-        $memberData['parent'] = $validated['parent'] ?? null;
+
+        // Handle father name - prioritize father_name field from form, fallback to parent field
+        $fatherName = $validated['father_name'] ?? $validated['parent'] ?? null;
+        $memberData['parent'] = $fatherName;
+        $memberData['father_name'] = $fatherName;
+
         $memberData['mother_name'] = $validated['mother_name'] ?? null;
         $memberData['father_occupation'] = $validated['father_occupation'] ?? null;
         $memberData['father_residence'] = $validated['father_residence'] ?? null;
@@ -607,7 +629,6 @@ class MemberController extends Controller
         $memberData['minister'] = $validated['minister'] ?? null;
 
         // Auto-sync fields for sacramental records
-        $memberData['father_name'] = $memberData['parent'];
         $memberData['baptized_by'] = $memberData['minister'];
         $memberData['sponsor'] = $memberData['godparent'];
 
@@ -1015,54 +1036,66 @@ class MemberController extends Controller
     public function update(Request $request, Member $member)
     {
         $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'date_of_birth' => 'nullable|date|before:today',
+            // Essential fields with custom messages
+            'first_name' => 'required|string|max:255|min:2',
+            'last_name' => 'required|string|max:255|min:2',
             'gender' => 'required|in:Male,Female',
-            'id_number' => 'nullable|string|max:20|unique:members,id_number,'.$member->id,
+
+            // Core optional fields with enhanced validation - more lenient approach
+            'middle_name' => 'nullable|string|max:255',
+            'date_of_birth' => 'nullable|date',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255|unique:members,email,'.$member->id,
-            'residence' => 'nullable|string|max:255',
-            'local_church' => 'required|in:St James Kangemi,St Veronica Pembe Tatu,Our Lady of Consolata Cathedral,St Peter Kiawara,Sacred Heart Kandara',
-            'church_group' => 'required|in:PMC,Youth,C.W.A,CMA,Choir,Catholic Action,Pioneer',
-            'membership_status' => 'nullable|in:active,inactive,transferred,deceased',
-            'membership_date' => 'nullable|date',
-            'baptism_date' => 'nullable|date',
-            'confirmation_date' => 'nullable|date',
-            'matrimony_status' => 'required|in:single,married,widowed,separated',
-            'marriage_type' => 'nullable|in:customary,church,civil',
-            'is_differently_abled' => 'nullable|boolean',
-            'disability_description' => 'nullable|string|max:1000',
-            'occupation' => 'required|in:employed,self_employed,not_employed',
-            'education_level' => 'required|in:none,primary,kcpe,secondary,kcse,certificate,diploma,degree,masters,phd',
-            'family_id' => 'nullable|exists:families,id',
+            'id_number' => 'nullable|string|max:20|unique:members,id_number,'.$member->id,
+            'residence' => 'nullable|string|max:500',
+
+            // Church fields with flexible validation - allow custom entries
+            'local_church' => 'required|string|max:255',
+            'small_christian_community' => 'nullable|string|max:255',
+            'church_group' => 'required|string|max:255',
+            'additional_church_groups' => 'nullable|array',
+
+            // Membership fields
+            'membership_status' => 'nullable|string|in:active,inactive,transferred,deceased',
+            'membership_date' => 'nullable|date|before_or_equal:today',
+            'matrimony_status' => 'nullable|string|in:single,married,widowed,separated,divorced',
+            'marriage_type' => 'nullable|string|in:customary,church,civil',
+            'occupation' => 'nullable|string|in:employed,self_employed,not_employed,student,retired',
+            'education_level' => 'nullable|string|in:none,primary,kcpe,secondary,kcse,certificate,diploma,degree,masters,phd',
+
+            // Family and relationships
+            'family_id' => 'nullable|string',
             'parent' => 'nullable|string|max:255',
-            'sponsor' => 'nullable|string|max:255',
+            'father_name' => 'nullable|string|max:255',
+            'mother_name' => 'nullable|string|max:255',
+            'father_occupation' => 'nullable|string|max:255',
+            'father_residence' => 'nullable|string|max:255',
+            'mother_occupation' => 'nullable|string|max:255',
+            'mother_residence' => 'nullable|string|max:255',
+            'godparent' => 'nullable|string|max:255',
             'minister' => 'nullable|string|max:255',
             'tribe' => 'nullable|string|max:255',
             'clan' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
 
-            // Comprehensive Baptism Record Fields
-            'birth_village' => 'nullable|string|max:255',
-            'county' => 'nullable|string|max:255',
+            // Disability
+            'is_differently_abled' => 'nullable|boolean',
+            'disability_description' => 'nullable|string|max:1000',
+
+            // Sacraments with date validation
+            'baptism_date' => 'nullable|date|before_or_equal:today',
             'baptism_location' => 'nullable|string|max:255',
             'baptized_by' => 'nullable|string|max:255',
-            'father_name' => 'nullable|string|max:255',
-            'father_occupation' => 'nullable|string|max:255',
-            'father_residence' => 'nullable|string|max:255',
-            'mother_name' => 'nullable|string|max:255',
-            'mother_occupation' => 'nullable|string|max:255',
-            'mother_residence' => 'nullable|string|max:255',
-            'small_christian_community' => 'nullable|string|max:255',
-
-            // Optional Sacrament Fields
-            'eucharist_location' => 'nullable|string|max:255',
-            'eucharist_date' => 'nullable|date',
+            'confirmation_date' => 'nullable|date|before_or_equal:today',
             'confirmation_location' => 'nullable|string|max:255',
             'confirmation_register_number' => 'nullable|string|max:50',
             'confirmation_number' => 'nullable|string|max:50',
+            'eucharist_date' => 'nullable|date|before_or_equal:today',
+            'eucharist_location' => 'nullable|string|max:255',
+
+            // Baptism record fields
+            'birth_village' => 'nullable|string|max:255',
+            'county' => 'nullable|string|max:255',
+            'sponsor' => 'nullable|string|max:255',
 
             // Marriage Certificate Fields
             'marriage_date' => 'nullable|date|before_or_equal:today',
@@ -1077,82 +1110,148 @@ class MemberController extends Controller
             'marriage_witness1_name' => 'nullable|string|max:255',
             'marriage_witness2_name' => 'nullable|string|max:255',
 
-            // Spouse Information Fields
-            'spouse_name' => 'nullable|string|max:255',
-            'spouse_age' => 'nullable|integer|min:1|max:150',
-            'spouse_residence' => 'nullable|string|max:255',
-            'spouse_county' => 'nullable|string|max:255',
-            'spouse_marital_status' => 'nullable|string|max:255',
-            'spouse_occupation' => 'nullable|string|max:255',
-            'spouse_father_name' => 'nullable|string|max:255',
-            'spouse_father_occupation' => 'nullable|string|max:255',
-            'spouse_father_residence' => 'nullable|string|max:255',
-            'spouse_mother_name' => 'nullable|string|max:255',
-            'spouse_mother_occupation' => 'nullable|string|max:255',
-            'spouse_mother_residence' => 'nullable|string|max:255',
-
-            // Marriage Certificate Frontend Fields (mapped to spouse fields)
+            // Bridegroom Information (for when member is female)
             'bridegroom_name' => 'nullable|string|max:255',
-            'bridegroom_age' => 'nullable|integer|min:1|max:150',
+            'bridegroom_age' => 'nullable|integer|min:1|max:120',
             'bridegroom_residence' => 'nullable|string|max:255',
             'bridegroom_county' => 'nullable|string|max:255',
             'bridegroom_marital_status' => 'nullable|string|max:255',
             'bridegroom_occupation' => 'nullable|string|max:255',
             'bridegroom_father_name' => 'nullable|string|max:255',
-            'bridegroom_mother_name' => 'nullable|string|max:255',
             'bridegroom_father_occupation' => 'nullable|string|max:255',
-            'bridegroom_mother_occupation' => 'nullable|string|max:255',
             'bridegroom_father_residence' => 'nullable|string|max:255',
+            'bridegroom_mother_name' => 'nullable|string|max:255',
+            'bridegroom_mother_occupation' => 'nullable|string|max:255',
             'bridegroom_mother_residence' => 'nullable|string|max:255',
+
+            // Bride Information (for when member is male)
             'bride_name' => 'nullable|string|max:255',
-            'bride_age' => 'nullable|integer|min:1|max:150',
+            'bride_age' => 'nullable|integer|min:1|max:120',
             'bride_residence' => 'nullable|string|max:255',
             'bride_county' => 'nullable|string|max:255',
             'bride_marital_status' => 'nullable|string|max:255',
             'bride_occupation' => 'nullable|string|max:255',
             'bride_father_name' => 'nullable|string|max:255',
-            'bride_mother_name' => 'nullable|string|max:255',
             'bride_father_occupation' => 'nullable|string|max:255',
-            'bride_mother_occupation' => 'nullable|string|max:255',
             'bride_father_residence' => 'nullable|string|max:255',
+            'bride_mother_name' => 'nullable|string|max:255',
+            'bride_mother_occupation' => 'nullable|string|max:255',
             'bride_mother_residence' => 'nullable|string|max:255',
-            'member_marriage_residence' => 'nullable|string|max:255',
 
-            // Emergency contact fields
+            // Contact
             'emergency_contact' => 'nullable|string|max:255',
             'emergency_phone' => 'nullable|string|max:20',
+
+            // Notes
+            'notes' => 'nullable|string|max:2000',
+
+            // Accept all other fields as nullable
+            '*' => 'nullable',
+        ], [
+            // Enhanced error messages for better UX
+            'first_name.required' => 'Please enter the member\'s first name',
+            'first_name.min' => 'First name should be at least 2 characters long',
+            'last_name.required' => 'Please enter the member\'s last name',
+            'last_name.min' => 'Last name should be at least 2 characters long',
+            'gender.required' => 'Please select the member\'s gender',
+            'gender.in' => 'Please select either Male or Female',
+            'local_church.required' => 'Please specify the member\'s local church',
+            'church_group.required' => 'Please specify the member\'s primary church group',
+            'email.unique' => 'This email is already registered by another member.',
+            'id_number.unique' => 'This ID number is already registered by another member.',
         ]);
 
         // Enhanced conditional validation for married members
         if ($validated['matrimony_status'] === 'married') {
-            // Determine which partner fields to validate based on member's gender
-            $partnerNameField = $validated['gender'] === 'Male' ? 'bride_name' : 'bridegroom_name';
-
             $conditionalRules = [
-                $partnerNameField => 'required|string|max:255',
                 'marriage_date' => 'required|date|before_or_equal:today',
                 'marriage_location' => 'required|string|max:255',
-                'marriage_county' => 'required|string|max:255',
-                'marriage_sub_county' => 'required|string|max:255',
-                'member_marriage_residence' => 'required|string|max:255',
             ];
 
-            $partnerTitle = $validated['gender'] === 'Male' ? 'Bride' : 'Bridegroom';
+            // Only require detailed certificate fields for church marriages
+            if (isset($validated['marriage_type']) && $validated['marriage_type'] === 'church') {
+                // Determine which partner fields to validate based on member's gender
+                $partnerNameField = $validated['gender'] === 'Male' ? 'bride_name' : 'bridegroom_name';
 
-            $request->validate($conditionalRules, [
-                $partnerNameField.'.required' => $partnerTitle.' name is required for married members',
-                'marriage_date.required' => 'Marriage date is required for married members',
-                'marriage_location.required' => 'Marriage location is required for married members',
-                'marriage_county.required' => 'Marriage county is required for married members',
-                'marriage_sub_county.required' => 'Marriage sub-county is required for married members',
-                'member_marriage_residence.required' => 'Member\'s residence at time of marriage is required for married members',
-            ]);
+                $conditionalRules = array_merge($conditionalRules, [
+                    $partnerNameField => 'required|string|max:255',
+                    'marriage_county' => 'required|string|max:255',
+                    'marriage_sub_county' => 'required|string|max:255',
+                    'member_marriage_residence' => 'required|string|max:255',
+                ]);
+
+                $partnerTitle = $validated['gender'] === 'Male' ? 'Bride' : 'Bridegroom';
+
+                $messages = [
+                    $partnerNameField.'.required' => $partnerTitle.' name is required for church marriages',
+                    'marriage_date.required' => 'Marriage date is required for married members',
+                    'marriage_location.required' => 'Marriage location is required for married members',
+                    'marriage_county.required' => 'Marriage county is required for church marriages',
+                    'marriage_sub_county.required' => 'Marriage sub-county is required for church marriages',
+                    'member_marriage_residence.required' => 'Member marriage residence is required for church marriages',
+                ];
+            } else {
+                $messages = [
+                    'marriage_date.required' => 'Marriage date is required for married members',
+                    'marriage_location.required' => 'Marriage location is required for married members',
+                ];
+            }
+
+            $request->validate($conditionalRules, $messages);
+        }
+
+        // Additional custom validation for date logic
+        if (! empty($validated['confirmation_date']) && ! empty($validated['baptism_date'])) {
+            $baptismDate = \Carbon\Carbon::parse($validated['baptism_date']);
+            $confirmationDate = \Carbon\Carbon::parse($validated['confirmation_date']);
+
+            if ($confirmationDate->lt($baptismDate)) {
+                return back()->withErrors([
+                    'confirmation_date' => 'Confirmation date cannot be before baptism date.',
+                ])->withInput();
+            }
         }
 
         try {
-            $member->update($validated);
+            // Transform frontend bride/bridegroom fields to database spouse fields
+            if ($validated['matrimony_status'] === 'married' && $validated['gender']) {
+                if ($validated['gender'] === 'Male' && isset($validated['bride_name'])) {
+                    // For male members, bride details become spouse details
+                    $validated['spouse_name'] = $validated['bride_name'] ?? null;
+                    $validated['spouse_age'] = $validated['bride_age'] ?? null;
+                    $validated['spouse_residence'] = $validated['bride_residence'] ?? null;
+                    $validated['spouse_county'] = $validated['bride_county'] ?? null;
+                    $validated['spouse_marital_status'] = $validated['bride_marital_status'] ?? null;
+                    $validated['spouse_occupation'] = $validated['bride_occupation'] ?? null;
+                    $validated['spouse_father_name'] = $validated['bride_father_name'] ?? null;
+                    $validated['spouse_mother_name'] = $validated['bride_mother_name'] ?? null;
+                    $validated['spouse_father_occupation'] = $validated['bride_father_occupation'] ?? null;
+                    $validated['spouse_mother_occupation'] = $validated['bride_mother_occupation'] ?? null;
+                    $validated['spouse_father_residence'] = $validated['bride_father_residence'] ?? null;
+                    $validated['spouse_mother_residence'] = $validated['bride_mother_residence'] ?? null;
+                } elseif ($validated['gender'] === 'Female' && isset($validated['bridegroom_name'])) {
+                    // For female members, bridegroom details become spouse details
+                    $validated['spouse_name'] = $validated['bridegroom_name'] ?? null;
+                    $validated['spouse_age'] = $validated['bridegroom_age'] ?? null;
+                    $validated['spouse_residence'] = $validated['bridegroom_residence'] ?? null;
+                    $validated['spouse_county'] = $validated['bridegroom_county'] ?? null;
+                    $validated['spouse_marital_status'] = $validated['bridegroom_marital_status'] ?? null;
+                    $validated['spouse_occupation'] = $validated['bridegroom_occupation'] ?? null;
+                    $validated['spouse_father_name'] = $validated['bridegroom_father_name'] ?? null;
+                    $validated['spouse_mother_name'] = $validated['bridegroom_mother_name'] ?? null;
+                    $validated['spouse_father_occupation'] = $validated['bridegroom_father_occupation'] ?? null;
+                    $validated['spouse_mother_occupation'] = $validated['bridegroom_mother_occupation'] ?? null;
+                    $validated['spouse_father_residence'] = $validated['bridegroom_father_residence'] ?? null;
+                    $validated['spouse_mother_residence'] = $validated['bridegroom_mother_residence'] ?? null;
+                }
+            }
 
-            return redirect()->route('members.index')->with('success', 'Member updated successfully.');
+            // Process and clean the data using the same method as store
+            $memberData = $this->processValidatedMemberData($validated);
+
+            $member->update($memberData);
+
+            return redirect()->route('members.show', $member)->with('success', 'Member updated successfully.');
         } catch (\Exception $e) {
             Log::error('Failed to update member: '.$e->getMessage());
 

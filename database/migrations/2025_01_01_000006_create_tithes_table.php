@@ -23,11 +23,11 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            // Indexes for performance
-            $table->index(['contribution_date', 'tithe_type']);
-            $table->index(['contributor_name', 'contribution_date']);
-            $table->index(['amount', 'contribution_date']);
-            $table->index(['payment_method', 'contribution_date']);
+            // Indexes for performance with custom names to avoid MySQL 64-char limit
+            $table->index(['contribution_date', 'tithe_type'], 'idx_contrib_date_type');
+            $table->index(['contributor_name', 'contribution_date'], 'idx_contrib_name_date');
+            $table->index(['amount', 'contribution_date'], 'idx_amount_date');
+            $table->index(['payment_method', 'contribution_date'], 'idx_payment_date');
         });
     }
 

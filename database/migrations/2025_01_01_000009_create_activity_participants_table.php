@@ -11,25 +11,33 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('activity_participants')) {
+        if (! Schema::hasTable('activity_participants')) {
             Schema::create('activity_participants', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('activity_id')->index();
-            $table->unsignedBigInteger('member_id')->nullable()->index();
-            $table->string('participant_name', 100)->index(); // In case member_id is not available
-            $table->enum('participation_status', ['registered', 'attended', 'absent', 'cancelled'])->default('registered')->index();
-            $table->date('registration_date')->index();
-            $table->decimal('contribution', 10, 2)->nullable(); // If activity involves contributions
-            $table->text('notes')->nullable();
-            $table->timestamps();
+                $table->id();
+                $table->unsignedBigInteger('activity_id');
+                $table->unsignedBigInteger('member_id')->nullable();
+                $table->string('participant_name', 100)->nullable(); // In case member_id is not available
+                $table->enum('participation_status', ['registered', 'attended', 'absent', 'cancelled'])->default('registered');
+                $table->date('registration_date');
+                $table->decimal('contribution', 10, 2)->nullable(); // If activity involves contributions
+                $table->text('notes')->nullable();
+                $table->timestamps();
 
-            // Ensure unique participation per activity
-            $table->unique(['activity_id', 'member_id'], 'unique_activity_member');
+                // Primary indexes for foreign keys
+                $table->index('activity_id', 'idx_act_activity');
+                $table->index('member_id', 'idx_act_member');
 
-            // Indexes for performance
-            $table->index(['activity_id', 'participation_status']);
-            $table->index(['registration_date', 'participation_status']);
-            $table->index(['participant_name', 'participation_status']);
+                // Performance indexes with shortened names
+                $table->index('participation_status', 'idx_act_status');
+                $table->index('registration_date', 'idx_act_regdate');
+                $table->index('participant_name', 'idx_act_name');
+
+                // Composite indexes for common queries
+                $table->index(['activity_id', 'participation_status'], 'idx_act_id_status');
+                $table->index(['registration_date', 'participation_status'], 'idx_regdate_status');
+
+                // Ensure unique participation per activity (only if member_id is not null)
+                $table->unique(['activity_id', 'member_id'], 'unq_activity_member');
             });
         }
     }

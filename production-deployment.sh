@@ -35,6 +35,10 @@ NODE_VERSION="18"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_FILE="logs/deployment_${TIMESTAMP}.log"
 
+# Global flags for system capabilities
+NODE_AVAILABLE=true
+COMPOSER_CMD="composer"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -74,9 +78,22 @@ echo -e "${CYAN}"
 echo "════════════════════════════════════════════════════════════════════"
 echo "                  PARISH MANAGEMENT SYSTEM"
 echo "                  Production Deployment Script"
-echo "                         Version 1.0.0"
+echo "                         Version 1.1.0"
+echo "                    (Hosting-Provider Friendly)"
 echo "════════════════════════════════════════════════════════════════════"
 echo -e "${NC}"
+
+echo -e "${BLUE}📋 HOSTING PROVIDER REQUIREMENTS:${NC}"
+echo -e "${YELLOW}Your hosting provider should provide:${NC}"
+echo -e "${CYAN}• PHP 8.2+ with extensions: PDO, MySQLi, mbstring, XML, JSON, etc.${NC}"
+echo -e "${CYAN}• MySQL/PostgreSQL database access${NC}"
+echo -e "${CYAN}• SSL certificate (recommended)${NC}"
+echo -e "${CYAN}• File permissions for storage/bootstrap directories${NC}"
+echo ""
+echo -e "${YELLOW}Optional (can work around if missing):${NC}"
+echo -e "${CYAN}• Node.js/npm (for frontend builds)${NC}"
+echo -e "${CYAN}• Composer in PATH (can use composer.phar)${NC}"
+echo ""
 
 log "Starting production deployment for Parish Management System"
 
@@ -92,44 +109,75 @@ check_requirements() {
         PHP_CURRENT=$(php -r "echo PHP_VERSION;")
         log "PHP version: $PHP_CURRENT"
         
-        # Check if PHP version is 8.4+
-        if php -r "exit(version_compare(PHP_VERSION, '8.4.0', '<') ? 1 : 0);"; then
-            error "PHP 8.4+ is required. Current version: $PHP_CURRENT"
+        # Flexible PHP version check (8.2+ acceptable, 8.4+ recommended)
+        if php -r "exit(version_compare(PHP_VERSION, '8.2.0', '<') ? 1 : 0);"; then
+            error "PHP 8.2+ is required. Current version: $PHP_CURRENT"
+        elif php -r "exit(version_compare(PHP_VERSION, '8.4.0', '<') ? 1 : 0);"; then
+            warning "PHP 8.4+ is recommended. Current version: $PHP_CURRENT (acceptable)"
         fi
     else
         error "PHP is not installed"
     fi
     
-    # Check required PHP extensions
+    # Check required PHP extensions with helpful guidance
     local required_extensions=("pdo" "pdo_mysql" "mbstring" "tokenizer" "xml" "ctype" "json" "bcmath" "openssl" "fileinfo" "gd" "zip" "dom")
+    local missing_extensions=()
+    
     for ext in "${required_extensions[@]}"; do
         if ! php -m | grep -q "^$ext$"; then
-            error "Required PHP extension '$ext' is not installed"
+            missing_extensions+=("$ext")
         fi
     done
-    log "All required PHP extensions are installed"
     
-    # Check Composer
+    if [ ${#missing_extensions[@]} -gt 0 ]; then
+        error "Missing PHP extensions: ${missing_extensions[*]}"
+        echo -e "${YELLOW}SOLUTION: Contact your hosting provider to enable these extensions OR:${NC}"
+        echo -e "${CYAN}• Check your hosting control panel (cPanel/Plesk) for PHP extension settings${NC}"
+        echo -e "${CYAN}• For VPS/Dedicated servers, install with: sudo dnf/yum/apt install php-[extension-name]${NC}"
+        echo -e "${CYAN}• Create phpinfo.php in public folder to verify available extensions${NC}"
+        exit 1
+    fi
+    
+    log "All required PHP extensions are available"
+    
+    # Check Composer (with helpful installation guidance)
     if command -v composer >/dev/null 2>&1; then
         COMPOSER_VERSION=$(composer --version 2>/dev/null | cut -d' ' -f3)
         log "Composer version: $COMPOSER_VERSION"
+        COMPOSER_CMD="composer"
     else
-        error "Composer is not installed"
+        warning "Composer not found in PATH. Checking for local composer.phar..."
+        if [ -f "composer.phar" ]; then
+            log "Found local composer.phar - will use ./composer.phar for commands"
+            COMPOSER_CMD="php composer.phar"
+        else
+            error "Composer is required. Install from https://getcomposer.org or contact your hosting provider"
+        fi
     fi
     
-    # Check Node.js and npm
+    # Check Node.js and npm (with alternative suggestions)
     if command -v node >/dev/null 2>&1; then
         NODE_CURRENT=$(node --version)
         log "Node.js version: $NODE_CURRENT"
+        
+        if command -v npm >/dev/null 2>&1; then
+            NPM_VERSION=$(npm --version)
+            log "npm version: $NPM_VERSION"
+        else
+            warning "npm not found. Will attempt to use npx or contact hosting provider"
+        fi
     else
-        error "Node.js is not installed"
-    fi
-    
-    if command -v npm >/dev/null 2>&1; then
-        NPM_VERSION=$(npm --version)
-        log "npm version: $NPM_VERSION"
-    else
-        error "npm is not installed"
+        warning "Node.js not found. Will skip frontend build or use pre-built assets"
+        echo -e "${YELLOW}OPTIONS:${NC}"
+        echo -e "${CYAN}• Contact hosting provider to install Node.js${NC}"
+        echo -e "${CYAN}• Build assets locally and upload public/build folder${NC}"
+        echo -e "${CYAN}• Use hosting provider's build tools if available${NC}"
+        read -p "Continue without Node.js? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+        NODE_AVAILABLE=false
     fi
     
     success "All system requirements are met"
@@ -220,15 +268,21 @@ install_dependencies() {
     log "Installing PHP dependencies..."
     
     # Install PHP dependencies optimized for production
-    composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+    $COMPOSER_CMD install --no-dev --optimize-autoloader --no-interaction --prefer-dist
     
-    log "Installing Node.js dependencies..."
+    # Install Node.js dependencies if Node.js is available
+    if [ "${NODE_AVAILABLE:-true}" = "true" ] && command -v npm >/dev/null 2>&1; then
+        log "Installing Node.js dependencies..."
+        
+        # Clean install Node dependencies
+        rm -rf node_modules package-lock.json 2>/dev/null || true
+        npm ci --production=false || npm install
+    else
+        warning "Skipping Node.js dependencies - Node.js not available or disabled"
+        warning "You may need to build assets locally and upload the public/build folder"
+    fi
     
-    # Clean install Node dependencies
-    rm -rf node_modules package-lock.json
-    npm ci --production=false
-    
-    success "All dependencies installed"
+    success "Dependencies installation completed"
 }
 
 # =====================================================================================
@@ -243,9 +297,57 @@ setup_database() {
         error "Database connection failed. Please check your database configuration."
     fi
     
-    # Run fresh migrations
-    log "Running database migrations..."
-    php artisan migrate:fresh --force
+    # Check MySQL version and configuration for production compatibility
+    if [ "${DB_CONNECTION:-mysql}" = "mysql" ] || [ "${DB_CONNECTION:-mysql}" = "production" ]; then
+        log "Optimizing MySQL configuration for migration compatibility..."
+        
+        # Test MySQL connection and configure session variables
+        php -r "
+        try {
+            \$host = '${DB_HOST:-localhost}';
+            \$port = '${DB_PORT:-3306}';
+            \$dbname = '${DB_DATABASE:-parish_management}';
+            \$username = '${DB_USERNAME:-root}';
+            \$password = '${DB_PASSWORD:-}';
+            
+            \$pdo = new PDO(\"mysql:host=\$host;port=\$port;dbname=\$dbname\", \$username, \$password);
+            \$version = \$pdo->query('SELECT VERSION()')->fetchColumn();
+            echo \"MySQL version: \$version\n\";
+            
+            // Set session variables for better compatibility
+            \$pdo->exec('SET sql_mode = \"STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION\"');
+            \$pdo->exec('SET innodb_strict_mode = 0');
+            \$pdo->exec('SET innodb_large_prefix = 1');
+            \$pdo->exec('SET innodb_file_format = Barracuda');
+            echo \"MySQL session optimized for Laravel migrations\n\";
+        } catch (Exception \$e) {
+            echo \"Warning: \" . \$e->getMessage() . \"\n\";
+        }
+        " || warning "Could not optimize MySQL session settings"
+    fi
+    
+    # Ask user about migration strategy
+    info "Choose migration strategy:"
+    echo "1. Fresh migration (destroys existing data - recommended for new installations)"
+    echo "2. Run pending migrations only (preserves existing data)"
+    read -p "Choose option (1/2) [2]: " MIGRATION_CHOICE
+    MIGRATION_CHOICE=${MIGRATION_CHOICE:-2}
+    
+    if [ "$MIGRATION_CHOICE" = "1" ]; then
+        log "Running fresh migrations (this will destroy existing data)..."
+        php artisan migrate:fresh --force
+    else
+        log "Running pending migrations with enhanced error handling..."
+        if ! php artisan migrate --force --verbose; then
+            warning "Some migrations failed. Checking for specific issues..."
+            
+            # List failed migrations for debugging
+            log "Checking migration status..."
+            php artisan migrate:status
+            
+            error "Migration failed. Please check the error messages above and fix any database configuration issues."
+        fi
+    fi
     
     # Seed the database
     log "Seeding database..."
@@ -259,14 +361,44 @@ setup_database() {
 # =====================================================================================
 
 build_frontend() {
+    # Check if we should attempt frontend build
+    if [ "${NODE_AVAILABLE:-true}" = "false" ]; then
+        warning "Skipping frontend build - Node.js not available"
+        
+        # Check if pre-built assets exist
+        if [ -d "public/build" ] && [ -n "$(ls -A public/build 2>/dev/null)" ]; then
+            log "Found existing frontend assets in public/build"
+            success "Using pre-built frontend assets"
+            return 0
+        else
+            warning "No pre-built assets found in public/build"
+            echo -e "${YELLOW}OPTIONS:${NC}"
+            echo -e "${CYAN}• Build assets locally: npm run build${NC}"
+            echo -e "${CYAN}• Upload public/build folder to server${NC}"
+            echo -e "${CYAN}• Contact hosting provider for Node.js support${NC}"
+            
+            read -p "Continue without frontend build? (y/N): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                error "Frontend assets are required for the application to work properly"
+            fi
+            warning "Proceeding without frontend build - application may not work correctly"
+            return 0
+        fi
+    fi
+    
     log "Building frontend assets for production..."
     
     # Build production assets
-    npm run build
+    if command -v npm >/dev/null 2>&1; then
+        npm run build
+    else
+        error "npm not available for frontend build"
+    fi
     
     # Verify build files exist
-    if [ ! -d "public/build" ] || [ -z "$(ls -A public/build)" ]; then
-        error "Frontend build failed - build directory is empty"
+    if [ ! -d "public/build" ] || [ -z "$(ls -A public/build 2>/dev/null)" ]; then
+        error "Frontend build failed - build directory is empty or missing"
     fi
     
     success "Frontend assets built successfully"

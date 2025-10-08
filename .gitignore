@@ -311,3 +311,4 @@ test-*.php
 # Keep only essential documentation
 !/README.md
 !/LICENSE
+public/build/assets/*.js

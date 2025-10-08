@@ -28,6 +28,8 @@ import {
     Clock
 } from 'lucide-react';
 import { showNotification } from '@/Utils/notifications';
+import { safeRoute, memberRoute, buildQueryString, buildPaginationUrl as createPaginationUrl, buildExportUrl, initializeRouteHelper, debugRouteHelper } from '@/Components/Members/SafeRouteHelper';
+import { PERFORMANCE_CONFIG, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/Components/Members/constants';
 
 // Types
 interface Member {
@@ -172,64 +174,6 @@ const STATS_CARDS_CONFIG = [
         textColor: 'text-purple-600'
     }
 ];
-
-// Safe route helper
-const safeRoute = (routeName: string, params?: any): string => {
-    try {
-        if (typeof route === 'function') {
-            return route(routeName, params);
-        }
-        
-        // Fallback URL generation
-        const baseRoutes: Record<string, string> = {
-            'members.index': '/members',
-            'members.create': '/members/create',
-            'members.show': '/members',
-            'members.edit': '/members',
-            'members.destroy': '/members',
-            'members.export': '/members/export',
-            'members.import': '/members/import',
-            'members.bulk-delete': '/members/bulk-delete',
-            'members.update-status': '/members'
-        };
-        
-        const baseUrl = baseRoutes[routeName] || '/members';
-        
-        if (params && typeof params === 'object' && !Array.isArray(params)) {
-            if (routeName.includes('show') || routeName.includes('edit') || routeName.includes('destroy') || routeName.includes('update-status')) {
-                const id = params.id || params;
-                return `${baseUrl}/${id}${routeName.includes('edit') ? '/edit' : ''}${routeName.includes('update-status') ? '/update-status' : ''}`;
-            }
-            
-            const queryString = Object.entries(params)
-                .filter(([_, value]) => value !== null && value !== undefined && value !== '')
-                .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-                .join('&');
-            
-            return queryString ? `${baseUrl}?${queryString}` : baseUrl;
-        }
-        
-        if (params && (typeof params === 'string' || typeof params === 'number')) {
-            return `${baseUrl}/${params}`;
-        }
-        
-        return baseUrl;
-    } catch (error) {
-        console.warn('Route generation failed:', error);
-        return '/members';
-    }
-};
-
-const memberRoute = (action: string, id?: number): string => {
-    const routeMap: Record<string, string> = {
-        'show': 'members.show',
-        'edit': 'members.edit',
-        'destroy': 'members.destroy'
-    };
-    
-    const routeName = routeMap[action] || 'members.index';
-    return safeRoute(routeName, id);
-};
 
 // Stats Component
 const MembersStats = memo<{ stats: Stats; isLoading: boolean }>(({ stats, isLoading }) => {
@@ -808,8 +752,7 @@ const MembersPagination = memo<{
     filters: Filters;
 }>(({ members, filters }) => {
     const buildPaginationUrl = useCallback((page: number) => {
-        const params = { ...filters, page };
-        return safeRoute('members.index', params);
+        return createPaginationUrl(filters, page);
     }, [filters]);
 
     const handlePageChange = useCallback((page: number) => {
@@ -991,18 +934,25 @@ const createDebouncedSearch = () => {
                     return acc;
                 }, {} as Record<string, string>);
             
-            // Safe route generation with fallback
-            const getRouteUrl = () => {
-                try {
-                    return typeof route === 'function' ? route('members.index', cleanParams) : '/members';
-                } catch (error) {
-                    console.warn('Route helper not available, using fallback URL');
-                    const params = new URLSearchParams(cleanParams);
-                    return `/members${params.toString() ? `?${params.toString()}` : ''}`;
+            // Generate route with error handling
+            let routeUrl: string;
+            try {
+                routeUrl = safeRoute('members.index', cleanParams);
+            } catch (routeError) {
+                console.error('Route generation failed, using fallback:', routeError);
+                routeUrl = '/members';
+                
+                // Add query string manually as fallback
+                const queryString = Object.entries(cleanParams)
+                    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+                    .join('&');
+                
+                if (queryString) {
+                    routeUrl += `?${queryString}`;
                 }
-            };
+            }
 
-            router.get(safeRoute('members.index', cleanParams), undefined, {
+            router.get(routeUrl, undefined, {
                 preserveScroll: true,
                 preserveState: true,
                 only: ['members', 'stats'],
@@ -1012,7 +962,7 @@ const createDebouncedSearch = () => {
                     console.error('Search error:', errors);
                     setLoadingFunction(false);
                     if (typeof showNotification === 'function') {
-                        showNotification('Search Error', 'Search failed. Please try again.', 'error', 4000);
+                        showNotification('Search Error', ERROR_MESSAGES.SEARCH_FAILED, 'error', 4000);
                     }
                 }
             });
@@ -1020,10 +970,10 @@ const createDebouncedSearch = () => {
             console.error('Search error:', error);
             setLoadingFunction(false);
             if (typeof showNotification === 'function') {
-                showNotification('Search Error', 'Search error occurred. Please try again.', 'error', 4000);
+                showNotification('Search Error', ERROR_MESSAGES.NETWORK_ERROR, 'error', 4000);
             }
         }
-    }, 300);
+    }, PERFORMANCE_CONFIG.DEBOUNCE_DELAY);
 };
 
 export default function MembersIndex({ 
@@ -1034,6 +984,20 @@ export default function MembersIndex({
     filterOptions,
     flash 
 }: MembersIndexProps) {
+    // Initialize route helper on component mount
+    useEffect(() => {
+        const isRouteHelperReady = initializeRouteHelper();
+        
+        // Debug route issues in development
+        if (process.env.NODE_ENV === 'development') {
+            debugRouteHelper();
+            
+            if (!isRouteHelperReady) {
+                console.warn('⚠️ Route helper fallback mode activated. Some features may have degraded performance.');
+            }
+        }
+    }, []);
+
     // State management
     const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
     const [showFilters, setShowFilters] = useState(false);
@@ -1048,13 +1012,32 @@ export default function MembersIndex({
 
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Memoized debounced search function
+    // Enhanced debounced search function with better error handling
     const debouncedSearch = useMemo(() => createDebouncedSearch(), []);
 
-    // Search handler
+    // Route error handler
+    const handleRouteError = useCallback((operation: string, error: any) => {
+        console.error(`Route error in ${operation}:`, error);
+        
+        if (typeof showNotification === 'function') {
+            showNotification(
+                'Navigation Error', 
+                `Failed to navigate. ${ERROR_MESSAGES.NETWORK_ERROR}`, 
+                'error', 
+                5000
+            );
+        }
+    }, []);
+
+    // Search handler with error boundary
+    // Search handler with error boundary
     const handleSearchChange = useCallback((value: string) => {
-        debouncedSearch(value, filters, setIsLoading);
-    }, [debouncedSearch, filters]);
+        try {
+            debouncedSearch(value, filters, setIsLoading);
+        } catch (error) {
+            handleRouteError('search', error);
+        }
+    }, [debouncedSearch, filters, handleRouteError]);
 
     // Filter change handler
     const handleFilterChange = useCallback((key: string) => {
@@ -1070,18 +1053,7 @@ export default function MembersIndex({
                     return acc;
                 }, {} as Record<string, string>);
 
-            // Safe route generation
-            const getRouteUrl = () => {
-                try {
-                    return typeof route === 'function' ? route('members.index', cleanParams) : '/members';
-                } catch (error) {
-                    console.warn('Route helper not available, using fallback URL');
-                    const params = new URLSearchParams(cleanParams);
-                    return `/members${params.toString() ? `?${params.toString()}` : ''}`;
-                }
-            };
-
-            router.get(getRouteUrl(), undefined, {
+            router.get(safeRoute('members.index', cleanParams), undefined, {
                 preserveScroll: true,
                 preserveState: true,
                 only: ['members', 'stats'],
@@ -1093,16 +1065,7 @@ export default function MembersIndex({
 
     // Clear filters
     const handleClearFilters = useCallback(() => {
-        const getRouteUrl = () => {
-            try {
-                return typeof route === 'function' ? route('members.index') : '/members';
-            } catch (error) {
-                console.warn('Route helper not available, using fallback URL');
-                return '/members';
-            }
-        };
-
-        router.get(getRouteUrl(), undefined, {
+        router.get(safeRoute('members.index'), undefined, {
             preserveScroll: true,
             preserveState: true,
             only: ['members', 'stats'],
@@ -1153,27 +1116,17 @@ export default function MembersIndex({
 
         setIsDeleting(true);
         
-        // Safe route generation
-        const getRouteUrl = () => {
-            try {
-                                        return safeRoute('members.destroy', memberToDelete.id);
-            } catch (error) {
-                console.warn('Route helper not available, using fallback URL');
-                return `/members/${memberToDelete.id}`;
-            }
-        };
-
-        router.delete(getRouteUrl(), {
+        router.delete(safeRoute('members.destroy', memberToDelete.id), {
             onSuccess: () => {
                 setShowDeleteModal(false);
                 setMemberToDelete(null);
                 if (typeof showNotification === 'function') {
-                    showNotification('Success', 'Member deleted successfully', 'success');
+                    showNotification('Success', SUCCESS_MESSAGES.MEMBER_DELETED, 'success');
                 }
             },
             onError: () => {
                 if (typeof showNotification === 'function') {
-                    showNotification('Error', 'Failed to delete member', 'error');
+                    showNotification('Error', ERROR_MESSAGES.DELETE_FAILED, 'error');
                 }
             },
             onFinish: () => setIsDeleting(false)
@@ -1203,14 +1156,14 @@ export default function MembersIndex({
                         only: ['members', 'stats'], // Refresh both members and stats
                         onSuccess: () => {
                             if (typeof showNotification === 'function') {
-                                showNotification('Success', `${memberName} status updated to ${newStatus} successfully`, 'success');
+                                showNotification('Success', SUCCESS_MESSAGES.STATUS_UPDATED.replace('Member', memberName), 'success');
                             }
                             resolve(true);
                         },
                         onError: (errors) => {
                             console.error('Status update errors:', errors);
                             if (typeof showNotification === 'function') {
-                                showNotification('Error', 'Failed to update member status', 'error');
+                                showNotification('Error', ERROR_MESSAGES.UPDATE_FAILED, 'error');
                             }
                             reject(errors);
                         }
@@ -1230,29 +1183,19 @@ export default function MembersIndex({
     }, [selectedMembers.length]);
 
     const confirmBulkDelete = useCallback(() => {
-        // Safe route generation
-        const getRouteUrl = () => {
-            try {
-                return safeRoute('members.bulk-delete');
-            } catch (error) {
-                console.warn('Route helper not available, using fallback URL');
-                return '/members/bulk-delete';
-            }
-        };
-
-        router.post(getRouteUrl(), {
+        router.post(safeRoute('members.bulk-delete'), {
             member_ids: selectedMembers
         }, {
             onSuccess: () => {
                 setSelectedMembers([]);
                 setShowBulkDeleteModal(false);
                 if (typeof showNotification === 'function') {
-                    showNotification('Success', `${selectedMembers.length} members deleted successfully`, 'success');
+                    showNotification('Success', `${selectedMembers.length} ${SUCCESS_MESSAGES.BULK_DELETED}`, 'success');
                 }
             },
             onError: () => {
                 if (typeof showNotification === 'function') {
-                    showNotification('Error', 'Failed to delete selected members', 'error');
+                    showNotification('Error', ERROR_MESSAGES.DELETE_FAILED, 'error');
                 }
             }
         });
@@ -1260,28 +1203,7 @@ export default function MembersIndex({
 
     // Export handlers
     const handleExport = useCallback((format: 'excel' | 'pdf') => {
-        const exportParams = new URLSearchParams();
-        
-        // Add current filters to export
-        Object.entries(filters).forEach(([key, value]) => {
-            if (value && value !== '') {
-                exportParams.append(key, String(value));
-            }
-        });
-        
-        exportParams.append('format', format);
-        
-        // Safe route generation
-        const getRouteUrl = () => {
-            try {
-                return safeRoute('members.export');
-            } catch (error) {
-                console.warn('Route helper not available, using fallback URL');
-                return '/members/export';
-            }
-        };
-        
-        const url = getRouteUrl() + '?' + exportParams.toString();
+        const url = buildExportUrl(filters, format);
         window.open(url, '_blank');
     }, [filters]);
 
@@ -1294,28 +1216,18 @@ export default function MembersIndex({
 
         setIsImporting(true);
         
-        // Safe route generation
-        const getRouteUrl = () => {
-            try {
-                return safeRoute('members.import');
-            } catch (error) {
-                console.warn('Route helper not available, using fallback URL');
-                return '/members/import';
-            }
-        };
-        
-        router.post(getRouteUrl(), formData, {
+        router.post(safeRoute('members.import'), formData, {
             onSuccess: () => {
                 setShowImportModal(false);
                 setImportFile(null);
                 if (typeof showNotification === 'function') {
-                    showNotification('Success', 'Members imported successfully', 'success');
+                    showNotification('Success', SUCCESS_MESSAGES.DATA_IMPORTED, 'success');
                 }
             },
             onError: (errors) => {
                 console.error('Import errors:', errors);
                 if (typeof showNotification === 'function') {
-                    showNotification('Error', 'Failed to import members', 'error');
+                    showNotification('Error', ERROR_MESSAGES.IMPORT_FAILED, 'error');
                 }
             },
             onFinish: () => setIsImporting(false)
@@ -1386,14 +1298,7 @@ export default function MembersIndex({
 
                         {/* Add Member Button */}
                         <Link
-                            href={(() => {
-                                try {
-                                    return safeRoute('members.create');
-                                } catch (error) {
-                                    console.warn('Route helper not available, using fallback URL');
-                                    return '/members/create';
-                                }
-                            })()}
+                            href={safeRoute('members.create')}
                             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
                             <Plus className="h-4 w-4 mr-2" />

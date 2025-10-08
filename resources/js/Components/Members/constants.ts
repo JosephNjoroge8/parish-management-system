@@ -49,18 +49,22 @@ export const SEARCH_DEFAULTS = {
     maxSearchLength: 100,
 } as const;
 
-// Route mapping for fallbacks
+// Route mapping for fallbacks (based on actual Laravel routes)
 export const ROUTE_MAP = {
     'members.index': '/members',
     'members.create': '/members/create',
     'members.show': '/members/:id',
     'members.edit': '/members/:id/edit',
     'members.destroy': '/members/:id',
-    'members.update-status': '/members/:id/status',
+    'members.update': '/members/:id',
+    'members.update.patch': '/members/:id',
+    'members.update-status': '/members/:id/update-status',
+    'members.toggle-status': '/members/:id/toggle-status',
     'members.bulk-delete': '/members/bulk-delete',
     'members.export': '/members/export',
     'members.import': '/members/import',
     'members.stats': '/members/stats',
+    'members.statistics': '/members/statistics',
 } as const;
 
 // Statistics card configuration
@@ -164,7 +168,28 @@ export const LOADING_STATES = {
     },
 } as const;
 
-// Error messages
+// Performance settings
+export const PERFORMANCE_CONFIG = {
+    DEBOUNCE_DELAY: 300,
+    MAX_RETRIES: 3,
+    RETRY_DELAY: 1000,
+    REQUEST_TIMEOUT: 30000,
+    BULK_OPERATION_BATCH_SIZE: 50,
+} as const;
+
+// API endpoints validation
+export const ROUTE_VALIDATION = {
+    REQUIRED_PARAMS: {
+        'members.show': ['id'],
+        'members.edit': ['id'],
+        'members.destroy': ['id'],
+        'members.update-status': ['id'],
+    },
+    OPTIONAL_PARAMS: {
+        'members.index': ['search', 'page', 'per_page', 'membership_status', 'local_church', 'church_group', 'age_group'],
+        'members.export': ['format', 'search', 'membership_status', 'local_church', 'church_group', 'age_group'],
+    }
+} as const;
 export const ERROR_MESSAGES = {
     LOAD_FAILED: 'Failed to load members data. Please try again.',
     SEARCH_FAILED: 'Search failed. Please check your connection and try again.',

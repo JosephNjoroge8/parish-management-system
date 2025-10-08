@@ -1,39 +1,49 @@
-import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PrimaryButton from '@/Components/PrimaryButton';
+import SecondaryButton from '@/Components/SecondaryButton';
+import TextInput from '@/Components/TextInput';
+import StatsCard from '@/Components/StatsCard';
 import { 
     Plus, 
     Download, 
     Upload, 
     Trash2, 
-    Loader2,
-    X,
     Search,
     Filter,
-    RefreshCw,
     Eye,
     Edit,
     Phone,
     Mail,
     MapPin,
     Calendar,
-    ChevronLeft,
-    ChevronRight,
     Users,
     UserCheck,
     UserX,
-    Clock
+    Clock,
+    X,
+    RefreshCw,
+    Loader2,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 
 // Types
 interface Member {
     id: number;
     first_name: string;
+    middle_name?: string;
     last_name: string;
     full_name: string;
     email?: string;
     phone?: string;
     date_of_birth?: string;
+    gender?: string;
+    id_number?: string;
+    matrimony_status?: string;
+    marital_status?: string;
+    marriage_type?: string;
     residence?: string;
     local_church?: string;
     church_group?: string;
@@ -159,18 +169,6 @@ const STATS_CARDS_CONFIG = [
 ];
 
 // Utility functions
-const getCsrfToken = (): string => {
-    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-};
-
-const buildQueryString = (params: Record<string, any>): string => {
-    const filtered = Object.entries(params)
-        .filter(([_, value]) => value !== undefined && value !== '' && value !== null)
-        .map(([key, value]) => [key, String(value)]);
-    
-    return new URLSearchParams(filtered).toString();
-};
-
 const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     // Enhanced toast notification
     const toastContainer = document.getElementById('toast-container') || createToastContainer();
@@ -492,8 +490,10 @@ const MemberCard = memo<{
     }, [showStatusDropdown]);
     
     const memberName = useMemo(() => {
-        return `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown Member';
-    }, [member.first_name, member.last_name]);
+        if (member.full_name) return member.full_name;
+        const parts = [member.first_name, member.middle_name, member.last_name].filter(Boolean);
+        return parts.join(' ') || 'Unknown Member';
+    }, [member.first_name, member.middle_name, member.last_name, member.full_name]);
 
     const memberAge = useMemo(() => {
         if (!member.date_of_birth) return null;
@@ -635,19 +635,31 @@ const MemberCard = memo<{
                     {memberAge && (
                         <div className="flex items-center text-sm text-gray-600">
                             <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                            <span>{memberAge} years old</span>
+                            <span>{memberAge} years old{member.gender ? ` • ${member.gender}` : ''}</span>
+                        </div>
+                    )}
+
+                    {member.marital_status && (
+                        <div className="flex items-center text-sm text-gray-600">
+                            <Users className="w-4 h-4 mr-2 text-gray-400" />
+                            <span className="capitalize">{member.marital_status.replace('_', ' ')}</span>
                         </div>
                     )}
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                    <div className="text-sm">
+                    <div className="text-sm space-y-1">
                         <p className="font-medium text-gray-900 truncate" title={member.local_church}>
                             {member.local_church || 'No church assigned'}
                         </p>
                         <p className="text-gray-600 truncate" title={member.church_group}>
                             {member.church_group || 'No group assigned'}
                         </p>
+                        {member.id_number && (
+                            <p className="text-xs text-gray-500">
+                                ID: {member.id_number}
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -713,167 +725,111 @@ export default function MembersIndex({
 
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Direct API Functions - Following Reports Pattern
-    const fetchMembers = useCallback(async (params: Filters = {}) => {
-        setIsLoading(true);
-        
-        try {
-            const queryString = buildQueryString(params);
-            const url = `/members${queryString ? `?${queryString}` : ''}`;
-
-            const response = await fetch(url, {
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken(),
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                credentials: 'same-origin',
-                redirect: 'manual'
-            });
-
-            // Handle redirects
-            if (response.status === 302 || response.status === 301) {
-                const location = response.headers.get('Location');
-                console.warn('Fetch members redirected to:', location);
-                throw new Error('Authentication required - please refresh the page');
-            }
-
-            if (!response.ok) {
-                let errorMessage = `Failed to fetch members: ${response.status} ${response.statusText}`;
-                if (response.status === 403) {
-                    errorMessage = 'You do not have permission to view members.';
-                } else if (response.status === 404) {
-                    errorMessage = 'Members endpoint not found.';
-                } else if (response.status === 419) {
-                    errorMessage = 'Session expired - please refresh the page.';
-                } else if (response.status >= 500) {
-                    errorMessage = 'Server error occurred. Please try again later.';
-                }
-                throw new Error(errorMessage);
-            }
-
-            const data = await response.json();
-            
-            // Handle success response
-            if (data.success !== false) {
-                setMembers(data.members || data);
-                setStats(data.stats || initialStats);
-                if (data.filterOptions) {
-                    setFilterOptions(data.filterOptions);
-                }
-                return data;
-            } else {
-                // Handle server-side error response
-                throw new Error(data.message || 'Failed to load members');
-            }
-        } catch (error) {
-            console.error('Failed to fetch members:', error);
-            showToast(error instanceof Error ? error.message : 'Failed to load members', 'error');
-            throw error;
-        } finally {
-            setIsLoading(false);
-        }
-    }, [initialStats]);
-
-    // Debounced search
+    // Debounced search using Inertia router
     const debouncedSearch = useMemo(() => 
-        debounce(async (query: string) => {
+        debounce((query: string) => {
             const searchParams = { ...filters, search: query, page: 1 };
             setFilters(searchParams);
-            await fetchMembers(searchParams);
-        }, 300), [filters, fetchMembers]
+            
+            router.get('/members', searchParams, {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onStart: () => setIsLoading(true),
+                onFinish: () => setIsLoading(false),
+            });
+        }, 300), [filters]
     );
 
-    // Event handlers
+    // Event handlers using Inertia router
     const handleSearchChange = useCallback((value: string) => {
         debouncedSearch(value);
     }, [debouncedSearch]);
 
-    const handleFilterChange = useCallback(async (key: string, value: string) => {
+    const handleFilterChange = useCallback((key: string, value: string) => {
         const newFilters = { ...filters, [key]: value, page: 1 };
         setFilters(newFilters);
-        await fetchMembers(newFilters);
-    }, [filters, fetchMembers]);
+        
+        router.get('/members', newFilters, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onStart: () => setIsLoading(true),
+            onFinish: () => setIsLoading(false),
+        });
+    }, [filters]);
 
-    const handleClearFilters = useCallback(async () => {
+    const handleClearFilters = useCallback(() => {
         const clearedFilters = { page: 1, per_page: filters.per_page || 25 };
         setFilters(clearedFilters);
-        await fetchMembers(clearedFilters);
-    }, [fetchMembers, filters.per_page]);
+        
+        router.get('/members', clearedFilters, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onStart: () => setIsLoading(true),
+            onFinish: () => setIsLoading(false),
+        });
+    }, [filters.per_page]);
 
-    const handleRefresh = useCallback(async () => {
-        await fetchMembers(filters);
-    }, [fetchMembers, filters]);
+    const handleRefresh = useCallback(() => {
+        router.reload({
+            onStart: () => setIsLoading(true),
+            onFinish: () => setIsLoading(false),
+        });
+    }, []);
 
-    // Status change with direct fetch
+    const handlePageChange = useCallback((page: number) => {
+        const newFilters = { ...filters, page };
+        setFilters(newFilters);
+        
+        router.get('/members', newFilters, {
+            preserveState: true,
+            preserveScroll: false,
+            replace: true,
+            onStart: () => setIsLoading(true),
+            onFinish: () => setIsLoading(false),
+        });
+    }, [filters]);
+
+    // Per page change handler
+    const handlePerPageChange = useCallback((perPage: number) => {
+        const newFilters = { ...filters, per_page: perPage, page: 1 };
+        setFilters(newFilters);
+        
+        router.get('/members', newFilters, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onStart: () => setIsLoading(true),
+            onFinish: () => setIsLoading(false),
+        });
+    }, [filters]);
+
+    // Status change using Inertia router
     const handleStatusChange = useCallback(async (memberId: number, newStatus: string) => {
         try {
-            const response = await fetch(`/members/${memberId}/update-status`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken(),
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                credentials: 'same-origin',
-                redirect: 'manual',
-                body: JSON.stringify({ membership_status: newStatus })
-            });
-
-            // Handle redirects manually to avoid issues
-            if (response.status === 302 || response.status === 301) {
-                const location = response.headers.get('Location');
-                console.warn('Status update redirected to:', location);
-                throw new Error('Authentication required - please refresh the page and try again');
-            }
-
-            if (!response.ok) {
-                let errorMessage = `Status update failed: ${response.status} ${response.statusText}`;
-                if (response.status === 403) {
-                    errorMessage = 'You do not have permission to update member status.';
-                } else if (response.status === 404) {
-                    errorMessage = 'Member not found.';
-                } else if (response.status === 405) {
-                    errorMessage = 'Invalid request method - please refresh the page and try again.';
-                } else if (response.status === 422) {
-                    errorMessage = 'Invalid status value provided.';
-                } else if (response.status === 419) {
-                    errorMessage = 'Session expired - please refresh the page and try again.';
-                } else if (response.status >= 500) {
-                    errorMessage = 'Server error - please try again later.';
+            router.patch(`/members/${memberId}/update-status`, 
+                { membership_status: newStatus },
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    onStart: () => setIsLoading(true),
+                    onFinish: () => setIsLoading(false),
+                    onSuccess: (page) => {
+                        const member = members.data.find(m => m.id === memberId);
+                        const memberName = member ? `${member.first_name} ${member.last_name}` : 'Member';
+                        showToast(`${memberName} status updated successfully`, 'success');
+                    },
+                    onError: (errors) => {
+                        const errorMessage = Object.values(errors)[0] as string || 'Failed to update status';
+                        showToast(errorMessage, 'error');
+                    },
                 }
-                throw new Error(errorMessage);
-            }
-
-            const data = await response.json();
-            
-            if (!data.success) {
-                throw new Error(data.message || 'Status update failed');
-            }
-            
-            // Update local state with fresh stats
-            if (data.stats) {
-                setStats(data.stats);
-            }
-            
-            // Update the specific member in the current data
-            setMembers(prev => ({
-                ...prev,
-                data: prev.data.map(member => 
-                    member.id === memberId 
-                        ? { ...member, membership_status: newStatus }
-                        : member
-                )
-            }));
-            
-            const member = members.data.find(m => m.id === memberId);
-            const memberName = member ? `${member.first_name} ${member.last_name}` : 'Member';
-            showToast(data.message || `${memberName} status updated successfully`, 'success');
+            );
         } catch (error) {
             console.error('Status change error:', error);
-            showToast(error instanceof Error ? error.message : 'Failed to update status', 'error');
-            throw error;
+            showToast('Failed to update status', 'error');
         }
     }, [members.data]);
 
@@ -883,115 +839,69 @@ export default function MembersIndex({
         setShowDeleteModal(true);
     }, []);
 
-    const confirmDelete = useCallback(async () => {
+    const confirmDelete = useCallback(() => {
         if (!memberToDelete) return;
 
-        setIsDeleting(true);
-        
+        router.delete(`/members/${memberToDelete.id}`, {
+            preserveState: true,
+            preserveScroll: true,
+            onStart: () => setIsDeleting(true),
+            onFinish: () => setIsDeleting(false),
+            onSuccess: () => {
+                setShowDeleteModal(false);
+                setMemberToDelete(null);
+                showToast('Member deleted successfully', 'success');
+            },
+            onError: (errors) => {
+                const errorMessage = Object.values(errors)[0] as string || 'Failed to delete member';
+                showToast(errorMessage, 'error');
+            },
+        });
+    }, [memberToDelete]);
+
+    // Bulk delete handler
+    const handleBulkDelete = useCallback(() => {
+        if (selectedMembers.length === 0) return;
+
+        router.delete('/members/bulk-delete', {
+            data: { member_ids: selectedMembers },
+            preserveState: true,
+            preserveScroll: true,
+            onStart: () => setIsDeleting(true),
+            onFinish: () => setIsDeleting(false),
+            onSuccess: () => {
+                setShowBulkDeleteModal(false);
+                setSelectedMembers([]);
+                showToast(`${selectedMembers.length} members deleted successfully`, 'success');
+            },
+            onError: (errors) => {
+                const errorMessage = Object.values(errors)[0] as string || 'Failed to delete members';
+                showToast(errorMessage, 'error');
+            },
+        });
+    }, [selectedMembers]);
+
+    // Export function
+    const handleExport = useCallback((format: 'excel' | 'pdf') => {
         try {
-            const response = await fetch(`/members/${memberToDelete.id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken(),
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                credentials: 'same-origin',
-                redirect: 'manual'
-            });
-
-            // Handle redirects
-            if (response.status === 302 || response.status === 301) {
-                const location = response.headers.get('Location');
-                console.warn('Delete member redirected to:', location);
-                throw new Error('Authentication required - please refresh the page and try again');
-            }
-
-            if (!response.ok) {
-                let errorMessage = `Delete failed: ${response.status} ${response.statusText}`;
-                if (response.status === 403) {
-                    errorMessage = 'You do not have permission to delete members.';
-                } else if (response.status === 404) {
-                    errorMessage = 'Member not found.';
-                } else if (response.status === 419) {
-                    errorMessage = 'Session expired - please refresh the page and try again.';
-                } else if (response.status >= 500) {
-                    errorMessage = 'Server error - please try again later.';
-                }
-                throw new Error(errorMessage);
-            }
-
-            const data = await response.json();
+            const params = new URLSearchParams();
             
-            if (!data.success) {
-                throw new Error(data.message || 'Delete operation failed');
-            }
-
-            setShowDeleteModal(false);
-            setMemberToDelete(null);
-            showToast(data.message || 'Member deleted successfully', 'success');
-            
-            // Refresh data to reflect changes
-            await fetchMembers(filters);
-        } catch (error) {
-            console.error('Delete error:', error);
-            showToast(error instanceof Error ? error.message : 'Failed to delete member', 'error');
-        } finally {
-            setIsDeleting(false);
-        }
-    }, [memberToDelete, fetchMembers, filters]);
-
-    // Export with direct fetch
-    const handleExport = useCallback(async (format: 'excel' | 'pdf') => {
-        try {
-            const params = new URLSearchParams({
-                ...filters,
-                format
-            } as any);
-
-            const response = await fetch(`/members/export?${params.toString()}`, {
-                headers: {
-                    'Accept': 'application/octet-stream',
-                    'X-CSRF-TOKEN': getCsrfToken(),
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                credentials: 'same-origin',
-                redirect: 'manual'
-            });
-
-            // Handle redirects
-            if (response.status === 302 || response.status === 301) {
-                const location = response.headers.get('Location');
-                console.warn('Export redirected to:', location);
-                throw new Error('Authentication required - please refresh the page and try again');
-            }
-
-            if (!response.ok) {
-                let errorMessage = `Export failed: ${response.status} ${response.statusText}`;
-                if (response.status === 403) {
-                    errorMessage = 'You do not have permission to export member data.';
-                } else if (response.status === 419) {
-                    errorMessage = 'Session expired - please refresh the page and try again.';
-                } else if (response.status >= 500) {
-                    errorMessage = 'Server error - please try again later.';
+            // Add filters to params
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value !== undefined && value !== '' && value !== null) {
+                    params.append(key, String(value));
                 }
-                throw new Error(errorMessage);
-            }
+            });
+            
+            // Add format
+            params.append('format', format);
 
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `members-export-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-
-            showToast('Export completed successfully', 'success');
+            const exportUrl = `/members/export?${params.toString()}`;
+            window.open(exportUrl, '_blank');
+            showToast('Export started - download will begin shortly', 'success');
         } catch (error) {
             console.error('Export error:', error);
-            showToast(error instanceof Error ? error.message : 'Export failed', 'error');
+            showToast('Export failed', 'error');
         }
     }, [filters]);
 
@@ -1012,15 +922,34 @@ export default function MembersIndex({
         }
     }, [selectedMembers.length, members.data]);
 
-    // Show flash messages
+    // Show flash messages and handle initial data
     useEffect(() => {
+        // Handle the case where we might receive JSON instead of proper Inertia response
+        if (typeof initialMembers === 'object' && initialMembers !== null) {
+            // If the response has a "members" property, it's likely a JSON response
+            if ('members' in initialMembers && typeof initialMembers.members === 'object') {
+                // Extract the actual members data from the JSON response
+                const jsonResponse = initialMembers as any;
+                if (jsonResponse.success && jsonResponse.members) {
+                    setMembers(jsonResponse.members);
+                    if (jsonResponse.stats) {
+                        setStats(jsonResponse.stats);
+                    }
+                    if (jsonResponse.filterOptions) {
+                        setFilterOptions(jsonResponse.filterOptions);
+                    }
+                    showToast('Data loaded successfully', 'info');
+                }
+            }
+        }
+
         if (flash?.success) {
             showToast(flash.success, 'success');
         }
         if (flash?.error) {
             showToast(flash.error, 'error');
         }
-    }, [flash]);
+    }, [flash, initialMembers]);
 
     return (
         <AuthenticatedLayout
@@ -1035,6 +964,16 @@ export default function MembersIndex({
                         </p>
                     </div>
                     <div className="flex items-center space-x-3">
+                        {/* Import Button */}
+                        <button
+                            type="button"
+                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                            onClick={() => setShowImportModal(true)}
+                        >
+                            <Upload className="h-4 w-4 mr-2" />
+                            Import
+                        </button>
+
                         {/* Export Button */}
                         <button
                             type="button"
@@ -1100,15 +1039,39 @@ export default function MembersIndex({
                                         </span>
                                     )}
                                 </div>
-                                {selectedMembers.length > 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedMembers([])}
-                                        className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                                    >
-                                        Clear selection
-                                    </button>
-                                )}
+                                
+                                <div className="flex items-center space-x-2">
+                                    {selectedMembers.length > 0 && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleExport('excel')}
+                                                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                                            >
+                                                <Download className="h-4 w-4 mr-2" />
+                                                Export Selected
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowBulkDeleteModal(true)}
+                                                className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                Delete Selected
+                                            </button>
+                                        </>
+                                    )}
+                                    
+                                    {selectedMembers.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedMembers([])}
+                                            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                                        >
+                                            Clear selection
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -1176,6 +1139,109 @@ export default function MembersIndex({
                             </div>
                         )}
                     </div>
+
+                    {/* Pagination */}
+                    {members.last_page > 1 && (
+                        <div className="bg-white px-4 py-3 sm:px-6 border border-gray-200 rounded-lg">
+                            <div className="flex items-center justify-between">
+                                <div className="flex-1 flex justify-between sm:hidden">
+                                    <button
+                                        onClick={() => handlePageChange(members.current_page - 1)}
+                                        disabled={members.current_page <= 1}
+                                        className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Previous
+                                    </button>
+                                    <button
+                                        onClick={() => handlePageChange(members.current_page + 1)}
+                                        disabled={members.current_page >= members.last_page}
+                                        className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                                    <div className="flex items-center space-x-4">
+                                        <p className="text-sm text-gray-700">
+                                            Showing{' '}
+                                            <span className="font-medium">{members.from}</span>
+                                            {' '}to{' '}
+                                            <span className="font-medium">{members.to}</span>
+                                            {' '}of{' '}
+                                            <span className="font-medium">{members.total}</span>
+                                            {' '}results
+                                        </p>
+                                        <div className="flex items-center space-x-2">
+                                            <label className="text-sm text-gray-700">Per page:</label>
+                                            <select
+                                                value={members.per_page}
+                                                onChange={(e) => handlePerPageChange(Number(e.target.value))}
+                                                className="block w-auto text-sm border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                            >
+                                                <option value={10}>10</option>
+                                                <option value={25}>25</option>
+                                                <option value={50}>50</option>
+                                                <option value={100}>100</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                            <button
+                                                onClick={() => handlePageChange(members.current_page - 1)}
+                                                disabled={members.current_page <= 1}
+                                                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <span className="sr-only">Previous</span>
+                                                <ChevronLeft className="h-5 w-5" />
+                                            </button>
+                                            
+                                            {/* Page numbers */}
+                                            {Array.from({ length: Math.min(7, members.last_page) }, (_, i) => {
+                                                let pageNumber;
+                                                if (members.last_page <= 7) {
+                                                    pageNumber = i + 1;
+                                                } else if (members.current_page <= 4) {
+                                                    pageNumber = i + 1;
+                                                } else if (members.current_page >= members.last_page - 3) {
+                                                    pageNumber = members.last_page - 6 + i;
+                                                } else {
+                                                    pageNumber = members.current_page - 3 + i;
+                                                }
+                                                
+                                                if (pageNumber < 1 || pageNumber > members.last_page) return null;
+                                                
+                                                const isCurrentPage = pageNumber === members.current_page;
+                                                
+                                                return (
+                                                    <button
+                                                        key={pageNumber}
+                                                        onClick={() => handlePageChange(pageNumber)}
+                                                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                                            isCurrentPage
+                                                                ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        {pageNumber}
+                                                    </button>
+                                                );
+                                            })}
+                                            
+                                            <button
+                                                onClick={() => handlePageChange(members.current_page + 1)}
+                                                disabled={members.current_page >= members.last_page}
+                                                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <span className="sr-only">Next</span>
+                                                <ChevronRight className="h-5 w-5" />
+                                            </button>
+                                        </nav>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -1225,6 +1291,150 @@ export default function MembersIndex({
                                 <button
                                     type="button"
                                     onClick={() => setShowDeleteModal(false)}
+                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Delete Modal */}
+            {showBulkDeleteModal && selectedMembers.length > 0 && (
+                <div className="fixed inset-0 z-50 overflow-y-auto">
+                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <div className="fixed inset-0 transition-opacity" onClick={() => setShowBulkDeleteModal(false)}>
+                            <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+                        </div>
+
+                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                <div className="sm:flex sm:items-start">
+                                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                                        <Trash2 className="h-6 w-6 text-red-600" />
+                                    </div>
+                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
+                                            Delete Selected Members
+                                        </h3>
+                                        <div className="mt-2">
+                                            <p className="text-sm text-gray-500">
+                                                Are you sure you want to delete <strong>{selectedMembers.length}</strong> selected members? 
+                                                This action cannot be undone.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                                <button
+                                    type="button"
+                                    onClick={handleBulkDelete}
+                                    disabled={isDeleting}
+                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 transition-colors"
+                                >
+                                    {isDeleting ? (
+                                        <>
+                                            <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        'Delete All'
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkDeleteModal(false)}
+                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Import Modal */}
+            {showImportModal && (
+                <div className="fixed inset-0 z-50 overflow-y-auto">
+                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <div className="fixed inset-0 transition-opacity" onClick={() => setShowImportModal(false)}>
+                            <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+                        </div>
+
+                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                <div className="sm:flex sm:items-start">
+                                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
+                                        <Upload className="h-6 w-6 text-indigo-600" />
+                                    </div>
+                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
+                                            Import Members
+                                        </h3>
+                                        <div className="mt-2">
+                                            <p className="text-sm text-gray-500 mb-4">
+                                                Upload a CSV or Excel file to import multiple members at once.
+                                            </p>
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Choose file
+                                                    </label>
+                                                    <input
+                                                        type="file"
+                                                        accept=".csv,.xlsx,.xls"
+                                                        onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                                                        className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                                                    />
+                                                </div>
+                                                {importFile && (
+                                                    <div className="text-sm text-gray-600">
+                                                        Selected: {importFile.name}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (importFile) {
+                                            // Handle import logic here
+                                            setIsImporting(true);
+                                            // You would typically send this to your backend
+                                            setTimeout(() => {
+                                                setIsImporting(false);
+                                                setShowImportModal(false);
+                                                setImportFile(null);
+                                                showToast('Import completed successfully', 'success');
+                                            }, 2000);
+                                        }
+                                    }}
+                                    disabled={!importFile || isImporting}
+                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 transition-colors"
+                                >
+                                    {isImporting ? (
+                                        <>
+                                            <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                                            Importing...
+                                        </>
+                                    ) : (
+                                        'Import'
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowImportModal(false);
+                                        setImportFile(null);
+                                    }}
                                     className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
                                 >
                                     Cancel

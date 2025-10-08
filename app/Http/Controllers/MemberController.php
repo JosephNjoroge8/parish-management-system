@@ -59,7 +59,25 @@ class MemberController extends Controller
                     'request' => $request->all(),
                 ]);
 
-                // Handle AJAX requests with JSON validation error response
+                // Handle Inertia requests properly - always return Inertia response for Inertia router calls
+                if ($request->header('X-Inertia')) {
+                    return Inertia::render('Members/Index', [
+                        'members' => [
+                            'data' => [],
+                            'total' => 0,
+                            'current_page' => 1,
+                            'last_page' => 1,
+                            'per_page' => 15,
+                            'from' => 0,
+                            'to' => 0,
+                        ],
+                        'filters' => [],
+                        'stats' => $this->getStats(),
+                        'filterOptions' => $this->getFilterOptions(),
+                    ])->with('error', 'Invalid search parameters. Please check your input.');
+                }
+
+                // Handle non-Inertia AJAX requests with JSON validation error response
                 if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                     return response()->json([
                         'success' => false,
@@ -243,7 +261,17 @@ class MemberController extends Controller
                 'filters_applied' => count(array_filter($request->only(['search', 'membership_status', 'local_church', 'church_group', 'gender']))),
             ]);
 
-            // Handle AJAX requests with JSON response
+            // Handle Inertia requests properly - always return Inertia response for Inertia router calls
+            if ($request->header('X-Inertia')) {
+                return Inertia::render('Members/Index', [
+                    'members' => $members,
+                    'filters' => $request->only(['search', 'membership_status', 'local_church', 'church_group', 'gender', 'age_group', 'sort', 'direction', 'per_page']),
+                    'stats' => $stats,
+                    'filterOptions' => $filterOptions,
+                ]);
+            }
+
+            // Handle non-Inertia AJAX requests with JSON response (for traditional AJAX calls)
             if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 return response()->json([
                     'success' => true,
@@ -267,7 +295,33 @@ class MemberController extends Controller
                 'request' => $request->all(),
             ]);
 
-            // Handle AJAX requests with JSON error response
+            // Handle Inertia requests properly - always return Inertia response for Inertia router calls
+            if ($request->header('X-Inertia')) {
+                return Inertia::render('Members/Index', [
+                    'members' => [
+                        'data' => [],
+                        'total' => 0,
+                        'current_page' => 1,
+                        'last_page' => 1,
+                        'per_page' => 15,
+                        'from' => 0,
+                        'to' => 0,
+                    ],
+                    'filters' => [],
+                    'stats' => [
+                        'total_members' => 0,
+                        'active_members' => 0,
+                        'new_this_month' => 0,
+                        'by_church' => [],
+                        'by_group' => [],
+                        'by_status' => [],
+                        'by_gender' => [],
+                    ],
+                    'filterOptions' => $this->getFilterOptions(),
+                ])->with('error', 'Unable to load members. Please try again.');
+            }
+
+            // Handle non-Inertia AJAX requests with JSON error response
             if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 return response()->json([
                     'success' => false,
@@ -1337,7 +1391,12 @@ class MemberController extends Controller
             // Clear cache for real-time stats updates
             $this->clearMemberCache();
 
-            // Handle AJAX requests with JSON response
+            // Handle Inertia requests properly - always return Inertia response for Inertia router calls
+            if ($request->header('X-Inertia')) {
+                return redirect()->route('members.index')->with('success', 'Member deleted successfully.');
+            }
+
+            // Handle non-Inertia AJAX requests with JSON response
             if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 return response()->json([
                     'success' => true,
@@ -1356,7 +1415,12 @@ class MemberController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // Handle AJAX requests with JSON error response
+            // Handle Inertia requests properly - always return Inertia response for Inertia router calls
+            if ($request->header('X-Inertia')) {
+                return back()->withErrors(['error' => 'Failed to delete member.']);
+            }
+
+            // Handle non-Inertia AJAX requests with JSON error response
             if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 return response()->json([
                     'success' => false,
@@ -3058,7 +3122,12 @@ class MemberController extends Controller
                 'updated_by' => auth()->user()->name ?? 'System',
             ]);
 
-            // Handle AJAX requests with JSON response
+            // Handle Inertia requests properly - always return Inertia response for Inertia router calls
+            if ($request->header('X-Inertia')) {
+                return back()->with('success', "Member status updated to {$validated['membership_status']} successfully!");
+            }
+
+            // Handle non-Inertia AJAX requests with JSON response
             if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 // Get updated stats for the response
                 $stats = $this->getStats();
@@ -3078,7 +3147,12 @@ class MemberController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to update member status: '.$e->getMessage());
 
-            // Handle AJAX requests with JSON error response
+            // Handle Inertia requests properly - always return Inertia response for Inertia router calls
+            if ($request->header('X-Inertia')) {
+                return back()->with('error', 'Failed to update member status. Please try again.');
+            }
+
+            // Handle non-Inertia AJAX requests with JSON error response
             if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 return response()->json([
                     'success' => false,

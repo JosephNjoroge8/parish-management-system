@@ -174,11 +174,12 @@ test-*.php
 *_test.php
 
 # ============================================================================
-# DOCUMENTATION FILES - EXCLUDE ALL .MD FILES EXCEPT README.MD
+# DOCUMENTATION FILES - EXCLUDE ALL .MD FILES EXCEPT CRITICAL ONES
 # ============================================================================
-# Exclude all .md files except README.md as requested for production
+# Exclude all .md files except README.md and critical production files
 *.md
 !README.md
+!PRODUCTION_ASSET_FIX.md
 
 # ============================================================================
 # PARISH-SPECIFIC SENSITIVE FILES

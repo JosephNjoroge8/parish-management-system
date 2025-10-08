@@ -1,0 +1,26 @@
+# SIMPLE .HTACCESS FOR EMERGENCY USE
+# Use this if the main .htaccess causes issues
+
+# Enable PHP processing
+AddHandler application/x-httpd-php .php
+AddType application/x-httpd-php .php
+
+# Enable URL rewriting
+RewriteEngine On
+
+# Serve JavaScript files with correct MIME type
+<FilesMatch "\.js$">
+    ForceType application/javascript
+    Header set Content-Type "application/javascript; charset=utf-8"
+</FilesMatch>
+
+# Serve CSS files with correct MIME type
+<FilesMatch "\.css$">
+    ForceType text/css
+    Header set Content-Type "text/css; charset=utf-8"
+</FilesMatch>
+
+# Laravel routing - send non-existing files to index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]

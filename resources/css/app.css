@@ -1,3 +1,40 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Fix font smoothing for better cross-browser compatibility */
+@layer base {
+    html {
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+    }
+    
+    /* Only apply -moz-osx-font-smoothing for Firefox */
+    @supports (-moz-appearance: none) {
+        html {
+            -moz-osx-font-smoothing: grayscale;
+        }
+    }
+    
+    body {
+        font-feature-settings: "kern";
+        text-size-adjust: 100%;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+    }
+}
+
+/* Custom components for better consistency */
+@layer components {
+    .btn-primary {
+        @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors;
+    }
+    
+    .btn-secondary {
+        @apply bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded transition-colors;
+    }
+    
+    .input-field {
+        @apply border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+    }
+}

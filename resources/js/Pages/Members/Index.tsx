@@ -1,14 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
-import { debounce } from 'lodash';
+import { Head, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { 
     Plus, 
     Download, 
     Upload, 
     Trash2, 
-    FileText, 
-    FileSpreadsheet, 
     Loader2,
     X,
     Search,
@@ -27,9 +24,6 @@ import {
     UserX,
     Clock
 } from 'lucide-react';
-import { showNotification } from '@/Utils/notifications';
-import { safeRoute, memberRoute, buildQueryString, buildPaginationUrl as createPaginationUrl, buildExportUrl, initializeRouteHelper, debugRouteHelper } from '@/Components/Members/SafeRouteHelper';
-import { PERFORMANCE_CONFIG, ERROR_MESSAGES, SUCCESS_MESSAGES } from '@/Components/Members/constants';
 
 // Types
 interface Member {
@@ -47,11 +41,6 @@ interface Member {
     member_number?: string;
 }
 
-// Type for Inertia errors
-interface InertiaErrors {
-    [key: string]: string | string[];
-}
-
 interface Filters {
     search?: string;
     membership_status?: string;
@@ -60,7 +49,6 @@ interface Filters {
     age_group?: string;
     page?: number;
     per_page?: number;
-    [key: string]: string | number | undefined;
 }
 
 interface FilterOptions {
@@ -87,11 +75,6 @@ interface PaginatedMembers {
     total: number;
     from: number;
     to: number;
-    links: Array<{
-        url: string | null;
-        label: string;
-        active: boolean;
-    }>;
 }
 
 interface MembersIndexProps {
@@ -110,22 +93,22 @@ interface MembersIndexProps {
 const MEMBER_STATUS_CONFIG = {
     active: { 
         label: 'Active', 
-        color: 'bg-green-100 text-green-800',
+        color: 'bg-green-100 text-green-800 border border-green-200',
         icon: UserCheck 
     },
     inactive: { 
         label: 'Inactive', 
-        color: 'bg-red-100 text-red-800',
+        color: 'bg-red-100 text-red-800 border border-red-200',
         icon: UserX 
     },
     transferred: { 
         label: 'Transferred', 
-        color: 'bg-blue-100 text-blue-800',
+        color: 'bg-blue-100 text-blue-800 border border-blue-200',
         icon: Users 
     },
     deceased: { 
         label: 'Deceased', 
-        color: 'bg-gray-100 text-gray-800',
+        color: 'bg-gray-100 text-gray-800 border border-gray-200',
         icon: X 
     }
 } as const;
@@ -175,6 +158,64 @@ const STATS_CARDS_CONFIG = [
     }
 ];
 
+// Utility functions
+const getCsrfToken = (): string => {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+};
+
+const buildQueryString = (params: Record<string, any>): string => {
+    const filtered = Object.entries(params)
+        .filter(([_, value]) => value !== undefined && value !== '' && value !== null)
+        .map(([key, value]) => [key, String(value)]);
+    
+    return new URLSearchParams(filtered).toString();
+};
+
+const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    // Enhanced toast notification
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+    const toast = document.createElement('div');
+    
+    const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+    
+    toast.className = `${bgColor} text-white px-6 py-3 rounded-lg shadow-lg mb-2 transform transition-all duration-300 translate-x-full`;
+    toast.textContent = message;
+    
+    toastContainer.appendChild(toast);
+    
+    // Animate in
+    setTimeout(() => {
+        toast.classList.remove('translate-x-full');
+    }, 10);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        toast.classList.add('translate-x-full');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    }, 5000);
+};
+
+const createToastContainer = (): HTMLElement => {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'fixed top-4 right-4 z-50 flex flex-col';
+    document.body.appendChild(container);
+    return container;
+};
+
+// Debounce utility
+const debounce = <T extends (...args: any[]) => void>(func: T, delay: number) => {
+    let timeoutId: NodeJS.Timeout;
+    return (...args: Parameters<T>) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func(...args), delay);
+    };
+};
+
 // Stats Component
 const MembersStats = memo<{ stats: Stats; isLoading: boolean }>(({ stats, isLoading }) => {
     const formatNumber = useCallback((num: number): string => {
@@ -192,7 +233,7 @@ const MembersStats = memo<{ stats: Stats; isLoading: boolean }>(({ stats, isLoad
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
             {statsData.map(({ key, title, icon: Icon, bgColor, textColor, formattedValue }) => (
-                <div key={key} className="bg-white overflow-hidden shadow rounded-lg">
+                <div key={key} className="bg-white overflow-hidden shadow-lg rounded-lg hover:shadow-xl transition-shadow duration-200">
                     <div className="p-5">
                         <div className="flex items-center">
                             <div className="flex-shrink-0">
@@ -237,7 +278,7 @@ const MembersSearchAndFilters = memo<{
     isLoading: boolean;
     searchInputRef: React.RefObject<HTMLInputElement>;
     onSearchChange: (value: string) => void;
-    onFilterChange: (key: string) => (e: React.ChangeEvent<HTMLSelectElement>) => void;
+    onFilterChange: (key: string, value: string) => void;
     onToggleFilters: () => void;
     onClearFilters: () => void;
     onRefresh: () => void;
@@ -269,9 +310,8 @@ const MembersSearchAndFilters = memo<{
     }, [filters]);
 
     return (
-        <div className="bg-white shadow rounded-lg mb-6">
+        <div className="bg-white shadow-lg rounded-lg mb-6">
             <div className="p-6">
-                {/* Search Bar */}
                 <div className="flex flex-col sm:flex-row gap-4 mb-4">
                     <div className="flex-1 relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -283,7 +323,7 @@ const MembersSearchAndFilters = memo<{
                             placeholder="Search members by name, email, phone..."
                             value={searchValue}
                             onChange={handleSearchInput}
-                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                         />
                         {isLoading && (
                             <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -296,7 +336,7 @@ const MembersSearchAndFilters = memo<{
                         <button
                             type="button"
                             onClick={onToggleFilters}
-                            className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                            className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors ${
                                 showFilters || hasActiveFilters
                                     ? 'bg-indigo-50 text-indigo-700 border-indigo-300'
                                     : 'bg-white text-gray-700 hover:bg-gray-50'
@@ -315,7 +355,7 @@ const MembersSearchAndFilters = memo<{
                             type="button"
                             onClick={onRefresh}
                             disabled={isLoading}
-                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-colors"
                         >
                             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                             Refresh
@@ -323,7 +363,6 @@ const MembersSearchAndFilters = memo<{
                     </div>
                 </div>
 
-                {/* Advanced Filters Panel */}
                 {showFilters && (
                     <div className="border-t border-gray-200 pt-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -333,8 +372,8 @@ const MembersSearchAndFilters = memo<{
                                 </label>
                                 <select
                                     value={filters.membership_status || ''}
-                                    onChange={onFilterChange('membership_status')}
-                                    className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md"
+                                    onChange={(e) => onFilterChange('membership_status', e.target.value)}
+                                    className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-md transition-colors"
                                 >
                                     <option value="">All Statuses</option>
                                     {filterOptions.membership_statuses?.map((status) => (
@@ -351,8 +390,8 @@ const MembersSearchAndFilters = memo<{
                                 </label>
                                 <select
                                     value={filters.local_church || ''}
-                                    onChange={onFilterChange('local_church')}
-                                    className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md"
+                                    onChange={(e) => onFilterChange('local_church', e.target.value)}
+                                    className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-md transition-colors"
                                 >
                                     <option value="">All Churches</option>
                                     {filterOptions.local_churches?.map((church) => (
@@ -369,8 +408,8 @@ const MembersSearchAndFilters = memo<{
                                 </label>
                                 <select
                                     value={filters.church_group || ''}
-                                    onChange={onFilterChange('church_group')}
-                                    className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md"
+                                    onChange={(e) => onFilterChange('church_group', e.target.value)}
+                                    className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-md transition-colors"
                                 >
                                     <option value="">All Groups</option>
                                     {filterOptions.church_groups?.map((group) => (
@@ -387,8 +426,8 @@ const MembersSearchAndFilters = memo<{
                                 </label>
                                 <select
                                     value={filters.age_group || ''}
-                                    onChange={onFilterChange('age_group')}
-                                    className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md"
+                                    onChange={(e) => onFilterChange('age_group', e.target.value)}
+                                    className="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-md transition-colors"
                                 >
                                     <option value="">All Ages</option>
                                     {filterOptions.age_groups?.map((ageGroup) => (
@@ -405,7 +444,7 @@ const MembersSearchAndFilters = memo<{
                                 <button
                                     type="button"
                                     onClick={onClearFilters}
-                                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                                 >
                                     <X className="h-4 w-4 mr-1" />
                                     Clear Filters
@@ -428,20 +467,17 @@ const MemberCard = memo<{
     onToggleSelection: (id: number) => void;
     onDelete: (member: Member) => void;
     onStatusChange?: (id: number, status: string) => void;
-    canChangeStatus?: boolean;
 }>(({ 
     member, 
     isSelected, 
     onToggleSelection, 
     onDelete, 
-    onStatusChange,
-    canChangeStatus = true 
+    onStatusChange
 }) => {
     const [isChangingStatus, setIsChangingStatus] = useState(false);
     const [showStatusDropdown, setShowStatusDropdown] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     
-    // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -455,7 +491,6 @@ const MemberCard = memo<{
         }
     }, [showStatusDropdown]);
     
-    // Memoize computed values
     const memberName = useMemo(() => {
         return `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown Member';
     }, [member.first_name, member.last_name]);
@@ -500,6 +535,7 @@ const MemberCard = memo<{
             await onStatusChange(member.id, newStatus);
         } catch (error) {
             console.error('Status change failed:', error);
+            showToast('Failed to update member status', 'error');
         } finally {
             setIsChangingStatus(false);
         }
@@ -507,18 +543,17 @@ const MemberCard = memo<{
 
     return (
         <div className={`
-            bg-white rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md
-            ${isSelected ? 'ring-2 ring-indigo-500 border-indigo-200' : 'border-gray-200 hover:border-gray-300'}
+            bg-white rounded-lg shadow-sm border transition-all duration-200 hover:shadow-lg
+            ${isSelected ? 'ring-2 ring-indigo-500 border-indigo-200 shadow-md' : 'border-gray-200 hover:border-gray-300'}
         `}>
             <div className="p-6">
-                {/* Header with selection */}
                 <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
                         <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={handleToggleSelection}
-                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
                             aria-label={`Select ${memberName}`}
                         />
                         <div>
@@ -531,15 +566,14 @@ const MemberCard = memo<{
                         </div>
                     </div>
                     
-                    {/* Status Badge with Dropdown */}
                     <div className="relative" ref={dropdownRef}>
                         <button
                             onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                            disabled={isChangingStatus}
+                            disabled={isChangingStatus || !onStatusChange}
                             className={`text-xs px-3 py-1 rounded-full font-medium transition-all duration-200 ${statusConfig.color} ${
-                                canChangeStatus ? 'hover:shadow-md cursor-pointer' : 'cursor-default'
+                                onStatusChange ? 'hover:shadow-md cursor-pointer hover:scale-105' : 'cursor-default'
                             } ${isChangingStatus ? 'opacity-50' : ''}`}
-                            title={canChangeStatus ? 'Click to change status' : member.membership_status}
+                            title={onStatusChange ? 'Click to change status' : member.membership_status}
                         >
                             {isChangingStatus ? (
                                 <div className="flex items-center space-x-1">
@@ -554,8 +588,7 @@ const MemberCard = memo<{
                             )}
                         </button>
 
-                        {/* Status Dropdown */}
-                        {showStatusDropdown && canChangeStatus && !isChangingStatus && (
+                        {showStatusDropdown && onStatusChange && !isChangingStatus && (
                             <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-md shadow-lg border border-gray-200 z-50">
                                 <div className="py-1">
                                     {Object.entries(MEMBER_STATUS_CONFIG).map(([status, config]) => (
@@ -563,7 +596,7 @@ const MemberCard = memo<{
                                             key={status}
                                             onClick={() => handleStatusChange(status)}
                                             className={`
-                                                w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2
+                                                w-full text-left px-3 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 flex items-center space-x-2 transition-colors
                                                 ${member.membership_status === status ? 'bg-gray-100 font-medium' : ''}
                                             `}
                                         >
@@ -577,7 +610,6 @@ const MemberCard = memo<{
                     </div>
                 </div>
 
-                {/* Member Details */}
                 <div className="space-y-2 mb-4">
                     {member.phone && (
                         <div className="flex items-center text-sm text-gray-600">
@@ -608,7 +640,6 @@ const MemberCard = memo<{
                     )}
                 </div>
 
-                {/* Church Information */}
                 <div className="bg-gray-50 rounded-lg p-3 mb-4">
                     <div className="text-sm">
                         <p className="font-medium text-gray-900 truncate" title={member.local_church}>
@@ -620,22 +651,19 @@ const MemberCard = memo<{
                     </div>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <div className="flex space-x-2">
                         <Link
-                            href={memberRoute('show', member.id)}
-                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                            title={`View ${memberName} details`}
+                            href={`/members/${member.id}`}
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                         >
                             <Eye className="w-3 h-3 mr-1" />
                             View
                         </Link>
                         
                         <Link
-                            href={memberRoute('edit', member.id)}
-                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                            title={`Edit ${memberName}`}
+                            href={`/members/${member.id}/edit`}
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                         >
                             <Edit className="w-3 h-3 mr-1" />
                             Edit
@@ -644,7 +672,7 @@ const MemberCard = memo<{
                     
                     <button
                         onClick={handleDelete}
-                        className="inline-flex items-center px-3 py-1.5 border border-red-300 rounded-md text-xs font-medium text-red-700 bg-white hover:bg-red-50 transition-colors"
+                        className="inline-flex items-center px-3 py-1.5 border border-red-300 rounded-md text-xs font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
                         title={`Delete ${memberName}`}
                     >
                         <Trash2 className="w-3 h-3 mr-1" />
@@ -658,347 +686,20 @@ const MemberCard = memo<{
 
 MemberCard.displayName = 'MemberCard';
 
-// Members Grid Component
-const MembersGrid = memo<{
-    members: Member[];
-    selectedMembers: number[];
-    isLoading: boolean;
-    onToggleSelection: (id: number) => void;
-    onDelete: (member: Member) => void;
-    onStatusChange?: (id: number, status: string) => void;
-}>(({ 
-    members, 
-    selectedMembers, 
-    isLoading, 
-    onToggleSelection, 
-    onDelete, 
-    onStatusChange 
-}) => {
-    if (isLoading) {
-        return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...Array(6)].map((_, index) => (
-                    <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <div className="animate-pulse">
-                            <div className="flex items-center space-x-3 mb-4">
-                                <div className="h-4 w-4 bg-gray-200 rounded"></div>
-                                <div className="space-y-2 flex-1">
-                                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                                </div>
-                            </div>
-                            <div className="space-y-2 mb-4">
-                                <div className="h-3 bg-gray-200 rounded"></div>
-                                <div className="h-3 bg-gray-200 rounded"></div>
-                                <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                            </div>
-                            <div className="h-16 bg-gray-100 rounded mb-4"></div>
-                            <div className="flex justify-between pt-4 border-t border-gray-100">
-                                <div className="flex space-x-2">
-                                    <div className="h-6 bg-gray-200 rounded w-16"></div>
-                                    <div className="h-6 bg-gray-200 rounded w-16"></div>
-                                </div>
-                                <div className="h-6 bg-gray-200 rounded w-16"></div>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        );
-    }
-
-    if (!members || members.length === 0) {
-        return (
-            <div className="text-center py-12">
-                <Users className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No members found</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                    Get started by adding a new member to your parish.
-                </p>
-                <div className="mt-6">
-                    <Link
-                        href={safeRoute('members.create')}
-                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Member
-                    </Link>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {members.map((member) => (
-                <MemberCard
-                    key={member.id}
-                    member={member}
-                    isSelected={selectedMembers.includes(member.id)}
-                    onToggleSelection={onToggleSelection}
-                    onDelete={onDelete}
-                    onStatusChange={onStatusChange}
-                />
-            ))}
-        </div>
-    );
-});
-
-MembersGrid.displayName = 'MembersGrid';
-
-// Pagination Component
-const MembersPagination = memo<{
-    members: PaginatedMembers;
-    filters: Filters;
-}>(({ members, filters }) => {
-    const buildPaginationUrl = useCallback((page: number) => {
-        return createPaginationUrl(filters, page);
-    }, [filters]);
-
-    const handlePageChange = useCallback((page: number) => {
-        if (page < 1 || page > members.last_page) return;
-        
-        const url = buildPaginationUrl(page);
-        router.get(url, undefined, {
-            preserveState: true,
-            preserveScroll: true,
-            only: ['members']
-        });
-    }, [buildPaginationUrl, members.last_page]);
-
-    const handlePerPageChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-        const perPage = parseInt(e.target.value);
-        const params = { ...filters, per_page: perPage, page: 1 };
-        const url = safeRoute('members.index', params);
-        
-        router.get(url, undefined, {
-            preserveState: true,
-            preserveScroll: true,
-            only: ['members']
-        });
-    }, [filters]);
-
-    if (!members.data.length) {
-        return null;
-    }
-
-    const startItem = members.from || 0;
-    const endItem = members.to || 0;
-    const totalItems = members.total || 0;
-
-    const getVisiblePageNumbers = () => {
-        const current = members.current_page;
-        const last = members.last_page;
-        const delta = 2;
-        const range = [];
-        
-        for (let i = Math.max(2, current - delta); i <= Math.min(last - 1, current + delta); i++) {
-            range.push(i);
-        }
-        
-        if (current - delta > 2) {
-            range.unshift('...');
-        }
-        if (current + delta < last - 1) {
-            range.push('...');
-        }
-        
-        range.unshift(1);
-        if (last !== 1) {
-            range.push(last);
-        }
-        
-        return range;
-    };
-
-    const visiblePages = getVisiblePageNumbers();
-
-    return (
-        <div className="bg-white px-4 py-3 border border-gray-200 rounded-lg">
-            <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-                {/* Results info and per-page selector */}
-                <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                    <div className="text-sm text-gray-700">
-                        Showing{' '}
-                        <span className="font-medium">{startItem}</span>
-                        {' '}to{' '}
-                        <span className="font-medium">{endItem}</span>
-                        {' '}of{' '}
-                        <span className="font-medium">{totalItems}</span>
-                        {' '}results
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                        <label htmlFor="per-page-select" className="text-sm text-gray-700">
-                            Per page:
-                        </label>
-                        <select
-                            id="per-page-select"
-                            value={members.per_page}
-                            onChange={handlePerPageChange}
-                            className="border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                        >
-                            <option value={10}>10</option>
-                            <option value={25}>25</option>
-                            <option value={50}>50</option>
-                            <option value={100}>100</option>
-                        </select>
-                    </div>
-                </div>
-
-                {/* Pagination controls */}
-                {members.last_page > 1 && (
-                    <div className="flex items-center space-x-1">
-                        {/* Previous button */}
-                        <button
-                            onClick={() => handlePageChange(members.current_page - 1)}
-                            disabled={members.current_page <= 1}
-                            className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-l-md"
-                            aria-label="Previous page"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </button>
-
-                        {/* Page numbers */}
-                        {visiblePages.map((page, index) => {
-                            if (page === '...') {
-                                return (
-                                    <span 
-                                        key={`ellipsis-${index}`}
-                                        className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
-                                    >
-                                        ...
-                                    </span>
-                                );
-                            }
-
-                            const pageNumber = page as number;
-                            const isCurrentPage = pageNumber === members.current_page;
-
-                            return (
-                                <button
-                                    key={pageNumber}
-                                    onClick={() => handlePageChange(pageNumber)}
-                                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 ${
-                                        isCurrentPage
-                                            ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
-                                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                                    }`}
-                                    aria-label={`Page ${pageNumber}`}
-                                    aria-current={isCurrentPage ? 'page' : undefined}
-                                >
-                                    {pageNumber}
-                                </button>
-                            );
-                        })}
-
-                        {/* Next button */}
-                        <button
-                            onClick={() => handlePageChange(members.current_page + 1)}
-                            disabled={members.current_page >= members.last_page}
-                            className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-r-md"
-                            aria-label="Next page"
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-});
-
-MembersPagination.displayName = 'MembersPagination';
-
-// Enhanced debounced search function optimized for UX
-const createDebouncedSearch = () => {
-    return debounce((query: string, currentFilters: Filters, setLoadingFunction: (loading: boolean) => void) => {
-        try {
-            const cleanQuery = typeof query === 'string' ? query.trim() : '';
-            
-            const searchParams = {
-                ...currentFilters,
-                search: cleanQuery,
-                page: 1 // Reset to first page when searching
-            };
-            
-            // Filter and clean parameters
-            const cleanParams = Object.entries(searchParams)
-                .filter(([key, value]) => {
-                    if (value === null || value === undefined) return false;
-                    if (typeof value === 'string' && value.trim() === '') return false;
-                    return true;
-                })
-                .reduce((acc, [key, value]) => {
-                    acc[key] = String(value).trim();
-                    return acc;
-                }, {} as Record<string, string>);
-            
-            // Generate route with error handling
-            let routeUrl: string;
-            try {
-                routeUrl = safeRoute('members.index', cleanParams);
-            } catch (routeError) {
-                console.error('Route generation failed, using fallback:', routeError);
-                routeUrl = '/members';
-                
-                // Add query string manually as fallback
-                const queryString = Object.entries(cleanParams)
-                    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-                    .join('&');
-                
-                if (queryString) {
-                    routeUrl += `?${queryString}`;
-                }
-            }
-
-            router.get(routeUrl, undefined, {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['members', 'stats'],
-                onStart: () => setLoadingFunction(true),
-                onFinish: () => setLoadingFunction(false),
-                onError: (errors: InertiaErrors) => {
-                    console.error('Search error:', errors);
-                    setLoadingFunction(false);
-                    if (typeof showNotification === 'function') {
-                        showNotification('Search Error', ERROR_MESSAGES.SEARCH_FAILED, 'error', 4000);
-                    }
-                }
-            });
-        } catch (error) {
-            console.error('Search error:', error);
-            setLoadingFunction(false);
-            if (typeof showNotification === 'function') {
-                showNotification('Search Error', ERROR_MESSAGES.NETWORK_ERROR, 'error', 4000);
-            }
-        }
-    }, PERFORMANCE_CONFIG.DEBOUNCE_DELAY);
-};
-
+// Main Component with Direct Fetch API
 export default function MembersIndex({ 
     auth, 
-    members, 
-    stats, 
-    filters = {}, 
-    filterOptions,
+    members: initialMembers, 
+    stats: initialStats, 
+    filters: initialFilters = {}, 
+    filterOptions: initialFilterOptions,
     flash 
 }: MembersIndexProps) {
-    // Initialize route helper on component mount
-    useEffect(() => {
-        const isRouteHelperReady = initializeRouteHelper();
-        
-        // Debug route issues in development
-        if (process.env.NODE_ENV === 'development') {
-            debugRouteHelper();
-            
-            if (!isRouteHelperReady) {
-                console.warn('⚠️ Route helper fallback mode activated. Some features may have degraded performance.');
-            }
-        }
-    }, []);
-
     // State management
+    const [members, setMembers] = useState<PaginatedMembers>(initialMembers);
+    const [stats, setStats] = useState<Stats>(initialStats);
+    const [filters, setFilters] = useState<Filters>(initialFilters);
+    const [filterOptions, setFilterOptions] = useState<FilterOptions>(initialFilterOptions);
     const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
     const [showFilters, setShowFilters] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -1012,81 +713,287 @@ export default function MembersIndex({
 
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Enhanced debounced search function with better error handling
-    const debouncedSearch = useMemo(() => createDebouncedSearch(), []);
-
-    // Route error handler
-    const handleRouteError = useCallback((operation: string, error: any) => {
-        console.error(`Route error in ${operation}:`, error);
+    // Direct API Functions - Following Reports Pattern
+    const fetchMembers = useCallback(async (params: Filters = {}) => {
+        setIsLoading(true);
         
-        if (typeof showNotification === 'function') {
-            showNotification(
-                'Navigation Error', 
-                `Failed to navigate. ${ERROR_MESSAGES.NETWORK_ERROR}`, 
-                'error', 
-                5000
-            );
-        }
-    }, []);
-
-    // Search handler with error boundary
-    // Search handler with error boundary
-    const handleSearchChange = useCallback((value: string) => {
         try {
-            debouncedSearch(value, filters, setIsLoading);
-        } catch (error) {
-            handleRouteError('search', error);
-        }
-    }, [debouncedSearch, filters, handleRouteError]);
+            const queryString = buildQueryString(params);
+            const url = `/members${queryString ? `?${queryString}` : ''}`;
 
-    // Filter change handler
-    const handleFilterChange = useCallback((key: string) => {
-        return (e: React.ChangeEvent<HTMLSelectElement>) => {
-            const value = e.target.value;
-            const newFilters = { ...filters, [key]: value, page: 1 };
-            
-            // Clean empty values
-            const cleanParams = Object.entries(newFilters)
-                .filter(([_, val]) => val && val !== '')
-                .reduce((acc, [k, val]) => {
-                    acc[k] = String(val).trim();
-                    return acc;
-                }, {} as Record<string, string>);
-
-            router.get(safeRoute('members.index', cleanParams), undefined, {
-                preserveScroll: true,
-                preserveState: true,
-                only: ['members', 'stats'],
-                onStart: () => setIsLoading(true),
-                onFinish: () => setIsLoading(false),
+            const response = await fetch(url, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                redirect: 'manual'
             });
-        };
+
+            // Handle redirects
+            if (response.status === 302 || response.status === 301) {
+                const location = response.headers.get('Location');
+                console.warn('Fetch members redirected to:', location);
+                throw new Error('Authentication required - please refresh the page');
+            }
+
+            if (!response.ok) {
+                let errorMessage = `Failed to fetch members: ${response.status} ${response.statusText}`;
+                if (response.status === 403) {
+                    errorMessage = 'You do not have permission to view members.';
+                } else if (response.status === 404) {
+                    errorMessage = 'Members endpoint not found.';
+                } else if (response.status === 419) {
+                    errorMessage = 'Session expired - please refresh the page.';
+                } else if (response.status >= 500) {
+                    errorMessage = 'Server error occurred. Please try again later.';
+                }
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            
+            // Handle success response
+            if (data.success !== false) {
+                setMembers(data.members || data);
+                setStats(data.stats || initialStats);
+                if (data.filterOptions) {
+                    setFilterOptions(data.filterOptions);
+                }
+                return data;
+            } else {
+                // Handle server-side error response
+                throw new Error(data.message || 'Failed to load members');
+            }
+        } catch (error) {
+            console.error('Failed to fetch members:', error);
+            showToast(error instanceof Error ? error.message : 'Failed to load members', 'error');
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [initialStats]);
+
+    // Debounced search
+    const debouncedSearch = useMemo(() => 
+        debounce(async (query: string) => {
+            const searchParams = { ...filters, search: query, page: 1 };
+            setFilters(searchParams);
+            await fetchMembers(searchParams);
+        }, 300), [filters, fetchMembers]
+    );
+
+    // Event handlers
+    const handleSearchChange = useCallback((value: string) => {
+        debouncedSearch(value);
+    }, [debouncedSearch]);
+
+    const handleFilterChange = useCallback(async (key: string, value: string) => {
+        const newFilters = { ...filters, [key]: value, page: 1 };
+        setFilters(newFilters);
+        await fetchMembers(newFilters);
+    }, [filters, fetchMembers]);
+
+    const handleClearFilters = useCallback(async () => {
+        const clearedFilters = { page: 1, per_page: filters.per_page || 25 };
+        setFilters(clearedFilters);
+        await fetchMembers(clearedFilters);
+    }, [fetchMembers, filters.per_page]);
+
+    const handleRefresh = useCallback(async () => {
+        await fetchMembers(filters);
+    }, [fetchMembers, filters]);
+
+    // Status change with direct fetch
+    const handleStatusChange = useCallback(async (memberId: number, newStatus: string) => {
+        try {
+            const response = await fetch(`/members/${memberId}/update-status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                redirect: 'manual',
+                body: JSON.stringify({ membership_status: newStatus })
+            });
+
+            // Handle redirects manually to avoid issues
+            if (response.status === 302 || response.status === 301) {
+                const location = response.headers.get('Location');
+                console.warn('Status update redirected to:', location);
+                throw new Error('Authentication required - please refresh the page and try again');
+            }
+
+            if (!response.ok) {
+                let errorMessage = `Status update failed: ${response.status} ${response.statusText}`;
+                if (response.status === 403) {
+                    errorMessage = 'You do not have permission to update member status.';
+                } else if (response.status === 404) {
+                    errorMessage = 'Member not found.';
+                } else if (response.status === 405) {
+                    errorMessage = 'Invalid request method - please refresh the page and try again.';
+                } else if (response.status === 422) {
+                    errorMessage = 'Invalid status value provided.';
+                } else if (response.status === 419) {
+                    errorMessage = 'Session expired - please refresh the page and try again.';
+                } else if (response.status >= 500) {
+                    errorMessage = 'Server error - please try again later.';
+                }
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.message || 'Status update failed');
+            }
+            
+            // Update local state with fresh stats
+            if (data.stats) {
+                setStats(data.stats);
+            }
+            
+            // Update the specific member in the current data
+            setMembers(prev => ({
+                ...prev,
+                data: prev.data.map(member => 
+                    member.id === memberId 
+                        ? { ...member, membership_status: newStatus }
+                        : member
+                )
+            }));
+            
+            const member = members.data.find(m => m.id === memberId);
+            const memberName = member ? `${member.first_name} ${member.last_name}` : 'Member';
+            showToast(data.message || `${memberName} status updated successfully`, 'success');
+        } catch (error) {
+            console.error('Status change error:', error);
+            showToast(error instanceof Error ? error.message : 'Failed to update status', 'error');
+            throw error;
+        }
+    }, [members.data]);
+
+    // Delete with direct fetch
+    const handleDeleteMember = useCallback((member: Member) => {
+        setMemberToDelete(member);
+        setShowDeleteModal(true);
+    }, []);
+
+    const confirmDelete = useCallback(async () => {
+        if (!memberToDelete) return;
+
+        setIsDeleting(true);
+        
+        try {
+            const response = await fetch(`/members/${memberToDelete.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                redirect: 'manual'
+            });
+
+            // Handle redirects
+            if (response.status === 302 || response.status === 301) {
+                const location = response.headers.get('Location');
+                console.warn('Delete member redirected to:', location);
+                throw new Error('Authentication required - please refresh the page and try again');
+            }
+
+            if (!response.ok) {
+                let errorMessage = `Delete failed: ${response.status} ${response.statusText}`;
+                if (response.status === 403) {
+                    errorMessage = 'You do not have permission to delete members.';
+                } else if (response.status === 404) {
+                    errorMessage = 'Member not found.';
+                } else if (response.status === 419) {
+                    errorMessage = 'Session expired - please refresh the page and try again.';
+                } else if (response.status >= 500) {
+                    errorMessage = 'Server error - please try again later.';
+                }
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.message || 'Delete operation failed');
+            }
+
+            setShowDeleteModal(false);
+            setMemberToDelete(null);
+            showToast(data.message || 'Member deleted successfully', 'success');
+            
+            // Refresh data to reflect changes
+            await fetchMembers(filters);
+        } catch (error) {
+            console.error('Delete error:', error);
+            showToast(error instanceof Error ? error.message : 'Failed to delete member', 'error');
+        } finally {
+            setIsDeleting(false);
+        }
+    }, [memberToDelete, fetchMembers, filters]);
+
+    // Export with direct fetch
+    const handleExport = useCallback(async (format: 'excel' | 'pdf') => {
+        try {
+            const params = new URLSearchParams({
+                ...filters,
+                format
+            } as any);
+
+            const response = await fetch(`/members/export?${params.toString()}`, {
+                headers: {
+                    'Accept': 'application/octet-stream',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                redirect: 'manual'
+            });
+
+            // Handle redirects
+            if (response.status === 302 || response.status === 301) {
+                const location = response.headers.get('Location');
+                console.warn('Export redirected to:', location);
+                throw new Error('Authentication required - please refresh the page and try again');
+            }
+
+            if (!response.ok) {
+                let errorMessage = `Export failed: ${response.status} ${response.statusText}`;
+                if (response.status === 403) {
+                    errorMessage = 'You do not have permission to export member data.';
+                } else if (response.status === 419) {
+                    errorMessage = 'Session expired - please refresh the page and try again.';
+                } else if (response.status >= 500) {
+                    errorMessage = 'Server error - please try again later.';
+                }
+                throw new Error(errorMessage);
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `members-export-${new Date().toISOString().split('T')[0]}.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            showToast('Export completed successfully', 'success');
+        } catch (error) {
+            console.error('Export error:', error);
+            showToast(error instanceof Error ? error.message : 'Export failed', 'error');
+        }
     }, [filters]);
-
-    // Clear filters
-    const handleClearFilters = useCallback(() => {
-        router.get(safeRoute('members.index'), undefined, {
-            preserveScroll: true,
-            preserveState: true,
-            only: ['members', 'stats'],
-            onStart: () => setIsLoading(true),
-            onFinish: () => setIsLoading(false),
-        });
-    }, []);
-
-    // Refresh data
-    const handleRefresh = useCallback(() => {
-        router.reload({
-            only: ['members', 'stats'],
-            onStart: () => setIsLoading(true),
-            onFinish: () => setIsLoading(false),
-        });
-    }, []);
-
-    // Toggle filters panel
-    const handleToggleFilters = useCallback(() => {
-        setShowFilters(prev => !prev);
-    }, []);
 
     // Selection handlers
     const handleToggleSelection = useCallback((id: number) => {
@@ -1105,142 +1012,13 @@ export default function MembersIndex({
         }
     }, [selectedMembers.length, members.data]);
 
-    // Delete handlers
-    const handleDeleteMember = useCallback((member: Member) => {
-        setMemberToDelete(member);
-        setShowDeleteModal(true);
-    }, []);
-
-    const confirmDelete = useCallback(() => {
-        if (!memberToDelete) return;
-
-        setIsDeleting(true);
-        
-        router.delete(safeRoute('members.destroy', memberToDelete.id), {
-            onSuccess: () => {
-                setShowDeleteModal(false);
-                setMemberToDelete(null);
-                if (typeof showNotification === 'function') {
-                    showNotification('Success', SUCCESS_MESSAGES.MEMBER_DELETED, 'success');
-                }
-            },
-            onError: () => {
-                if (typeof showNotification === 'function') {
-                    showNotification('Error', ERROR_MESSAGES.DELETE_FAILED, 'error');
-                }
-            },
-            onFinish: () => setIsDeleting(false)
-        });
-    }, [memberToDelete]);
-
-    // Status change handler with real-time updates
-    const handleStatusChange = useCallback(async (memberId: number, newStatus: string) => {
-        try {
-            // Optimistically update the member in the local state
-            const currentMembers = members.data.map(member => 
-                member.id === memberId 
-                    ? { ...member, membership_status: newStatus }
-                    : member
-            );
-
-            // Get the member for notification
-            const member = members.data.find(m => m.id === memberId);
-            const memberName = member ? `${member.first_name} ${member.last_name}` : 'Member';
-
-            await new Promise((resolve, reject) => {
-                router.patch(safeRoute('members.update-status', memberId), 
-                    { membership_status: newStatus },
-                    {
-                        preserveState: true,
-                        preserveScroll: true,
-                        only: ['members', 'stats'], // Refresh both members and stats
-                        onSuccess: () => {
-                            if (typeof showNotification === 'function') {
-                                showNotification('Success', SUCCESS_MESSAGES.STATUS_UPDATED.replace('Member', memberName), 'success');
-                            }
-                            resolve(true);
-                        },
-                        onError: (errors) => {
-                            console.error('Status update errors:', errors);
-                            if (typeof showNotification === 'function') {
-                                showNotification('Error', ERROR_MESSAGES.UPDATE_FAILED, 'error');
-                            }
-                            reject(errors);
-                        }
-                    }
-                );
-            });
-        } catch (error) {
-            console.error('Status change error:', error);
-            throw error;
-        }
-    }, [members.data]);
-
-    // Bulk delete handler
-    const handleBulkDelete = useCallback(() => {
-        if (selectedMembers.length === 0) return;
-        setShowBulkDeleteModal(true);
-    }, [selectedMembers.length]);
-
-    const confirmBulkDelete = useCallback(() => {
-        router.post(safeRoute('members.bulk-delete'), {
-            member_ids: selectedMembers
-        }, {
-            onSuccess: () => {
-                setSelectedMembers([]);
-                setShowBulkDeleteModal(false);
-                if (typeof showNotification === 'function') {
-                    showNotification('Success', `${selectedMembers.length} ${SUCCESS_MESSAGES.BULK_DELETED}`, 'success');
-                }
-            },
-            onError: () => {
-                if (typeof showNotification === 'function') {
-                    showNotification('Error', ERROR_MESSAGES.DELETE_FAILED, 'error');
-                }
-            }
-        });
-    }, [selectedMembers]);
-
-    // Export handlers
-    const handleExport = useCallback((format: 'excel' | 'pdf') => {
-        const url = buildExportUrl(filters, format);
-        window.open(url, '_blank');
-    }, [filters]);
-
-    // Import handlers
-    const handleImport = useCallback(() => {
-        if (!importFile) return;
-
-        const formData = new FormData();
-        formData.append('file', importFile);
-
-        setIsImporting(true);
-        
-        router.post(safeRoute('members.import'), formData, {
-            onSuccess: () => {
-                setShowImportModal(false);
-                setImportFile(null);
-                if (typeof showNotification === 'function') {
-                    showNotification('Success', SUCCESS_MESSAGES.DATA_IMPORTED, 'success');
-                }
-            },
-            onError: (errors) => {
-                console.error('Import errors:', errors);
-                if (typeof showNotification === 'function') {
-                    showNotification('Error', ERROR_MESSAGES.IMPORT_FAILED, 'error');
-                }
-            },
-            onFinish: () => setIsImporting(false)
-        });
-    }, [importFile]);
-
     // Show flash messages
     useEffect(() => {
-        if (flash?.success && typeof showNotification === 'function') {
-            showNotification('Success', flash.success, 'success');
+        if (flash?.success) {
+            showToast(flash.success, 'success');
         }
-        if (flash?.error && typeof showNotification === 'function') {
-            showNotification('Error', flash.error, 'error');
+        if (flash?.error) {
+            showToast(flash.error, 'error');
         }
     }, [flash]);
 
@@ -1257,49 +1035,20 @@ export default function MembersIndex({
                         </p>
                     </div>
                     <div className="flex items-center space-x-3">
-                        {/* Bulk Actions */}
-                        {selectedMembers.length > 0 && (
-                            <div className="flex items-center space-x-2">
-                                <span className="text-sm text-gray-600">
-                                    {selectedMembers.length} selected
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={handleBulkDelete}
-                                    className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                                >
-                                    <Trash2 className="h-4 w-4 mr-1" />
-                                    Delete Selected
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Export Dropdown */}
-                        <div className="relative inline-block text-left">
-                            <button
-                                type="button"
-                                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                                onClick={() => handleExport('excel')}
-                            >
-                                <Download className="h-4 w-4 mr-2" />
-                                Export
-                            </button>
-                        </div>
-
-                        {/* Import Button */}
+                        {/* Export Button */}
                         <button
                             type="button"
-                            onClick={() => setShowImportModal(true)}
-                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                            onClick={() => handleExport('excel')}
                         >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Import
+                            <Download className="h-4 w-4 mr-2" />
+                            Export Excel
                         </button>
 
                         {/* Add Member Button */}
                         <Link
-                            href={safeRoute('members.create')}
-                            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            href="/members/create"
+                            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                         >
                             <Plus className="h-4 w-4 mr-2" />
                             Add Member
@@ -1324,14 +1073,14 @@ export default function MembersIndex({
                         searchInputRef={searchInputRef}
                         onSearchChange={handleSearchChange}
                         onFilterChange={handleFilterChange}
-                        onToggleFilters={handleToggleFilters}
+                        onToggleFilters={() => setShowFilters(!showFilters)}
                         onClearFilters={handleClearFilters}
                         onRefresh={handleRefresh}
                     />
 
                     {/* Selection Bar */}
                     {members.data.length > 0 && (
-                        <div className="bg-white rounded-lg shadow p-4 mb-6">
+                        <div className="bg-white rounded-lg shadow-lg p-4 mb-6">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-4">
                                     <label className="flex items-center">
@@ -1339,7 +1088,7 @@ export default function MembersIndex({
                                             type="checkbox"
                                             checked={selectedMembers.length === members.data.length && members.data.length > 0}
                                             onChange={handleSelectAll}
-                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
                                         />
                                         <span className="ml-2 text-sm text-gray-700">
                                             Select all ({members.data.length})
@@ -1355,7 +1104,7 @@ export default function MembersIndex({
                                     <button
                                         type="button"
                                         onClick={() => setSelectedMembers([])}
-                                        className="text-sm text-gray-500 hover:text-gray-700"
+                                        className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
                                     >
                                         Clear selection
                                     </button>
@@ -1366,22 +1115,71 @@ export default function MembersIndex({
 
                     {/* Members Grid */}
                     <div className="mb-6">
-                        <MembersGrid
-                            members={members.data}
-                            selectedMembers={selectedMembers}
-                            isLoading={isLoading}
-                            onToggleSelection={handleToggleSelection}
-                            onDelete={handleDeleteMember}
-                            onStatusChange={handleStatusChange}
-                        />
+                        {isLoading ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {[...Array(6)].map((_, index) => (
+                                    <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                        <div className="animate-pulse">
+                                            <div className="flex items-center space-x-3 mb-4">
+                                                <div className="h-4 w-4 bg-gray-200 rounded"></div>
+                                                <div className="space-y-2 flex-1">
+                                                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                                                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2 mb-4">
+                                                <div className="h-3 bg-gray-200 rounded"></div>
+                                                <div className="h-3 bg-gray-200 rounded"></div>
+                                                <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                                            </div>
+                                            <div className="h-16 bg-gray-100 rounded mb-4"></div>
+                                            <div className="flex justify-between pt-4 border-t border-gray-100">
+                                                <div className="flex space-x-2">
+                                                    <div className="h-6 bg-gray-200 rounded w-16"></div>
+                                                    <div className="h-6 bg-gray-200 rounded w-16"></div>
+                                                </div>
+                                                <div className="h-6 bg-gray-200 rounded w-16"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : !members.data || members.data.length === 0 ? (
+                            <div className="text-center py-12">
+                                <Users className="mx-auto h-12 w-12 text-gray-400" />
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">No members found</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Get started by adding a new member to your parish.
+                                </p>
+                                <div className="mt-6">
+                                    <Link
+                                        href="/members/create"
+                                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                                    >
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Add Member
+                                    </Link>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {members.data.map((member) => (
+                                    <MemberCard
+                                        key={member.id}
+                                        member={member}
+                                        isSelected={selectedMembers.includes(member.id)}
+                                        onToggleSelection={handleToggleSelection}
+                                        onDelete={handleDeleteMember}
+                                        onStatusChange={handleStatusChange}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
-
-                    {/* Pagination */}
-                    <MembersPagination members={members} filters={filters} />
                 </div>
             </div>
 
-            {/* Delete Member Modal */}
+            {/* Delete Modal */}
             {showDeleteModal && memberToDelete && (
                 <div className="fixed inset-0 z-50 overflow-y-auto">
                     <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -1401,7 +1199,7 @@ export default function MembersIndex({
                                         </h3>
                                         <div className="mt-2">
                                             <p className="text-sm text-gray-500">
-                                                Are you sure you want to delete <strong>{memberToDelete.full_name}</strong>? 
+                                                Are you sure you want to delete <strong>{memberToDelete.full_name || `${memberToDelete.first_name} ${memberToDelete.last_name}`}</strong>? 
                                                 This action cannot be undone.
                                             </p>
                                         </div>
@@ -1413,7 +1211,7 @@ export default function MembersIndex({
                                     type="button"
                                     onClick={confirmDelete}
                                     disabled={isDeleting}
-                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 transition-colors"
                                 >
                                     {isDeleting ? (
                                         <>
@@ -1427,119 +1225,7 @@ export default function MembersIndex({
                                 <button
                                     type="button"
                                     onClick={() => setShowDeleteModal(false)}
-                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Bulk Delete Modal */}
-            {showBulkDeleteModal && (
-                <div className="fixed inset-0 z-50 overflow-y-auto">
-                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                        <div className="fixed inset-0 transition-opacity" onClick={() => setShowBulkDeleteModal(false)}>
-                            <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-                        </div>
-
-                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                                <div className="sm:flex sm:items-start">
-                                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                                        <Trash2 className="h-6 w-6 text-red-600" />
-                                    </div>
-                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                            Delete Selected Members
-                                        </h3>
-                                        <div className="mt-2">
-                                            <p className="text-sm text-gray-500">
-                                                Are you sure you want to delete {selectedMembers.length} selected members? 
-                                                This action cannot be undone.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                                <button
-                                    type="button"
-                                    onClick={confirmBulkDelete}
-                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
-                                >
-                                    Delete {selectedMembers.length} Members
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowBulkDeleteModal(false)}
-                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Import Modal */}
-            {showImportModal && (
-                <div className="fixed inset-0 z-50 overflow-y-auto">
-                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                        <div className="fixed inset-0 transition-opacity" onClick={() => setShowImportModal(false)}>
-                            <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-                        </div>
-
-                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                                <div className="sm:flex sm:items-start">
-                                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
-                                        <Upload className="h-6 w-6 text-indigo-600" />
-                                    </div>
-                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
-                                        <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                            Import Members
-                                        </h3>
-                                        <div className="mt-2">
-                                            <p className="text-sm text-gray-500 mb-4">
-                                                Upload an Excel file (.xlsx) containing member data.
-                                            </p>
-                                            <input
-                                                type="file"
-                                                accept=".xlsx,.xls"
-                                                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                                                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                                <button
-                                    type="button"
-                                    onClick={handleImport}
-                                    disabled={!importFile || isImporting}
-                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
-                                >
-                                    {isImporting ? (
-                                        <>
-                                            <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                                            Importing...
-                                        </>
-                                    ) : (
-                                        'Import'
-                                    )}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowImportModal(false);
-                                        setImportFile(null);
-                                    }}
-                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
                                 >
                                     Cancel
                                 </button>

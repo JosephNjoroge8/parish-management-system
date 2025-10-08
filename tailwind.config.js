@@ -84,4 +84,14 @@ export default {
     },
 
     plugins: [forms],
+    
+    // Fix CSS vendor prefix issues
+    corePlugins: {
+        preflight: true,
+    },
+    
+    // Ensure proper CSS output
+    experimental: {
+        optimizeUniversalDefaults: true,
+    },
 };

@@ -8,7 +8,10 @@ export default defineConfig({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
         }),
-        react(),
+        react({
+            // Simplified React configuration
+            fastRefresh: true,
+        }),
     ],
     server: {
         host: 'localhost',
@@ -24,9 +27,9 @@ export default defineConfig({
     },
     build: {
         outDir: 'public/build',
-        manifest: 'manifest.json', // Specify manifest filename explicitly
+        manifest: 'manifest.json',
         emptyOutDir: true,
-        sourcemap: false, // Disable sourcemaps for production
+        sourcemap: false,
         minify: 'terser',
         cssMinify: true,
         rollupOptions: {
@@ -39,18 +42,49 @@ export default defineConfig({
                 chunkFileNames: 'assets/[name]-[hash].js',
                 entryFileNames: 'assets/[name]-[hash].js',
             },
+            onwarn(warning, warn) {
+                // Suppress certain warnings
+                if (warning.code === 'MODULE_LEVEL_DIRECTIVE') {
+                    return;
+                }
+                warn(warning);
+            }
         },
         terserOptions: {
             compress: {
-                drop_console: true, // Remove console.logs in production
+                drop_console: false, // Keep console in development
                 drop_debugger: true,
             },
+            mangle: {
+                safari10: true, // Fix Safari 10 issues
+            }
         },
         chunkSizeWarningLimit: 1000,
+        // Ensure CSS is properly processed
+        cssCodeSplit: true,
+        assetsInlineLimit: 4096,
     },
     resolve: {
         alias: {
             '@': '/resources/js',
         },
     },
+    // Improve error handling
+    optimizeDeps: {
+        exclude: ['laravel-vite-plugin'],
+        include: ['react', 'react-dom']
+    },
+    // Fix CSS issues
+    css: {
+        devSourcemap: true,
+        preprocessorOptions: {
+            css: {
+                charset: false
+            }
+        }
+    },
+    // Add error overlay configuration
+    define: {
+        __DEV__: process.env.NODE_ENV !== 'production',
+    }
 });

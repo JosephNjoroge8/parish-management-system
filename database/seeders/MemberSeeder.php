@@ -1,7 +1,5 @@
 <?php
 
-// filepath: c:\Users\Joseph Njoroge\parish-system\database\seeders\MemberSeeder.php
-
 namespace Database\Seeders;
 
 use App\Models\Family;
@@ -10,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\App;
 
 class MemberSeeder extends Seeder
 {
@@ -18,86 +17,178 @@ class MemberSeeder extends Seeder
      */
     public function run(): void
     {
-        // For SQLite, we don't need to disable foreign key checks
-        // Just clear existing data
-        Member::truncate();
-
-        // Only truncate families if the table exists
-        if (Schema::hasTable('families')) {
-            Family::truncate();
+        // Safety check - prevent accidental data loss in production
+        if (App::environment('production')) {
+            $memberCount = Member::count();
+            if ($memberCount > 0) {
+                $this->command->warn('Production environment detected with existing data.');
+                $this->command->warn("Current member count: {$memberCount}");
+                
+                if (!$this->command->confirm('This will DELETE ALL existing member data. Are you absolutely sure you want to continue?')) {
+                    $this->command->info('Seeding cancelled to protect existing data.');
+                    return;
+                }
+                
+                if (!$this->command->confirm('This is your FINAL WARNING. All member and family data will be permanently deleted. Continue?')) {
+                    $this->command->info('Seeding cancelled.');
+                    return;
+                }
+            }
         }
+
+        $this->command->info('Starting member seeding...');
+
+        // Clear existing data
+        $this->clearExistingData();
+
+        // Create families if the table exists
+        $families = $this->createFamilies();
+
+        // Create sample members
+        $this->createSampleMembers($families);
+
+        // Generate additional test members (only in non-production)
+        if (!App::environment('production')) {
+            $this->generateRandomMembers(15);
+        } else {
+            $this->command->info('Skipping random member generation in production environment.');
+        }
+
+        $this->command->info('Member seeding completed successfully!');
+    }
+
+    /**
+     * Clear existing data safely
+     */
+    private function clearExistingData(): void
+    {
+        $this->command->info('Clearing existing data...');
+        
+        try {
+            // Disable foreign key checks for clean truncation
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            
+            Member::truncate();
+            $this->command->info('Cleared existing members.');
+
+            // Only truncate families if the table exists
+            if (Schema::hasTable('families')) {
+                Family::truncate();
+                $this->command->info('Cleared existing families.');
+            }
+            
+            // Re-enable foreign key checks
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            
+        } catch (\Exception $e) {
+            // For SQLite or other databases that don't support foreign key check toggling
+            $this->command->warn('Using alternative data clearing method...');
+            
+            try {
+                Member::query()->delete();
+                if (Schema::hasTable('families')) {
+                    Family::query()->delete();
+                }
+                $this->command->info('Data cleared successfully.');
+            } catch (\Exception $e2) {
+                $this->command->error('Failed to clear existing data: ' . $e2->getMessage());
+                throw $e2;
+            }
+        }
+    }
+
+    /**
+     * Create family records
+     */
+    private function createFamilies(): array
+    {
+        $families = [];
+        
+        if (!Schema::hasTable('families')) {
+            $this->command->warn('Families table does not exist. Skipping family creation.');
+            return $families;
+        }
+
+        $this->command->info('Creating family records...');
 
         // Check what columns exist in the families table
-        $familyColumns = Schema::hasTable('families') ? Schema::getColumnListing('families') : [];
-        $this->command->info('Available family columns: '.implode(', ', $familyColumns));
+        $familyColumns = Schema::getColumnListing('families');
+        $this->command->info('Available family columns: ' . implode(', ', $familyColumns));
 
-        // Create families using the correct column structure
-        $families = [];
-        if (Schema::hasTable('families')) {
-            $familiesData = [
-                [
-                    'family_name' => 'Njoroge Family',
-                    'family_head' => 'Joseph Mwangi Njoroge', // Use correct column name
-                    'family_address' => 'P.O. Box 123, Kangemi, Nairobi', // Use correct column name
-                    'phone' => '+254701234567',
-                    'email' => 'njoroge.family@gmail.com',
-                    'deanery' => 'Nairobi West Deanery',
-                    'parish_section' => 'Kangemi Section',
-                    'family_status' => 'active',
-                ],
-                [
-                    'family_name' => 'Wanjiku Family',
-                    'family_head' => 'Mary Nyokabi Wanjiku',
-                    'family_address' => 'P.O. Box 456, Pembe Tatu, Kiambu',
-                    'phone' => '+254712345678',
-                    'email' => 'wanjiku.family@yahoo.com',
-                    'deanery' => 'Kiambu Deanery',
-                    'parish_section' => 'Pembe Tatu Section',
-                    'family_status' => 'active',
-                ],
-                [
-                    'family_name' => 'Mutua Family',
-                    'family_head' => 'Peter Musyoki Mutua',
-                    'family_address' => 'P.O. Box 789, Cathedral, Nairobi',
-                    'phone' => '+254723456789',
-                    'email' => 'mutua.family@gmail.com',
-                    'deanery' => 'Nairobi Central Deanery',
-                    'parish_section' => 'Cathedral Section',
-                    'family_status' => 'active',
-                ],
-                [
-                    'family_name' => 'Ochieng Family',
-                    'family_head' => 'James Otieno Ochieng',
-                    'family_address' => 'P.O. Box 321, Kiawara, Kiambu',
-                    'phone' => '+254734567890',
-                    'email' => 'ochieng.family@hotmail.com',
-                    'deanery' => 'Kiambu Deanery',
-                    'parish_section' => 'Kiawara Section',
-                    'family_status' => 'active',
-                ],
-                [
-                    'family_name' => 'Akinyi Family',
-                    'family_head' => 'Grace Adhiambo Akinyi',
-                    'family_address' => 'P.O. Box 654, Kandara, Murang\'a',
-                    'phone' => '+254745678901',
-                    'email' => 'akinyi.family@gmail.com',
-                    'deanery' => 'Murang\'a Deanery',
-                    'parish_section' => 'Kandara Section',
-                    'family_status' => 'active',
-                ],
-            ];
+        $familiesData = [
+            [
+                'family_name' => 'Njoroge Family',
+                'family_head' => 'Joseph Mwangi Njoroge',
+                'family_address' => 'P.O. Box 123, Kangemi, Nairobi',
+                'phone' => '+254701234567',
+                'email' => 'njoroge.family@gmail.com',
+                'deanery' => 'Nairobi West Deanery',
+                'parish_section' => 'Kangemi Section',
+                'family_status' => 'active',
+            ],
+            [
+                'family_name' => 'Wanjiku Family',
+                'family_head' => 'Mary Nyokabi Wanjiku',
+                'family_address' => 'P.O. Box 456, Pembe Tatu, Kiambu',
+                'phone' => '+254712345678',
+                'email' => 'wanjiku.family@yahoo.com',
+                'deanery' => 'Kiambu Deanery',
+                'parish_section' => 'Pembe Tatu Section',
+                'family_status' => 'active',
+            ],
+            [
+                'family_name' => 'Mutua Family',
+                'family_head' => 'Peter Musyoki Mutua',
+                'family_address' => 'P.O. Box 789, Cathedral, Nairobi',
+                'phone' => '+254723456789',
+                'email' => 'mutua.family@gmail.com',
+                'deanery' => 'Nairobi Central Deanery',
+                'parish_section' => 'Cathedral Section',
+                'family_status' => 'active',
+            ],
+        ];
 
-            // Create families
-            foreach ($familiesData as $familyData) {
+        foreach ($familiesData as $familyData) {
+            try {
                 $family = Family::create($familyData);
                 $families[] = $family;
+            } catch (\Exception $e) {
+                $this->command->error("Failed to create family: {$familyData['family_name']} - " . $e->getMessage());
             }
-
-            $this->command->info('Created '.count($families).' families.');
         }
 
-        // Sample members data - Using correct ENUM values for occupation
-        $membersData = [
+        $this->command->info('Created ' . count($families) . ' families.');
+        return $families;
+    }
+
+    /**
+     * Create sample member records
+     */
+    private function createSampleMembers(array $families): void
+    {
+        $this->command->info('Creating sample members...');
+
+        $membersData = $this->getSampleMembersData($families);
+
+        $successCount = 0;
+        foreach ($membersData as $index => $memberData) {
+            try {
+                Member::create($memberData);
+                $successCount++;
+            } catch (\Exception $e) {
+                $this->command->error("Failed to create member {$index}: " . $e->getMessage());
+            }
+        }
+
+        $this->command->info("Created {$successCount} sample members.");
+    }
+
+    /**
+     * Get sample members data
+     */
+    private function getSampleMembersData(array $families): array
+    {
+        return [
             // Njoroge Family - Head of Family
             [
                 'local_church' => 'St James Kangemi',
@@ -124,8 +215,6 @@ class MemberSeeder extends Seeder
                 'matrimony_status' => 'married',
                 'membership_date' => '2020-01-15',
                 'membership_status' => 'active',
-                'emergency_contact' => 'Grace Njoroge',
-                'emergency_phone' => '+254787654321',
                 'notes' => 'Software Developer, IT support volunteer, Finance committee member',
             ],
 
@@ -155,8 +244,6 @@ class MemberSeeder extends Seeder
                 'matrimony_status' => 'married',
                 'membership_date' => '2020-01-15',
                 'membership_status' => 'active',
-                'emergency_contact' => 'Joseph Njoroge',
-                'emergency_phone' => '+254701234567',
                 'notes' => 'Primary School Teacher, Choir member, Sunday school teacher',
             ],
 
@@ -183,11 +270,9 @@ class MemberSeeder extends Seeder
                 'baptism_date' => '2010-04-25',
                 'residence' => 'Kangemi Estate, House No. 25',
                 'confirmation_date' => null,
-                'matrimony_status' => null,
+                'matrimony_status' => 'single',
                 'membership_date' => '2010-04-25',
                 'membership_status' => 'active',
-                'emergency_contact' => 'Joseph Njoroge',
-                'emergency_phone' => '+254701234567',
                 'notes' => 'Primary school student, Sunday school student, altar server',
             ],
 
@@ -217,8 +302,6 @@ class MemberSeeder extends Seeder
                 'matrimony_status' => 'single',
                 'membership_date' => '2019-03-20',
                 'membership_status' => 'active',
-                'emergency_contact' => 'Sarah Wanjiku',
-                'emergency_phone' => '+254798765432',
                 'notes' => 'Registered Nurse, Healthcare ministry volunteer, single mother',
             ],
 
@@ -245,11 +328,9 @@ class MemberSeeder extends Seeder
                 'baptism_date' => '2008-07-15',
                 'residence' => 'Pembe Tatu, Plot 15',
                 'confirmation_date' => '2021-11-28',
-                'matrimony_status' => null,
+                'matrimony_status' => 'single',
                 'membership_date' => '2008-07-15',
                 'membership_status' => 'active',
-                'emergency_contact' => 'Mary Wanjiku',
-                'emergency_phone' => '+254712345678',
                 'notes' => 'Secondary school student, Altar server, youth group member',
             ],
 
@@ -279,8 +360,6 @@ class MemberSeeder extends Seeder
                 'matrimony_status' => 'married',
                 'membership_date' => '2021-07-10',
                 'membership_status' => 'active',
-                'emergency_contact' => 'Ruth Mutua',
-                'emergency_phone' => '+254765432109',
                 'notes' => 'Business Owner, Finance committee member',
             ],
 
@@ -310,8 +389,6 @@ class MemberSeeder extends Seeder
                 'matrimony_status' => 'married',
                 'membership_date' => '2021-07-10',
                 'membership_status' => 'active',
-                'emergency_contact' => 'Peter Mutua',
-                'emergency_phone' => '+254723456789',
                 'notes' => 'Certified Public Accountant, Women\'s group secretary',
             ],
 
@@ -341,8 +418,6 @@ class MemberSeeder extends Seeder
                 'matrimony_status' => 'single',
                 'membership_date' => '2018-11-05',
                 'membership_status' => 'active',
-                'emergency_contact' => 'Margaret Ochieng',
-                'emergency_phone' => '+254776543210',
                 'notes' => 'Civil Engineer, Youth ministry leader',
             ],
 
@@ -371,8 +446,6 @@ class MemberSeeder extends Seeder
                 'matrimony_status' => 'widowed',
                 'membership_date' => '2022-02-14',
                 'membership_status' => 'active',
-                'emergency_contact' => 'Rose Akinyi',
-                'emergency_phone' => '+254754321098',
                 'notes' => 'Social Worker, Community outreach coordinator',
             ],
 
@@ -401,8 +474,6 @@ class MemberSeeder extends Seeder
                 'matrimony_status' => 'widowed',
                 'membership_date' => '2015-05-20',
                 'membership_status' => 'active',
-                'emergency_contact' => 'Paul Kariuki',
-                'emergency_phone' => '+254767890123',
                 'notes' => 'Retired Teacher, Elder and catechist',
             ],
 
@@ -432,8 +503,6 @@ class MemberSeeder extends Seeder
                 'matrimony_status' => 'married',
                 'membership_date' => '2023-01-08',
                 'membership_status' => 'active',
-                'emergency_contact' => 'Rebecca Muthoni',
-                'emergency_phone' => '+254789012345',
                 'notes' => 'Marketing Executive, Communications team member',
             ],
 
@@ -462,30 +531,24 @@ class MemberSeeder extends Seeder
                 'matrimony_status' => 'single',
                 'membership_date' => '2020-08-15',
                 'membership_status' => 'active',
-                'emergency_contact' => 'Sarah Kiprotich',
-                'emergency_phone' => '+254801234567',
                 'notes' => 'Music Teacher, Choir director, talented musician',
             ],
         ];
-
-        // Create members
-        foreach ($membersData as $index => $memberData) {
-            $member = Member::create($memberData);
-        }
-
-        $this->command->info('Members seeder completed successfully!');
-        $this->command->info('Created '.count($membersData).' members.');
-        $this->command->info('Created '.count($families).' families.');
-
-        // Generate additional random members (optional)
-        $this->generateRandomMembers(15); // Increased to 15 for more test data
     }
 
     /**
-     * Generate additional random members matching new schema
+     * Generate additional random members matching new schema (development only)
      */
     private function generateRandomMembers(int $count = 10): void
     {
+        // Skip in production environment
+        if (App::environment('production')) {
+            $this->command->info('Skipping random member generation in production.');
+            return;
+        }
+
+        $this->command->info("Generating {$count} random test members...");
+
         $firstNames = [
             'male' => ['John', 'Peter', 'James', 'David', 'Michael', 'Paul', 'Daniel', 'Stephen'],
             'female' => ['Mary', 'Grace', 'Ruth', 'Sarah', 'Rebecca', 'Rachel', 'Esther', 'Hannah'],
@@ -519,53 +582,58 @@ class MemberSeeder extends Seeder
         $educationLevels = ['Primary School', 'Secondary School', 'Diploma', 'University', 'Postgraduate'];
         $tribes = ['Kikuyu', 'Luo', 'Kamba', 'Kalenjin', 'Meru', 'Kisii'];
         $matrimonyStatuses = ['single', 'married', 'divorced', 'widowed'];
-        $membershipStatuses = ['active', 'inactive', 'pending', 'suspended']; // Different statuses for testing
+        $membershipStatuses = ['active', 'inactive', 'transferred', 'deceased']; // Using consistent statuses
 
+        $successCount = 0;
         for ($i = 1; $i <= $count; $i++) {
-            $gender = rand(0, 1) ? 'male' : 'female';
-            $firstName = $firstNames[$gender][array_rand($firstNames[$gender])];
-            $middleName = $middleNames[$gender][array_rand($middleNames[$gender])];
-            $lastName = $lastNames[array_rand($lastNames)];
-            $age = rand(18, 70);
-            $localChurch = $localChurches[array_rand($localChurches)];
-            $churchGroup = $churchGroups[array_rand($churchGroups)];
+            try {
+                $gender = rand(0, 1) ? 'male' : 'female';
+                $firstName = $firstNames[$gender][array_rand($firstNames[$gender])];
+                $middleName = $middleNames[$gender][array_rand($middleNames[$gender])];
+                $lastName = $lastNames[array_rand($lastNames)];
+                $age = rand(18, 70);
+                $localChurch = $localChurches[array_rand($localChurches)];
+                $churchGroup = $churchGroups[array_rand($churchGroups)];
 
-            $birthDate = Carbon::now()->subYears($age)->subDays(rand(1, 365));
-            $baptismDate = $birthDate->copy()->addMonths(rand(2, 24));
-            $confirmationDate = $age >= 14 ? $birthDate->copy()->addYears(rand(14, 16)) : null;
-            $membershipDate = Carbon::now()->subDays(rand(30, 1095));
+                $birthDate = Carbon::now()->subYears($age)->subDays(rand(1, 365));
+                $baptismDate = $birthDate->copy()->addMonths(rand(2, 24));
+                $confirmationDate = $age >= 14 ? $birthDate->copy()->addYears(rand(14, 16)) : null;
+                $membershipDate = Carbon::now()->subDays(rand(30, 1095));
 
-            Member::create([
-                'local_church' => $localChurch,
-                'church_group' => $churchGroup,
-                'first_name' => $firstName,
-                'middle_name' => $middleName,
-                'last_name' => $lastName,
-                'date_of_birth' => $birthDate->format('Y-m-d'),
-                'gender' => $gender,
-                'phone' => '+2547'.rand(10000000, 99999999),
-                'email' => strtolower($firstName.'.'.$lastName.rand(1, 99).'@gmail.com'),
-                'id_number' => $age >= 18 ? (string) rand(10000000, 99999999) : null,
-                'sponsor' => $firstName.' Sponsor',
-                'occupation' => $occupations[array_rand($occupations)], // Correct ENUM values
-                'education_level' => $educationLevels[array_rand($educationLevels)],
-                'family_id' => null,
-                'parent' => $age < 18 ? 'Parent Name' : null,
-                'minister' => 'Fr. '.['John', 'Patrick', 'Francis', 'Michael', 'Joseph'][array_rand(['John', 'Patrick', 'Francis', 'Michael', 'Joseph'])].' Mukuria',
-                'tribe' => $tribes[array_rand($tribes)],
-                'clan' => 'Clan Name',
-                'baptism_date' => $baptismDate->format('Y-m-d'),
-                'residence' => $localChurch.' Area, House '.rand(1, 100),
-                'confirmation_date' => $confirmationDate?->format('Y-m-d'),
-                'matrimony_status' => $age >= 18 ? $matrimonyStatuses[array_rand($matrimonyStatuses)] : null,
-                'membership_date' => $membershipDate->format('Y-m-d'),
-                'membership_status' => $membershipStatuses[array_rand($membershipStatuses)], // Random status for testing
-                'emergency_contact' => $firstName.' Emergency Contact',
-                'emergency_phone' => '+2547'.rand(10000000, 99999999),
-                'notes' => 'Generated test member with various professional backgrounds',
-            ]);
+                Member::create([
+                    'local_church' => $localChurch,
+                    'church_group' => $churchGroup,
+                    'first_name' => $firstName,
+                    'middle_name' => $middleName,
+                    'last_name' => $lastName,
+                    'date_of_birth' => $birthDate->format('Y-m-d'),
+                    'gender' => $gender,
+                    'phone' => '+2547' . rand(10000000, 99999999),
+                    'email' => strtolower($firstName . '.' . $lastName . rand(1, 99) . '@gmail.com'),
+                    'id_number' => $age >= 18 ? (string) rand(10000000, 99999999) : null,
+                    'sponsor' => $firstName . ' Sponsor',
+                    'occupation' => $occupations[array_rand($occupations)],
+                    'education_level' => $educationLevels[array_rand($educationLevels)],
+                    'family_id' => null,
+                    'parent' => $age < 18 ? 'Parent Name' : null,
+                    'minister' => 'Fr. ' . ['John', 'Patrick', 'Francis', 'Michael', 'Joseph'][array_rand(['John', 'Patrick', 'Francis', 'Michael', 'Joseph'])] . ' Mukuria',
+                    'tribe' => $tribes[array_rand($tribes)],
+                    'clan' => 'Clan Name',
+                    'baptism_date' => $baptismDate->format('Y-m-d'),
+                    'residence' => $localChurch . ' Area, House ' . rand(1, 100),
+                    'confirmation_date' => $confirmationDate?->format('Y-m-d'),
+                    'matrimony_status' => $age >= 18 ? $matrimonyStatuses[array_rand($matrimonyStatuses)] : 'single',
+                    'membership_date' => $membershipDate->format('Y-m-d'),
+                    'membership_status' => $membershipStatuses[array_rand($membershipStatuses)],
+                    'notes' => 'Generated test member for development/testing purposes',
+                ]);
+                
+                $successCount++;
+            } catch (\Exception $e) {
+                $this->command->error("Failed to create random member {$i}: " . $e->getMessage());
+            }
         }
 
-        $this->command->info('Generated '.$count.' additional random members.');
+        $this->command->info("Generated {$successCount} additional random members.");
     }
 }

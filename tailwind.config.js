@@ -90,8 +90,8 @@ export default {
         preflight: true,
     },
     
-    // Ensure proper CSS output
-    experimental: {
-        optimizeUniversalDefaults: true,
-    },
+    // Remove experimental features for production stability
+    // experimental: {
+    //     optimizeUniversalDefaults: true,
+    // },
 };

@@ -303,3 +303,6 @@ test-*.php
 # Script files to ignore (development/deployment scripts)
 *.sh
 !build-and-deploy.sh
+!verify-assets.sh
+!sqlite-to-mysql.sh
+!production-deploy-fix.sh

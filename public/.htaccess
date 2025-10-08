@@ -18,6 +18,11 @@
     RewriteCond %{HTTP:x-xsrf-token} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
 
+    # CRITICAL: Serve build assets directly - BEFORE Laravel routing
+    RewriteCond %{REQUEST_URI} ^/build/assets/
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
     # MIME Types for JavaScript modules and assets
     <IfModule mod_mime.c>
         AddType application/javascript .js
@@ -28,11 +33,25 @@
         AddType image/svg+xml .svg
         AddType font/woff .woff
         AddType font/woff2 .woff2
+        AddType image/webp .webp
+        AddType image/avif .avif
     </IfModule>
 
-    # Ensure build assets are served correctly
-    <LocationMatch "^/build/assets/.*\.(js|css|json)$">
+    # Force correct MIME types for build assets
+    <LocationMatch "^/build/assets/.*\.js$">
+        ForceType application/javascript
         <IfModule mod_headers.c>
+            Header set Content-Type "application/javascript; charset=utf-8"
+            Header set Cache-Control "public, max-age=31536000, immutable"
+            Header unset Last-Modified
+            Header unset ETag
+        </IfModule>
+    </LocationMatch>
+
+    <LocationMatch "^/build/assets/.*\.css$">
+        ForceType text/css
+        <IfModule mod_headers.c>
+            Header set Content-Type "text/css; charset=utf-8"
             Header set Cache-Control "public, max-age=31536000, immutable"
             Header unset Last-Modified
             Header unset ETag
@@ -79,10 +98,6 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
-
-    # Protect build assets from being processed by Laravel
-    RewriteCond %{REQUEST_URI} ^/build/
-    RewriteRule ^ - [L]
 
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d

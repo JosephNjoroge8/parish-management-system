@@ -37,10 +37,13 @@ export default defineConfig({
                 manualChunks: {
                     vendor: ['react', 'react-dom'],
                     inertia: ['@inertiajs/react'],
+                    lodash: ['lodash'],
                 },
                 assetFileNames: 'assets/[name]-[hash].[ext]',
                 chunkFileNames: 'assets/[name]-[hash].js',
                 entryFileNames: 'assets/[name]-[hash].js',
+                // Ensure proper file extensions
+                format: 'es',
             },
             onwarn(warning, warn) {
                 // Suppress certain warnings
@@ -52,17 +55,26 @@ export default defineConfig({
         },
         terserOptions: {
             compress: {
-                drop_console: false, // Keep console in development
+                drop_console: process.env.NODE_ENV === 'production',
                 drop_debugger: true,
+                pure_funcs: process.env.NODE_ENV === 'production' ? ['console.log'] : [],
             },
             mangle: {
                 safari10: true, // Fix Safari 10 issues
+            },
+            format: {
+                comments: false,
             }
         },
         chunkSizeWarningLimit: 1000,
         // Ensure CSS is properly processed
         cssCodeSplit: true,
         assetsInlineLimit: 4096,
+        // Production-specific optimizations
+        target: 'es2020',
+        modulePreload: {
+            polyfill: true
+        },
     },
     resolve: {
         alias: {

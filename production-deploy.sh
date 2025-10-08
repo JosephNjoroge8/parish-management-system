@@ -137,15 +137,49 @@ if [ ! -f "public/build/manifest.json" ]; then
 fi
 
 # Check app bundles
-APP_BUNDLE_COUNT=$(ls public/build/assets/app-*.js 2>/dev/null | wc -l)
-if [ "$APP_BUNDLE_COUNT" -eq 0 ]; then
+if ls public/build/assets/app-*.js >/dev/null 2>&1; then
+    APP_BUNDLE_COUNT=$(ls public/build/assets/app-*.js 2>/dev/null | wc -l)
+    echo "✅ Found $APP_BUNDLE_COUNT app bundle(s)"
+else
     echo "❌ ERROR: No app bundles found!"
     echo "   Expected app-*.js files in public/build/assets/"
+    echo "   Current files:"
+    ls -la public/build/assets/ | grep "app-.*\.js" || echo "   No app-*.js files found"
     exit 1
 fi
-
-echo "✅ Found $APP_BUNDLE_COUNT app bundle(s)"
 echo "✅ Build manifest verified"
+
+# ============================================================================
+# STEP 6.5: VERIFY ASSET ACCESSIBILITY
+# ============================================================================
+echo ""
+echo "🔍 Step 6.5: Testing Asset Accessibility"
+echo "----------------------------------------------------------------------------"
+
+# Test if assets are accessible
+if [ -f "public/build/manifest.json" ]; then
+    echo "✅ Manifest file exists"
+    
+    # Extract first app bundle from manifest for testing
+    FIRST_APP_BUNDLE=$(ls public/build/assets/app-*.js | head -1 | sed 's|public/||')
+    if [ -f "public/$FIRST_APP_BUNDLE" ]; then
+        echo "✅ App bundle accessible: $FIRST_APP_BUNDLE"
+        
+        # Check file size to ensure it's not empty
+        BUNDLE_SIZE=$(stat -f%z "public/$FIRST_APP_BUNDLE" 2>/dev/null || stat -c%s "public/$FIRST_APP_BUNDLE" 2>/dev/null || echo "0")
+        echo "📊 Bundle size: ${BUNDLE_SIZE} bytes"
+        
+        if [ "$BUNDLE_SIZE" -gt 1000 ]; then
+            echo "✅ Bundle size looks good"
+        else
+            echo "⚠️  Warning: Bundle size seems small"
+        fi
+    else
+        echo "❌ App bundle not accessible"
+    fi
+else
+    echo "❌ Manifest file missing"
+fi
 
 # ============================================================================
 # STEP 7: FIX PERMISSIONS

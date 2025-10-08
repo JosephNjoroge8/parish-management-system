@@ -5,6 +5,17 @@
 
     RewriteEngine On
 
+    # PHP Handler Configuration
+    <IfModule mod_php.c>
+        # Enable PHP processing
+        SetHandler application/x-httpd-php
+    </IfModule>
+    
+    # Alternative PHP handler (for some shared hosting)
+    <FilesMatch "\.(php|phtml)$">
+        SetHandler application/x-httpd-php
+    </FilesMatch>
+
     # Force HTTPS in production
     RewriteCond %{HTTPS} off
     RewriteCond %{HTTP_HOST} parish\.quovadisyouthhub\.org$ [NC]

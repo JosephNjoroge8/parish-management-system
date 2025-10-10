@@ -174,12 +174,18 @@ test-*.php
 *_test.php
 
 # ============================================================================
-# DOCUMENTATION FILES - EXCLUDE ALL .MD FILES EXCEPT CRITICAL ONES
+# DOCUMENTATION FILES - INCLUDE ESSENTIAL PRODUCTION DOCUMENTATION
 # ============================================================================
-# Exclude all .md files except README.md and critical production files
-*.md
+# Include essential production documentation
 !README.md
-!PRODUCTION_ASSET_FIX.md
+!DEPLOYMENT_INSTRUCTIONS.md
+!PRODUCTION_READY_SUMMARY.md
+!SHELL_SCRIPTS_ANALYSIS.md
+
+# Exclude development documentation
+DEPLOYMENT_ANALYSIS_COMPLETE.md
+DEPLOYMENT_CHECKLIST.md
+PRODUCTION_DEPLOYMENT_GUIDE.md
 
 # ============================================================================
 # PARISH-SPECIFIC SENSITIVE FILES
@@ -250,45 +256,13 @@ apache.conf
 # ============================================================================
 # END OF .GITIGNORE
 # ============================================================================
-# Additional development files to ignore  
-debug_*.php
-test_*.php
-test-*.php
-*_test.php
-*.test.php
-/storage/debugbar/
-/storage/logs/*.log
-
-# Development documentation to ignore
-/MYSQL_MIGRATION_GUIDE.md
-/DEPLOYMENT_PRODUCTION_GUIDE.md
-/PRODUCTION_DEPLOYMENT_GUIDE.md
-/MEMBER_REGISTRATION_ANALYSIS.md
-/MEMBER_REGISTRATION_RESOLUTION.md
-/DATABASE_ENHANCEMENT_REPORT.md
-/MEMBERS_INDEX_IMPROVEMENTS.md
-/TECHNICAL_DOCUMENTATION.md
-
-# Additional development files to ignore
-debug_*.php
-test_*.php
-test-*.php
-*_test.php
-*.test.php
-/storage/debugbar/
-/storage/logs/*.log
-
-# Development documentation
-/MYSQL_MIGRATION_GUIDE.md
-/DEPLOYMENT_PRODUCTION_GUIDE.md
-/PRODUCTION_DEPLOYMENT_GUIDE.md
-/MEMBER_REGISTRATION_ANALYSIS.md
-/MEMBER_REGISTRATION_RESOLUTION.md
-/DATABASE_ENHANCEMENT_REPORT.md
 
 # Keep only essential documentation
 !/README.md
 !/LICENSE
+!/DEPLOYMENT_INSTRUCTIONS.md
+!/PRODUCTION_READY_SUMMARY.md
+!/SHELL_SCRIPTS_ANALYSIS.md
 
 # ============================================================================
 # PRODUCTION BUILD ASSETS - INCLUDE ALL BUILD FILES
@@ -300,9 +274,18 @@ test-*.php
 !/public/build/assets/**
 !/public/build/manifest.json
 
-# Script files to ignore (development/deployment scripts)
-*.sh
-!build-and-deploy.sh
+# ============================================================================
+# DEPLOYMENT SCRIPTS - INCLUDE ESSENTIAL PRODUCTION SCRIPTS
+# ============================================================================
+# Include essential deployment scripts
+!prepare-deployment.sh
+!server-optimize.sh
 !verify-assets.sh
-!sqlite-to-mysql.sh
-!production-deploy-fix.sh
+
+# Exclude old/redundant scripts (already removed)
+build-and-deploy.sh
+deploy-to-production.sh
+build-production.sh
+migrate-sqlite-to-mysql.sh
+sqlite-to-mysql.sh
+production-deploy-fix.sh

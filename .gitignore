@@ -77,6 +77,13 @@ mix-manifest.json.backup
 # ============================================================================
 # DEPENDENCIES & PACKAGES
 # ============================================================================
+# Node.js modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# PHP dependencies
 composer.phar
 npm-debug.log
 yarn-error.log

@@ -1,4 +1,4 @@
-#!#!/bin/bash
+#!/bin/bash
 
 # ====================================
 # PARISH MANAGEMENT SYSTEM - SERVER OPTIMIZATION SCRIPT

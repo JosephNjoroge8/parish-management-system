@@ -3,12 +3,16 @@ deployment:
   tasks:
     - export REPOPATH=/home2/shemidig/parish_system
     - export DEPLOYPATH=/home2/shemidig/parish_system
+    - export PHPVER=82
     
     # Sync files (should take 5-20 seconds)
     - /bin/rsync -azc --exclude '.git' --exclude '.env' --exclude 'node_modules' --exclude 'tests' --exclude 'storage/logs/*' --exclude 'storage/framework/cache/*' --exclude 'storage/framework/sessions/*' --exclude 'storage/framework/views/*' --exclude 'bootstrap/cache/*.php' ${REPOPATH}/ ${DEPLOYPATH}/
     
     # Ensure storage is writable
     - /bin/chmod -R 755 ${DEPLOYPATH}/storage ${DEPLOYPATH}/bootstrap/cache
+    
+    # Run composer install with correct PHP version
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader --no-interaction
     
     # Log deployment
     - echo "[$(date)] Deployment completed" >> ${DEPLOYPATH}/storage/logs/deployment.log

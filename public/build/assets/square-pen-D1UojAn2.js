@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/square-pen-D1UojAn2.js
-import{c as a}from"./app-BG9ayD8g.js";const p=a("square-pen",[["path",{d:"M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7",key:"1m0v6g"}],["path",{d:"M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z",key:"ohrbg2"}]]);export{p as S};
-========
-import{c as a}from"./app-MQWlyRMh.js";const p=a("square-pen",[["path",{d:"M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7",key:"1m0v6g"}],["path",{d:"M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z",key:"ohrbg2"}]]);export{p as S};
->>>>>>>> ca69ac817715bd2d0fdccc77edac6f14aa3b37c0:public/build/assets/square-pen-rOJIc71T.js

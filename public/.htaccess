@@ -2,95 +2,165 @@
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
     </IfModule>
-
-    RewriteEngine On
-
-    # CRITICAL: PHP Handler Configuration
-    AddHandler application/x-httpd-php .php
-    AddType application/x-httpd-php .php
     
-    # Alternative PHP handlers for different hosting environments
-    <IfModule mod_php.c>
-        SetHandler application/x-httpd-php
+    RewriteEngine On
+    
+    # ========================================
+    # CRITICAL: Force PHP 8.2 (FIX FOR YOUR ERROR)
+    # ========================================
+    <IfModule mime_module>
+        AddHandler application/x-httpd-ea-php82 .php .php8 .phtml
     </IfModule>
     
+    # Fallback for different cPanel configurations
     <FilesMatch "\.(php|phtml)$">
-        SetHandler application/x-httpd-php
+        SetHandler application/x-httpd-ea-php82
     </FilesMatch>
-
-    # CRITICAL: Asset serving BEFORE Laravel routing
-    RewriteCond %{REQUEST_URI} ^/build/
+    
+    # ========================================
+    # ASSET SERVING (Before Laravel Routing)
+    # ========================================
+    # Serve build assets directly without routing through Laravel
+    RewriteCond %{REQUEST_URI} ^/build/ [NC]
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]
-
-    # CRITICAL: Force correct MIME types for JavaScript files
+    
+    # ========================================
+    # MIME TYPES FOR VITE ASSETS
+    # ========================================
+    <IfModule mod_mime.c>
+        # JavaScript
+        AddType application/javascript .js
+        AddType application/javascript .mjs
+        AddType module .mjs
+        
+        # CSS
+        AddType text/css .css
+        
+        # JSON & Manifest
+        AddType application/json .json
+        AddType application/manifest+json .webmanifest
+        
+        # Images
+        AddType image/svg+xml .svg
+        AddType image/webp .webp
+        
+        # Fonts
+        AddType font/woff .woff
+        AddType font/woff2 .woff2
+        AddType font/ttf .ttf
+        AddType font/otf .otf
+    </IfModule>
+    
+    # Force correct Content-Type for JavaScript modules
     <FilesMatch "\.(js|mjs)$">
-        <IfModule mod_mime.c>
-            ForceType application/javascript
-        </IfModule>
         <IfModule mod_headers.c>
             Header set Content-Type "application/javascript; charset=utf-8"
         </IfModule>
     </FilesMatch>
-
-    # Force correct MIME types for CSS files
+    
+    # Force correct Content-Type for CSS
     <FilesMatch "\.css$">
-        <IfModule mod_mime.c>
-            ForceType text/css
-        </IfModule>
         <IfModule mod_headers.c>
             Header set Content-Type "text/css; charset=utf-8"
         </IfModule>
     </FilesMatch>
-
-    # MIME Types
-    <IfModule mod_mime.c>
-        AddType application/javascript .js
-        AddType application/javascript .mjs
-        AddType text/css .css
-        AddType application/json .json
-        AddType image/svg+xml .svg
-        AddType font/woff .woff
-        AddType font/woff2 .woff2
-    </IfModule>
-
-    # Force HTTPS in production
+    
+    # ========================================
+    # HTTPS ENFORCEMENT
+    # ========================================
     RewriteCond %{HTTPS} off
-    RewriteCond %{HTTP_HOST} parish\.quovadisyouthhub\.org$ [NC]
     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
-
-    # Handle Authorization Header
+    
+    # ========================================
+    # AUTHORIZATION HEADER PASS-THROUGH
+    # ========================================
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
-
-    # Security Headers
+    
+    # ========================================
+    # SECURITY HEADERS
+    # ========================================
     <IfModule mod_headers.c>
+        # Prevent clickjacking
         Header always set X-Frame-Options "SAMEORIGIN"
+        
+        # Prevent MIME sniffing
         Header always set X-Content-Type-Options "nosniff"
+        
+        # XSS Protection (legacy browsers)
         Header always set X-XSS-Protection "1; mode=block"
+        
+        # Referrer Policy
+        Header always set Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # Permissions Policy (optional - adjust as needed)
+        Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
     </IfModule>
-
-    # Asset Caching
+    
+    # ========================================
+    # BROWSER CACHING FOR ASSETS
+    # ========================================
     <IfModule mod_expires.c>
         ExpiresActive On
-        ExpiresByType text/css "access plus 1 year"
-        ExpiresByType application/javascript "access plus 1 year"
+        
+        # Vite builds with content hashes - cache aggressively
+        <FilesMatch "\.(css|js|mjs)$">
+            ExpiresDefault "access plus 1 year"
+        </FilesMatch>
+        
+        # Images
         ExpiresByType image/png "access plus 1 year"
         ExpiresByType image/jpg "access plus 1 year"
         ExpiresByType image/jpeg "access plus 1 year"
         ExpiresByType image/gif "access plus 1 year"
         ExpiresByType image/webp "access plus 1 year"
+        ExpiresByType image/svg+xml "access plus 1 year"
+        
+        # Fonts
         ExpiresByType font/woff "access plus 1 year"
         ExpiresByType font/woff2 "access plus 1 year"
+        ExpiresByType font/ttf "access plus 1 year"
+        ExpiresByType font/otf "access plus 1 year"
+        
+        # Manifest
+        ExpiresByType application/manifest+json "access plus 1 week"
     </IfModule>
-
-    # Redirect Trailing Slashes If Not A Folder...
+    
+    # Cache-Control headers for hashed assets
+    <IfModule mod_headers.c>
+        <FilesMatch "\.(css|js|mjs|woff|woff2|ttf|otf|png|jpg|jpeg|gif|webp|svg)$">
+            Header set Cache-Control "public, max-age=31536000, immutable"
+        </FilesMatch>
+    </IfModule>
+    
+    # ========================================
+    # LARAVEL ROUTING
+    # ========================================
+    # Remove trailing slashes (except for directories)
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
-
-    # Send Requests To Front Controller...
+    
+    # Route all requests to index.php
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
+    
+    # ========================================
+    # SECURITY: BLOCK ACCESS TO SENSITIVE FILES
+    # ========================================
+    <FilesMatch "^\.">
+        Require all denied
+    </FilesMatch>
+    
+    <FilesMatch "(composer\.(json|lock)|package(-lock)?\.json|\.env|\.git)">
+        Require all denied
+    </FilesMatch>
 </IfModule>
+# php -- BEGIN cPanel-generated handler, do not edit
+# Set the “ea-php82” package as the default “PHP” programming language.
+<IfModule mime_module>
+  AddHandler application/x-httpd-ea-php82 .php .php8 .phtml
+</IfModule>
+# php -- END cPanel-generated handler, do not edit

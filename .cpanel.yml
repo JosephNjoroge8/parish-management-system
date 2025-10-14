@@ -1,18 +1,42 @@
 ---
 deployment:
   tasks:
-    - export REPOPATH=/home2/shemidig/parish_system
     - export DEPLOYPATH=/home2/shemidig/parish_system
     - export PHPVER=82
     
-    # Sync files (should take 5-20 seconds)
-    - /bin/rsync -azc --exclude '.git' --exclude '.env' --exclude 'node_modules' --exclude 'tests' --exclude 'storage/logs/*' --exclude 'storage/framework/cache/*' --exclude 'storage/framework/sessions/*' --exclude 'storage/framework/views/*' --exclude 'bootstrap/cache/*.php' ${REPOPATH}/ ${DEPLOYPATH}/
+    # Git deployment support - ensure we're using latest commit
+    - cd ${DEPLOYPATH} && git fetch origin
+    - cd ${DEPLOYPATH} && git reset --hard HEAD
+    - cd ${DEPLOYPATH} && git clean -fd
     
-    # Ensure storage is writable
-    - /bin/chmod -R 755 ${DEPLOYPATH}/storage ${DEPLOYPATH}/bootstrap/cache
-    
-    # Run composer install with correct PHP version
+    # Install/update composer dependencies (production mode)
     - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader --no-interaction
     
-    # Log deployment
-    - echo "[$(date)] Deployment completed" >> ${DEPLOYPATH}/storage/logs/deployment.log
+    # Install/update npm dependencies and build assets
+    - cd ${DEPLOYPATH} && npm ci --production=false
+    - cd ${DEPLOYPATH} && npm run build
+    
+    # Set proper permissions
+    - /bin/chmod -R 755 ${DEPLOYPATH}/storage ${DEPLOYPATH}/bootstrap/cache
+    - /bin/find ${DEPLOYPATH}/storage -type f -exec chmod 644 {} \;
+    - /bin/find ${DEPLOYPATH}/bootstrap/cache -type f -exec chmod 644 {} \;
+    
+    # Clear Laravel caches
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan config:clear || true
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan cache:clear || true
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan route:clear || true
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan view:clear || true
+    
+    # Build Laravel caches for production
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan config:cache || true
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan route:cache || true
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan view:cache || true
+    
+    # Run database migrations (if needed)
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan migrate --force --no-interaction || true
+    
+    # Optimize application for production
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan optimize || true
+    
+    # Log successful deployment with commit info
+    - cd ${DEPLOYPATH} && echo "[$(date)] Git deployment completed - Commit: $(git rev-parse HEAD)" >> ${DEPLOYPATH}/storage/logs/deployment.log

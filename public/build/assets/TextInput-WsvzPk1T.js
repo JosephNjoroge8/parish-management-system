@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/TextInput-D8Gs19XM.js
-import{j as e}from"./app-BG9ayD8g.js";import{r}from"./vendor-BJRZWs4n.js";const s=r.forwardRef(function({type:s="text",className:o="",isFocused:t=!1,...u},n){const c=r.useRef(null);return r.useImperativeHandle(n,()=>({focus:()=>c.current?.focus()})),r.useEffect(()=>{t&&c.current?.focus()},[t]),e.jsx("input",{...u,type:s,className:"rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 "+o,ref:c})});export{s as T};
-========
-import{j as e}from"./app-MQWlyRMh.js";import{r}from"./vendor-BJRZWs4n.js";const s=r.forwardRef(function({type:s="text",className:o="",isFocused:t=!1,...u},n){const c=r.useRef(null);return r.useImperativeHandle(n,()=>({focus:()=>c.current?.focus()})),r.useEffect(()=>{t&&c.current?.focus()},[t]),e.jsx("input",{...u,type:s,className:"rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 "+o,ref:c})});export{s as T};
->>>>>>>> ca69ac817715bd2d0fdccc77edac6f14aa3b37c0:public/build/assets/TextInput-WsvzPk1T.js

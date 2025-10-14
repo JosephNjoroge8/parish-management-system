@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/map-pin-Cql4aeYJ.js
-import{c as a}from"./app-BG9ayD8g.js";const c=a("map-pin",[["path",{d:"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0",key:"1r0f0z"}],["circle",{cx:"12",cy:"10",r:"3",key:"ilqhr7"}]]);export{c as M};
-========
-import{c as a}from"./app-MQWlyRMh.js";const c=a("map-pin",[["path",{d:"M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0",key:"1r0f0z"}],["circle",{cx:"12",cy:"10",r:"3",key:"ilqhr7"}]]);export{c as M};
->>>>>>>> ca69ac817715bd2d0fdccc77edac6f14aa3b37c0:public/build/assets/map-pin-CVQVogvw.js

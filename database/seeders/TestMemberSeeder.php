@@ -1,0 +1,400 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Member;
+use Carbon\Carbon;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class TestMemberSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     * Creates 20 diverse members representing all types in the parish system
+     */
+    public function run(): void
+    {
+        $this->command->info('🌱 Creating 20 comprehensive test members...');
+
+        // Clear existing members to avoid conflicts during testing
+        $this->command->info('Clearing existing member data...');
+        Member::truncate();
+
+        $members = [
+            // 1. Parish Leader
+            [
+                'first_name' => 'Joseph', 'middle_name' => 'Wanjiku', 'last_name' => 'Njoroge',
+                'date_of_birth' => '1965-03-15', 'gender' => 'Male', 'id_number' => '12345678',
+                'phone' => '0722123456', 'email' => 'joseph.njoroge@gmail.com',
+                'residence' => 'Kandara, Muranga', 'emergency_contact' => 'Grace Wangari Njoroge',
+                'emergency_phone' => '0722123457', 'local_church' => 'Sacred Heart Kandara',
+                'small_christian_community' => 'St. Joseph', 'church_group' => 'CMA',
+                'additional_church_groups' => ['Parish Council', 'Building Committee'],
+                'membership_status' => 'active', 'membership_date' => '1985-01-15',
+                'baptism_date' => '1965-04-20', 'confirmation_date' => '1978-05-12',
+                'matrimony_status' => 'married', 'marriage_type' => 'church',
+                'occupation' => 'teacher', 'education_level' => 'degree', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
+                'parent' => 'Samuel Njoroge Kamau', 'godparent' => 'Peter Mwangi Kariuki',
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'Parish council chairman and catechist leader'
+            ],
+            // 2. Youth Leader
+            [
+                'first_name' => 'Mary', 'middle_name' => 'Njeri', 'last_name' => 'Kamau',
+                'date_of_birth' => '1998-07-22', 'gender' => 'Female', 'id_number' => '34567890',
+                'phone' => '0733456789', 'email' => 'mary.kamau@yahoo.com',
+                'residence' => 'Thika, Kiambu', 'emergency_contact' => 'David Kamau Mwangi',
+                'emergency_phone' => '0733456788', 'local_church' => 'St. Joseph Thika',
+                'small_christian_community' => 'St. Mary', 'church_group' => 'Youth',
+                'additional_church_groups' => ['Choir', 'Pioneer'],
+                'membership_status' => 'active', 'membership_date' => '2015-03-10',
+                'baptism_date' => '1998-08-15', 'confirmation_date' => '2012-04-28',
+                'matrimony_status' => 'single', 'marriage_type' => null,
+                'occupation' => 'student', 'education_level' => 'degree', 'tribe' => 'Kikuyu', 'clan' => 'Agachiku',
+                'parent' => 'David Kamau Mwangi', 'godparent' => 'Catherine Nyokabi',
+                'minister' => 'Fr. Michael Kiarie', 'notes' => 'Youth group chairperson and university student'
+            ],
+            // 3. Women's Leader
+            [
+                'first_name' => 'Grace', 'middle_name' => 'Wangari', 'last_name' => 'Mwangi',
+                'date_of_birth' => '1975-11-08', 'gender' => 'Female', 'id_number' => '23456789',
+                'phone' => '0711234567', 'email' => 'grace.mwangi@hotmail.com',
+                'residence' => 'Nyeri Town', 'emergency_contact' => 'James Kariuki Mwangi',
+                'emergency_phone' => '0711234568', 'local_church' => 'St. Peter Nyeri',
+                'small_christian_community' => 'St. Anne', 'church_group' => 'C.W.A',
+                'additional_church_groups' => ['Catholic Action', 'Choir'],
+                'membership_status' => 'active', 'membership_date' => '1992-06-20',
+                'baptism_date' => '1975-12-25', 'confirmation_date' => '1988-05-15',
+                'matrimony_status' => 'married', 'marriage_type' => 'church',
+                'occupation' => 'business', 'education_level' => 'diploma', 'tribe' => 'Kikuyu', 'clan' => 'Ethaga',
+                'parent' => 'Paul Mwangi Githinji', 'godparent' => 'Agnes Wambui',
+                'minister' => 'Fr. Daniel Muturi', 'notes' => 'C.W.A chairperson and small business owner'
+            ],
+            // 4. Senior Member
+            [
+                'first_name' => 'Peter', 'middle_name' => 'Kimani', 'last_name' => 'Kariuki',
+                'date_of_birth' => '1940-02-18', 'gender' => 'Male', 'id_number' => '11111111',
+                'phone' => '0700111111', 'email' => null,
+                'residence' => 'Kerugoya, Kirinyaga', 'emergency_contact' => 'Daniel Wachira Njoroge',
+                'emergency_phone' => '0700111112', 'local_church' => 'Holy Family Kiambu',
+                'small_christian_community' => 'St. Peter', 'church_group' => 'Pioneer',
+                'additional_church_groups' => ['Parish Council'],
+                'membership_status' => 'active', 'membership_date' => '1960-01-01',
+                'baptism_date' => '1940-03-25', 'confirmation_date' => '1955-04-10',
+                'matrimony_status' => 'widowed', 'marriage_type' => 'church',
+                'occupation' => 'retired', 'education_level' => 'primary', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
+                'parent' => 'Kariuki wa Kimani', 'godparent' => 'Unknown',
+                'minister' => 'Fr. Unknown', 'notes' => 'Founding member and elder of the parish'
+            ],
+            // 5. Child Member
+            [
+                'first_name' => 'John', 'middle_name' => 'Muturi', 'last_name' => 'Githinji',
+                'date_of_birth' => '2015-05-12', 'gender' => 'Male', 'id_number' => null,
+                'phone' => null, 'email' => null,
+                'residence' => 'Kandara, Muranga', 'emergency_contact' => 'Samuel Githinji Muturi',
+                'emergency_phone' => '0722555555', 'local_church' => 'Sacred Heart Kandara',
+                'small_christian_community' => 'St. John', 'church_group' => 'PMC',
+                'additional_church_groups' => null,
+                'membership_status' => 'active', 'membership_date' => '2015-06-01',
+                'baptism_date' => '2015-06-14', 'confirmation_date' => null,
+                'matrimony_status' => 'single', 'marriage_type' => null,
+                'occupation' => 'student', 'education_level' => 'primary', 'tribe' => 'Kikuyu', 'clan' => 'Agachiku',
+                'parent' => 'Samuel Githinji Muturi', 'godparent' => 'Joseph Njoroge Wanjiku',
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'Active in children ministry and Sunday school'
+            ],
+            // 6. Transferred Member
+            [
+                'first_name' => 'Ruth', 'middle_name' => 'Nyawira', 'last_name' => 'Wairimu',
+                'date_of_birth' => '1982-09-30', 'gender' => 'Female', 'id_number' => '98765432',
+                'phone' => '0722987654', 'email' => 'ruth.wairimu@gmail.com',
+                'residence' => 'Nairobi, Kenya', 'emergency_contact' => 'Daniel Kimani Mwangi',
+                'emergency_phone' => '0722987655', 'local_church' => 'Sacred Heart Kandara',
+                'small_christian_community' => 'St. Ruth', 'church_group' => 'Youth',
+                'membership_status' => 'transferred', 'membership_date' => '2000-01-15',
+                'baptism_date' => '1982-10-31', 'confirmation_date' => '1995-03-25',
+                'matrimony_status' => 'married', 'marriage_type' => 'church',
+                'occupation' => 'civil_servant', 'education_level' => 'masters', 'tribe' => 'Kikuyu', 'clan' => 'Ethaga',
+                'parent' => 'Michael Wairimu Kimani', 'godparent' => 'Sarah Njoki',
+                'minister' => 'Fr. Paul Kariuki', 'notes' => 'Transferred to Holy Family Cathedral Nairobi for work'
+            ],
+            // 7. Choir Member
+            [
+                'first_name' => 'Sarah', 'middle_name' => 'Wanjiku', 'last_name' => 'Maina',
+                'date_of_birth' => '1985-04-16', 'gender' => 'Female', 'id_number' => '56789012',
+                'phone' => '0766234567', 'email' => 'sarah.maina@music.com',
+                'residence' => 'Nyeri, Nyeri', 'emergency_contact' => 'John Maina Kariuki',
+                'emergency_phone' => '0766234568', 'local_church' => 'St. Peter Nyeri',
+                'small_christian_community' => 'St. Cecilia', 'church_group' => 'Choir',
+                'additional_church_groups' => ['Catholic Action'],
+                'membership_status' => 'active', 'membership_date' => '2003-02-14',
+                'baptism_date' => '1985-05-19', 'confirmation_date' => '1998-04-12',
+                'matrimony_status' => 'single', 'marriage_type' => null,
+                'occupation' => 'teacher', 'education_level' => 'diploma', 'tribe' => 'Kikuyu', 'clan' => 'Agachiku',
+                'parent' => 'John Maina Kariuki', 'godparent' => 'Mary Njoki',
+                'minister' => 'Fr. Daniel Muturi', 'notes' => 'Choir director and music teacher'
+            ],
+            // 8. Non-Kikuyu Member
+            [
+                'first_name' => 'David', 'middle_name' => 'Otieno', 'last_name' => 'Ochieng',
+                'date_of_birth' => '1978-08-14', 'gender' => 'Male', 'id_number' => '67890123',
+                'phone' => '0777345678', 'email' => 'david.ochieng@gmail.com',
+                'residence' => 'Kandara, Muranga', 'emergency_contact' => 'Margaret Wanjiku Ochieng',
+                'emergency_phone' => '0777345679', 'local_church' => 'Sacred Heart Kandara',
+                'small_christian_community' => 'St. David', 'church_group' => 'CMA',
+                'membership_status' => 'active', 'membership_date' => '2005-09-10',
+                'baptism_date' => '1978-09-17', 'confirmation_date' => '1991-06-02',
+                'matrimony_status' => 'married', 'marriage_type' => 'church',
+                'occupation' => 'business', 'education_level' => 'certificate', 'tribe' => 'Luo', 'clan' => 'Kogelo',
+                'parent' => 'Peter Ochieng Otieno', 'godparent' => 'Joseph Njoroge Wanjiku',
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'Business owner and cultural bridge in the community'
+            ],
+            // 9. Inactive Member
+            [
+                'first_name' => 'Margaret', 'middle_name' => 'Wanjiru', 'last_name' => 'Kinyua',
+                'date_of_birth' => '1988-01-25', 'gender' => 'Female', 'id_number' => '78901234',
+                'phone' => '0788456789', 'email' => 'margaret.kinyua@yahoo.com',
+                'residence' => 'Mombasa, Coast', 'emergency_contact' => 'Simon Kinyua Muturi',
+                'emergency_phone' => '0788456790', 'local_church' => 'Sacred Heart Kandara',
+                'small_christian_community' => 'St. Margaret', 'church_group' => 'Youth',
+                'membership_status' => 'inactive', 'membership_date' => '2006-03-12',
+                'baptism_date' => '1988-02-28', 'confirmation_date' => '2001-04-15',
+                'matrimony_status' => 'single', 'marriage_type' => null,
+                'occupation' => 'not_employed', 'education_level' => 'kcse', 'tribe' => 'Kikuyu', 'clan' => 'Ethaga',
+                'parent' => 'Simon Kinyua Muturi', 'godparent' => 'Grace Wangari',
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'Moved to coast for work, lost contact with parish'
+            ],
+            // 10. Farmer Member
+            [
+                'first_name' => 'Francis', 'middle_name' => 'Muturi', 'last_name' => 'Wachira',
+                'date_of_birth' => '1970-06-20', 'gender' => 'Male', 'id_number' => '89012345',
+                'phone' => '0799567890', 'email' => null,
+                'residence' => 'Kandara Rural, Muranga', 'emergency_contact' => 'Lucy Wanjiku Wachira',
+                'emergency_phone' => '0799567891', 'local_church' => 'Sacred Heart Kandara',
+                'small_christian_community' => 'St. Francis', 'church_group' => 'CMA',
+                'membership_status' => 'active', 'membership_date' => '1988-12-25',
+                'baptism_date' => '1970-07-25', 'confirmation_date' => '1983-05-29',
+                'matrimony_status' => 'married', 'marriage_type' => 'customary',
+                'occupation' => 'farmer', 'education_level' => 'kcpe', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
+                'parent' => 'Wachira wa Muturi', 'godparent' => 'Peter Kariuki',
+                'minister' => 'Fr. John Kamau', 'notes' => 'Active in farming cooperative and agricultural ministry'
+            ],
+            // 11. Young Professional
+            [
+                'first_name' => 'James', 'middle_name' => 'Kariuki', 'last_name' => 'Maina',
+                'date_of_birth' => '1995-10-08', 'gender' => 'Male', 'id_number' => '90123456',
+                'phone' => '0710678901', 'email' => 'james.maina@tech.com',
+                'residence' => 'Nairobi, Kenya', 'emergency_contact' => 'John Maina Kariuki',
+                'emergency_phone' => '0710678902', 'local_church' => 'St. Joseph Thika',
+                'small_christian_community' => 'St. James', 'church_group' => 'Youth',
+                'additional_church_groups' => ['Catholic Action'],
+                'membership_status' => 'active', 'membership_date' => '2013-01-20',
+                'baptism_date' => '1995-11-12', 'confirmation_date' => '2008-04-27',
+                'matrimony_status' => 'single', 'marriage_type' => null,
+                'occupation' => 'software_engineer', 'education_level' => 'degree', 'tribe' => 'Kikuyu', 'clan' => 'Agachiku',
+                'parent' => 'John Maina Kariuki', 'godparent' => 'David Kamau',
+                'minister' => 'Fr. Michael Kiarie', 'notes' => 'Software engineer, manages parish website and tech systems'
+            ],
+            // 12. Widow
+            [
+                'first_name' => 'Elizabeth', 'middle_name' => 'Nyokabi', 'last_name' => 'Muturi',
+                'date_of_birth' => '1960-12-15', 'gender' => 'Female', 'id_number' => '01234567',
+                'phone' => '0721789012', 'email' => null,
+                'residence' => 'Kandara, Muranga', 'emergency_contact' => 'John Muturi Githinji',
+                'emergency_phone' => '0721789013', 'local_church' => 'Sacred Heart Kandara',
+                'small_christian_community' => 'St. Elizabeth', 'church_group' => 'C.W.A',
+                'additional_church_groups' => ['C.W.A'],
+                'membership_status' => 'active', 'membership_date' => '1978-05-14',
+                'baptism_date' => '1961-01-18', 'confirmation_date' => '1974-03-31',
+                'matrimony_status' => 'widowed', 'marriage_type' => 'church',
+                'occupation' => 'small_business', 'education_level' => 'secondary', 'tribe' => 'Kikuyu', 'clan' => 'Ethaga',
+                'parent' => 'Samuel Muturi Githinji', 'godparent' => 'Margaret Wangari',
+                'minister' => 'Fr. Paul Kariuki', 'notes' => 'Active in widows ministry and small business cooperative'
+            ],
+            // 13. Teacher
+            [
+                'first_name' => 'Catherine', 'middle_name' => 'Wangui', 'last_name' => 'Kimani',
+                'date_of_birth' => '1983-03-28', 'gender' => 'Female', 'id_number' => '12345098',
+                'phone' => '0732890123', 'email' => 'catherine.kimani@education.go.ke',
+                'residence' => 'Nyeri, Nyeri', 'emergency_contact' => 'Michael Muturi Kimani',
+                'emergency_phone' => '0732890124', 'local_church' => 'St. Peter Nyeri',
+                'small_christian_community' => 'St. Catherine', 'church_group' => 'C.W.A',
+                'additional_church_groups' => ['Catholic Action'],
+                'membership_status' => 'active', 'membership_date' => '2001-08-15',
+                'baptism_date' => '1983-04-30', 'confirmation_date' => '1996-05-12',
+                'matrimony_status' => 'married', 'marriage_type' => 'church',
+                'occupation' => 'teacher', 'education_level' => 'masters', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
+                'parent' => 'Francis Kimani Wachira', 'godparent' => 'Sarah Wanjiku',
+                'minister' => 'Fr. Daniel Muturi', 'notes' => 'Head teacher and education ministry coordinator'
+            ],
+            // 14. Teenager
+            [
+                'first_name' => 'Daniel', 'middle_name' => 'Wachira', 'last_name' => 'Njoroge',
+                'date_of_birth' => '2008-09-12', 'gender' => 'Male', 'id_number' => null,
+                'phone' => '0743901234', 'email' => null,
+                'residence' => 'Kandara, Muranga', 'emergency_contact' => 'Joseph Njoroge Wanjiku',
+                'emergency_phone' => '0722123456', 'local_church' => 'Sacred Heart Kandara',
+                'small_christian_community' => 'St. Daniel', 'church_group' => 'Youth',
+                'additional_church_groups' => ['Choir'],
+                'membership_status' => 'active', 'membership_date' => '2008-10-15',
+                'baptism_date' => '2008-10-19', 'confirmation_date' => '2022-04-24',
+                'matrimony_status' => 'single', 'marriage_type' => null,
+                'occupation' => 'student', 'education_level' => 'secondary', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
+                'parent' => 'Joseph Njoroge Wanjiku', 'godparent' => 'Peter Kariuki',
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'Son of parish leader, active altar server and youth leader'
+            ],
+            // 15. Nurse
+            [
+                'first_name' => 'Joyce', 'middle_name' => 'Wanjiru', 'last_name' => 'Gitau',
+                'date_of_birth' => '1987-07-05', 'gender' => 'Female', 'id_number' => '23456098',
+                'phone' => '0754012345', 'email' => 'joyce.gitau@health.go.ke',
+                'residence' => 'Thika, Kiambu', 'emergency_contact' => 'Samuel Muturi Gitau',
+                'emergency_phone' => '0754012346', 'local_church' => 'St. Joseph Thika',
+                'small_christian_community' => 'St. Joyce', 'church_group' => 'C.W.A',
+                'additional_church_groups' => ['Catholic Action'],
+                'membership_status' => 'active', 'membership_date' => '2005-02-20',
+                'baptism_date' => '1987-08-08', 'confirmation_date' => '2000-05-14',
+                'matrimony_status' => 'married', 'marriage_type' => 'church',
+                'occupation' => 'nurse', 'education_level' => 'diploma', 'tribe' => 'Kikuyu', 'clan' => 'Agachiku',
+                'parent' => 'Paul Gitau Maina', 'godparent' => 'Ruth Nyawira',
+                'minister' => 'Fr. Michael Kiarie', 'notes' => 'Parish health coordinator and nursing professional'
+            ],
+            // 16. Business Owner
+            [
+                'first_name' => 'Samuel', 'middle_name' => 'Kimani', 'last_name' => 'Wanjiku',
+                'date_of_birth' => '1972-11-22', 'gender' => 'Male', 'id_number' => '34567098',
+                'phone' => '0765123456', 'email' => 'samuel.wanjiku@business.co.ke',
+                'residence' => 'Kiambu Town', 'emergency_contact' => 'Agnes Wangari Wanjiku',
+                'emergency_phone' => '0765123457', 'local_church' => 'Holy Family Kiambu',
+                'small_christian_community' => 'St. Samuel', 'church_group' => 'CMA',
+                'additional_church_groups' => ['Catholic Action'],
+                'membership_status' => 'active', 'membership_date' => '1990-04-08',
+                'baptism_date' => '1972-12-25', 'confirmation_date' => '1985-06-16',
+                'matrimony_status' => 'married', 'marriage_type' => 'church',
+                'occupation' => 'business', 'education_level' => 'certificate', 'tribe' => 'Kikuyu', 'clan' => 'Ethaga',
+                'parent' => 'Wanjiku wa Kimani', 'godparent' => 'John Mwangi',
+                'minister' => 'Fr. Joseph Muturi', 'notes' => 'Hardware store owner and parish finance committee member'
+            ],
+            // 17. Recent Convert
+            [
+                'first_name' => 'Michael', 'middle_name' => 'Kuria', 'last_name' => 'Gichuki',
+                'date_of_birth' => '1980-04-10', 'gender' => 'Male', 'id_number' => '45678098',
+                'phone' => '0776234567', 'email' => 'michael.gichuki@gmail.com',
+                'residence' => 'Kandara, Muranga', 'emergency_contact' => 'Joseph Njoroge Wanjiku',
+                'emergency_phone' => '0722123456', 'local_church' => 'Sacred Heart Kandara',
+                'small_christian_community' => 'St. Michael', 'church_group' => 'Youth',
+                'membership_status' => 'active', 'membership_date' => '2023-01-15',
+                'baptism_date' => '2023-04-16', 'confirmation_date' => null,
+                'matrimony_status' => 'single', 'marriage_type' => null,
+                'occupation' => 'mechanic', 'education_level' => 'certificate', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
+                'parent' => 'Gichuki wa Kuria', 'godparent' => 'Joseph Njoroge Wanjiku',
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'Recent adult convert, completed RCIA program in 2023'
+            ],
+            // 18. University Student
+            [
+                'first_name' => 'Ann', 'middle_name' => 'Wangui', 'last_name' => 'Mwangi',
+                'date_of_birth' => '2001-06-18', 'gender' => 'Female', 'id_number' => '56789098',
+                'phone' => '0787345678', 'email' => 'ann.mwangi@student.ac.ke',
+                'residence' => 'Nairobi (Student)', 'emergency_contact' => 'Grace Wangari Mwangi',
+                'emergency_phone' => '0711234567', 'local_church' => 'Sacred Heart Kandara',
+                'small_christian_community' => 'St. Ann', 'church_group' => 'Youth',
+                'additional_church_groups' => ['Youth'],
+                'membership_status' => 'active', 'membership_date' => '2019-09-01',
+                'baptism_date' => '2001-07-22', 'confirmation_date' => '2015-05-10',
+                'matrimony_status' => 'single', 'marriage_type' => null,
+                'occupation' => 'student', 'education_level' => 'degree', 'tribe' => 'Kikuyu', 'clan' => 'Agachiku',
+                'parent' => 'James Kariuki Mwangi', 'godparent' => 'Catherine Nyokabi',
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'University student studying medicine, active in campus ministry'
+            ],
+            // 19. Senior Couple
+            [
+                'first_name' => 'Agnes', 'middle_name' => 'Wambui', 'last_name' => 'Kariuki',
+                'date_of_birth' => '1955-08-30', 'gender' => 'Female', 'id_number' => '67890098',
+                'phone' => '0798456789', 'email' => null,
+                'residence' => 'Kandara, Muranga', 'emergency_contact' => 'Peter Kimani Kariuki',
+                'emergency_phone' => '0700111111', 'local_church' => 'Sacred Heart Kandara',
+                'small_christian_community' => 'St. Agnes', 'church_group' => 'C.W.A',
+                'additional_church_groups' => ['Pioneer'],
+                'membership_status' => 'active', 'membership_date' => '1975-12-08',
+                'baptism_date' => '1955-09-30', 'confirmation_date' => '1969-05-25',
+                'matrimony_status' => 'married', 'marriage_type' => 'church',
+                'occupation' => 'retired', 'education_level' => 'primary', 'tribe' => 'Kikuyu', 'clan' => 'Ethaga',
+                'parent' => 'Kariuki wa Wambui', 'godparent' => 'Unknown',
+                'minister' => 'Fr. Paul Kariuki', 'notes' => 'Golden jubilee couple, married 50 years, parish founding members'
+            ],
+            // 20. Special Needs Member
+            [
+                'first_name' => 'Paul', 'middle_name' => 'Wachira', 'last_name' => 'Kimani',
+                'date_of_birth' => '1990-12-03', 'gender' => 'Male', 'id_number' => '45678901',
+                'phone' => '0755123456', 'email' => null,
+                'residence' => 'Thika, Kiambu', 'emergency_contact' => 'Catherine Nyokabi Kimani',
+                'emergency_phone' => '0755123457', 'local_church' => 'St. Joseph Thika',
+                'small_christian_community' => 'St. Paul', 'church_group' => 'Youth',
+                'membership_status' => 'active', 'membership_date' => '2008-07-20',
+                'baptism_date' => '1991-01-06', 'confirmation_date' => '2003-05-18',
+                'matrimony_status' => 'single', 'marriage_type' => null,
+                'occupation' => 'artisan', 'education_level' => 'secondary', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
+                'parent' => 'Francis Kimani Wachira', 'godparent' => 'James Muturi',
+                'minister' => 'Fr. Michael Kiarie', 'notes' => 'Active in disability ministry and handcraft group'
+            ]
+        ];
+
+        $categories = [
+            'Parish Leader', 'Youth Leader', 'Women Leader', 'Senior Member', 'Child Member',
+            'Transferred Member', 'Choir Member', 'Diverse Culture', 'Inactive Member', 'Rural Farmer',
+            'Young Professional', 'Widow/Single Parent', 'Education Professional', 'Teenager', 'Healthcare Professional',
+            'Business Owner', 'Recent Convert', 'University Student', 'Senior Couple', 'Special Needs Member'
+        ];
+
+        foreach ($members as $index => $memberData) {
+            $member = Member::create($memberData);
+            $category = $categories[$index];
+            $this->command->info("✅ Created member: {$member->first_name} {$member->last_name} ({$category})");
+        }
+
+        $this->command->info('🎉 Successfully created 20 diverse parish members!');
+        $this->displaySummary();
+    }
+
+    /**
+     * Display summary of created members
+     */
+    private function displaySummary(): void
+    {
+        $this->command->info('');
+        $this->command->info('📊 MEMBER SEEDING SUMMARY');
+        $this->command->info('=' . str_repeat('=', 50));
+
+        $stats = [
+            'Total Members' => Member::count(),
+            'Male Members' => Member::where('gender', 'Male')->count(),
+            'Female Members' => Member::where('gender', 'Female')->count(),
+            'Active Members' => Member::where('membership_status', 'active')->count(),
+            'Married Members' => Member::where('matrimony_status', 'married')->count(),
+            'Baptized Members' => Member::whereNotNull('baptism_date')->count(),
+            'Confirmed Members' => Member::whereNotNull('confirmation_date')->count(),
+        ];
+
+        foreach ($stats as $label => $count) {
+            $this->command->info(sprintf('%-25s: %d', $label, $count));
+        }
+
+        $this->command->info('');
+        $this->command->info('🎯 Member Categories Created:');
+        $categories = [
+            'Parish Leaders', 'Youth Leaders', 'Women Leaders', 'Senior Members',
+            'Children', 'Professionals', 'Farmers', 'Students', 'Business Owners',
+            'Healthcare Workers', 'Teachers', 'Recent Converts', 'Special Needs'
+        ];
+
+        foreach ($categories as $category) {
+            $this->command->info("  • {$category}");
+        }
+
+        $this->command->info('');
+        $this->command->info('🔗 System Testing Ready:');
+        $this->command->info('  • Login: http://127.0.0.1:8000/login');
+        $this->command->info('  • Credentials: admin@parish.com / admin123');
+        $this->command->info('  • Navigate to Members section to view test data');
+        $this->command->info('  • Test all member management features');
+    }
+}

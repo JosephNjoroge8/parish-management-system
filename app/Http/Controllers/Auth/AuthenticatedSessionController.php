@@ -30,9 +30,6 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        // Clear any existing session data before authentication
-        $request->session()->flush();
-
         $request->authenticate();
 
         // Regenerate session to prevent session fixation attacks

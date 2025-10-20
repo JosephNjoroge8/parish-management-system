@@ -1,42 +1,60 @@
 ---
 deployment:
   tasks:
+    # Set deployment variables - UPDATE THESE PATHS FOR YOUR HOSTING
+    # DEPLOYPATH should be your website's root directory (usually public_html or a subdirectory)
+    # For main domain: /home2/yourusername/public_html
+    # For subdomain: /home2/yourusername/public_html/subdomain
+    # For addon domain: /home2/yourusername/public_html/yourdomain.com
     - export DEPLOYPATH=/home2/shemidig/parish_system
     - export PHPVER=82
+    - export REPOPATH=$PWD
     
-    # Git deployment support - ensure we're using latest commit
-    - cd ${DEPLOYPATH} && git fetch origin
-    - cd ${DEPLOYPATH} && git reset --hard HEAD
-    - cd ${DEPLOYPATH} && git clean -fd
+    # Create deployment directory if it doesn't exist
+    - /bin/mkdir -p ${DEPLOYPATH}
     
-    # Install/update composer dependencies (production mode)
-    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader --no-interaction
+    # Copy all files from repository to deployment directory
+    - /bin/cp -rf ${REPOPATH}/. ${DEPLOYPATH}/
     
-    # Install/update npm dependencies and build assets
-    - cd ${DEPLOYPATH} && npm ci --production=false
-    - cd ${DEPLOYPATH} && npm run build
+    # Create storage symlink for Laravel (if deploying to public_html subdirectory)
+    - cd ${DEPLOYPATH} && /bin/ln -nfs ${DEPLOYPATH}/storage/app/public ${DEPLOYPATH}/public/storage 2>/dev/null || true
     
-    # Set proper permissions
-    - /bin/chmod -R 755 ${DEPLOYPATH}/storage ${DEPLOYPATH}/bootstrap/cache
-    - /bin/find ${DEPLOYPATH}/storage -type f -exec chmod 644 {} \;
-    - /bin/find ${DEPLOYPATH}/bootstrap/cache -type f -exec chmod 644 {} \;
+    # Install composer dependencies (production mode)
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
     
-    # Clear Laravel caches
-    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan config:clear || true
-    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan cache:clear || true
-    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan route:clear || true
-    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan view:clear || true
+    # Install npm dependencies and build production assets
+    - cd ${DEPLOYPATH} && /usr/bin/npm ci --production=false --silent
+    - cd ${DEPLOYPATH} && /usr/bin/npm run build
     
-    # Build Laravel caches for production
-    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan config:cache || true
-    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan route:cache || true
-    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan view:cache || true
+    # Set proper file permissions for Laravel
+    - /bin/chmod -R 755 ${DEPLOYPATH}
+    - /bin/chmod -R 775 ${DEPLOYPATH}/storage ${DEPLOYPATH}/bootstrap/cache
+    - /bin/find ${DEPLOYPATH}/storage -type f -exec chmod 664 {} \;
+    - /bin/find ${DEPLOYPATH}/bootstrap/cache -type f -exec chmod 664 {} \;
     
-    # Run database migrations (if needed)
-    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan migrate --force --no-interaction || true
+    # Create .env file if it doesn't exist (copy from .env.production if available)
+    - cd ${DEPLOYPATH} && [ ! -f .env ] && [ -f .env.production ] && /bin/cp .env.production .env || true
+    
+    # Generate application key if needed
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan key:generate --no-interaction --force || true
+    
+    # Clear all Laravel caches
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan config:clear
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan cache:clear
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan route:clear
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan view:clear
+    
+    # Run database migrations
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan migrate --force --no-interaction
+    
+    # Build Laravel caches for production performance
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan config:cache
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan route:cache
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan view:cache
     
     # Optimize application for production
-    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan optimize || true
+    - cd ${DEPLOYPATH} && /usr/local/bin/ea-php${PHPVER} artisan optimize
     
-    # Log successful deployment with commit info
-    - cd ${DEPLOYPATH} && echo "[$(date)] Git deployment completed - Commit: $(git rev-parse HEAD)" >> ${DEPLOYPATH}/storage/logs/deployment.log
+    # Create deployment log
+    - cd ${DEPLOYPATH} && /bin/mkdir -p ${DEPLOYPATH}/storage/logs
+    - cd ${DEPLOYPATH} && echo "[$(date '+%Y-%m-%d %H:%M:%S')] Auto-deployment completed successfully" >> ${DEPLOYPATH}/storage/logs/deployment.log

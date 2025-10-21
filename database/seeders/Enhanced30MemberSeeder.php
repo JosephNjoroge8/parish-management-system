@@ -18,7 +18,34 @@ class Enhanced30MemberSeeder extends Seeder
 
         // Clear existing members to avoid conflicts during testing
         $this->command->info('Clearing existing member data...');
-        Member::truncate();
+        
+        // Handle foreign key constraints based on database type
+        $connection = \DB::connection();
+        $driver = $connection->getDriverName();
+        
+        if ($driver === 'sqlite') {
+            // For SQLite, disable foreign key constraints
+            \DB::statement('PRAGMA foreign_keys = OFF;');
+        } else {
+            // For MySQL/MariaDB
+            \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        }
+        
+        // Clear related tables first (in reverse dependency order)
+        \DB::table('activity_participants')->delete();
+        \DB::table('baptism_records')->delete();
+        \DB::table('marriage_records')->delete();
+        \DB::table('tithes')->delete();
+        
+        // Now clear members table
+        \DB::table('members')->delete();
+        
+        // Re-enable foreign key checks
+        if ($driver === 'sqlite') {
+            \DB::statement('PRAGMA foreign_keys = ON;');
+        } else {
+            \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        }
 
         $members = $this->get30ComprehensiveMemberData();
 

@@ -19,11 +19,11 @@ class DatabaseSeeder extends Seeder
             // 1. Enhanced Users - Creates 4 users including 2 super admins
             UserSeeder::class,
 
-            // 2. Production Members - Creates exactly 30 comprehensive test members (PRODUCTION SAFE)
-            ProductionMemberSeeder::class,
+            // 2. Fixed Production Members - Matches actual database schema (PRODUCTION SAFE)
+            FixedProductionMemberSeeder::class,
 
             // 3. Additional sample data if needed
-            // SampleDataSeeder::class, // Commented out - ProductionMemberSeeder provides all needed test data
+            // SampleDataSeeder::class, // Commented out - FixedProductionMemberSeeder provides all needed test data
         ]);
 
         $this->command->info('');

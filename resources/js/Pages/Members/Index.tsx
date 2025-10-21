@@ -5,6 +5,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import StatsCard from '@/Components/StatsCard';
+import { debounce } from '@/lib/utils';
 import { 
     Plus, 
     Download, 
@@ -205,14 +206,7 @@ const createToastContainer = (): HTMLElement => {
     return container;
 };
 
-// Debounce utility
-const debounce = <T extends (...args: any[]) => void>(func: T, delay: number) => {
-    let timeoutId: NodeJS.Timeout;
-    return (...args: Parameters<T>) => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => func(...args), delay);
-    };
-};
+// Using imported debounce utility from @/lib/utils
 
 // Stats Component
 const MembersStats = memo<{ stats: Stats; isLoading: boolean }>(({ stats, isLoading }) => {
@@ -293,6 +287,11 @@ const MembersSearchAndFilters = memo<{
     onRefresh 
 }) => {
     const [searchValue, setSearchValue] = useState(filters.search || '');
+
+    // Sync search value when filters change (e.g., from URL or filter reset)
+    useEffect(() => {
+        setSearchValue(filters.search || '');
+    }, [filters.search]);
 
     const handleSearchInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
@@ -725,10 +724,14 @@ export default function MembersIndex({
 
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Debounced search using Inertia router
+    // Create a ref to store current filters to avoid recreating debounce function
+    const filtersRef = useRef(filters);
+    filtersRef.current = filters;
+
+    // Debounced search using Inertia router - stable function that doesn't recreate
     const debouncedSearch = useMemo(() => 
         debounce((query: string) => {
-            const searchParams = { ...filters, search: query, page: 1 };
+            const searchParams = { ...filtersRef.current, search: query, page: 1 };
             setFilters(searchParams);
             
             router.get('/members', searchParams, {
@@ -738,7 +741,7 @@ export default function MembersIndex({
                 onStart: () => setIsLoading(true),
                 onFinish: () => setIsLoading(false),
             });
-        }, 300), [filters]
+        }, 300), [] // Empty dependency array so debounce function is stable
     );
 
     // Event handlers using Inertia router

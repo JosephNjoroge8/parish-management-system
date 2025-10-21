@@ -11,9 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('members')) {
+            return;
+        }
+
         Schema::create('members', function (Blueprint $table) {
             $table->id();
-            
+
             // Personal Information
             $table->string('first_name');
             $table->string('middle_name')->nullable();
@@ -24,50 +28,50 @@ return new class extends Migration
             $table->string('phone')->nullable();
             $table->string('email')->nullable();
             $table->text('residence')->nullable();
-            
+
             // Emergency Contact
             $table->string('emergency_contact')->nullable();
             $table->string('emergency_phone')->nullable();
-            
+
             // Church Information
             $table->string('local_church')->nullable();
             $table->string('small_christian_community')->nullable();
             $table->enum('church_group', [
-                'PMC', 'Youth', 'C.W.A', 'CMA', 'Choir', 'Catholic Action', 'Pioneer'
+                'PMC', 'Youth', 'C.W.A', 'CMA', 'Choir', 'Catholic Action', 'Pioneer',
             ])->nullable();
             $table->json('additional_church_groups')->nullable(); // For multiple groups
-            
+
             // Membership Information
             $table->enum('membership_status', ['active', 'inactive', 'transferred', 'deceased'])
-                   ->default('active');
+                ->default('active');
             $table->date('membership_date')->nullable();
-            
+
             // Sacrament Dates (for quick access)
             $table->date('baptism_date')->nullable();
             $table->date('confirmation_date')->nullable();
-            
+
             // Marriage Information
             $table->enum('matrimony_status', ['single', 'married', 'widowed', 'divorced'])
-                   ->default('single');
+                ->default('single');
             $table->enum('marriage_type', ['customary', 'church'])->nullable();
-            
+
             // Personal Details
             $table->string('occupation')->nullable();
             $table->enum('education_level', [
-                'none', 'primary', 'kcpe', 'secondary', 'kcse', 
-                'certificate', 'diploma', 'degree', 'masters', 'phd'
+                'none', 'primary', 'kcpe', 'secondary', 'kcse',
+                'certificate', 'diploma', 'degree', 'masters', 'phd',
             ])->nullable();
-            
+
             // Cultural Information
             $table->string('tribe')->nullable();
             $table->string('clan')->nullable();
-            
+
             // Family Relationships
             $table->unsignedBigInteger('family_id')->nullable();
             $table->string('parent')->nullable(); // If child, parent's name
             $table->string('godparent')->nullable();
             $table->string('minister')->nullable(); // Minister who registered them
-            
+
             // System Fields
             $table->text('notes')->nullable();
             $table->timestamps();
@@ -81,7 +85,7 @@ return new class extends Migration
             $table->index('phone');
             $table->index('email');
             $table->index('id_number');
-            
+
             // Foreign key constraints
             $table->foreign('family_id')->references('id')->on('families')->onDelete('set null');
         });

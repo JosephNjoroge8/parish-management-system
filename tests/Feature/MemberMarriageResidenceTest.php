@@ -136,8 +136,7 @@ class MemberMarriageResidenceTest extends TestCase
         $this->actingAs($this->user);
 
         $member = Member::factory()->create([
-            'matrimony_status' => 'married',
-            'marriage_type' => 'church',
+            'matrimony_status' => 'single',
             'member_marriage_residence' => 'Original residence',
             'local_church' => 'Sacred Heart Kandara',
             'church_group' => 'Catholic Action',
@@ -146,6 +145,7 @@ class MemberMarriageResidenceTest extends TestCase
             'gender' => 'Male',
         ]);
 
+        // Test 1: Update to married status and set residence
         $updateData = [
             'first_name' => $member->first_name,
             'last_name' => $member->last_name,
@@ -157,21 +157,46 @@ class MemberMarriageResidenceTest extends TestCase
             'occupation' => $member->occupation,
             'education_level' => $member->education_level,
 
-            // Required fields for married members
+            // Required fields for church married members
             'bride_name' => 'Jane Updated',
             'marriage_date' => '2020-06-20',
             'marriage_location' => 'Sacred Heart Church',
             'marriage_county' => 'Murang\'a',
             'marriage_sub_county' => 'Kandara',
             'member_marriage_residence' => 'Updated residence at marriage time',
+
+            // Required parent fields for married members (these are causing the validation to fail)
+            'father_name' => 'John Father',
+            'mother_name' => 'Mary Mother',
+            'father_occupation' => 'Teacher',
+            'father_residence' => 'Murang\'a',
+            'mother_occupation' => 'Nurse',
+            'mother_residence' => 'Murang\'a',
         ];
 
         $response = $this->put(route('members.update', $member), $updateData);
 
-        $response->assertStatus(302); // Accept any redirect for successful update
+        // Check for validation errors
+        if ($response->status() !== 302) {
+            dd('HTTP Status:', $response->status(), 'Response:', $response->getContent());
+        }
+
+        // Check session for validation errors
+        $errors = session('errors');
+        if ($errors && $errors->any()) {
+            dd('Validation errors:', $errors->all());
+        }
+
+        $response->assertStatus(302);
 
         // Refresh the member from database
         $member->refresh();
+
+        // Check if the matrimony status was updated
+        $this->assertEquals('married', $member->matrimony_status);
+        $this->assertEquals('church', $member->marriage_type);
+
+        // Most importantly, check if member_marriage_residence was updated
         $this->assertEquals('Updated residence at marriage time', $member->member_marriage_residence);
     }
 

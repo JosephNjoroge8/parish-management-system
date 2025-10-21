@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('families')) {
+            return;
+        }
+
         Schema::create('families', function (Blueprint $table) {
             $table->id();
             $table->string('family_name');
@@ -30,7 +34,7 @@ return new class extends Migration
             $table->index('head_of_family_id');
             $table->index('parish_section');
             $table->index('created_by');
-            
+
             // Note: Foreign key for head_of_family_id will be added after members table is created
         });
     }

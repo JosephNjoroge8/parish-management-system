@@ -1363,15 +1363,94 @@ class MemberController extends Controller
                 }
             }
 
-            // Process and clean the data using the same method as store
-            $memberData = $this->processValidatedMemberData($validated);
+            // Simplified data processing - only handle core fields
+            $memberData = [
+                // Essential fields
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
+                'gender' => $validated['gender'],
+
+                // Optional personal fields
+                'middle_name' => $validated['middle_name'] ?? null,
+                'date_of_birth' => $validated['date_of_birth'] ?? null,
+                'phone' => $validated['phone'] ?? null,
+                'email' => $validated['email'] ?? null,
+                'id_number' => $validated['id_number'] ?? null,
+                'residence' => $validated['residence'] ?? null,
+
+                // Church information
+                'local_church' => $validated['local_church'],
+                'small_christian_community' => $validated['small_christian_community'] ?? null,
+                'church_group' => $validated['church_group'],
+                'additional_church_groups' => $validated['additional_church_groups'] ?? null,
+
+                // Membership
+                'membership_status' => $validated['membership_status'] ?? 'active',
+                'membership_date' => $validated['membership_date'] ?? now()->format('Y-m-d'),
+                'matrimony_status' => $validated['matrimony_status'] ?? 'single',
+                'marriage_type' => $validated['marriage_type'] ?? null,
+                'occupation' => $validated['occupation'] ?? 'not_employed',
+                'education_level' => $validated['education_level'] ?? 'none',
+
+                // Family relationships
+                'family_id' => isset($validated['family_id']) ? (int) $validated['family_id'] : null,
+                'parent' => $validated['parent'] ?? null,
+                'mother_name' => $validated['mother_name'] ?? null,
+                'godparent' => $validated['godparent'] ?? null,
+                'minister' => $validated['minister'] ?? null,
+                'tribe' => $validated['tribe'] ?? null,
+                'clan' => $validated['clan'] ?? null,
+
+                // Auto-sync spiritual fields
+                'father_name' => $validated['father_name'] ?? $validated['parent'] ?? null,
+                'baptized_by' => $validated['minister'] ?? null,
+                'sponsor' => $validated['godparent'] ?? null,
+
+                // Disability
+                'is_differently_abled' => ($validated['is_differently_abled'] ?? 'no') === 'yes',
+                'disability_description' => ($validated['is_differently_abled'] ?? 'no') === 'yes' ?
+                    ($validated['disability_description'] ?? null) : null,
+
+                // Sacraments
+                'baptism_date' => $validated['baptism_date'] ?? null,
+                'baptism_location' => $validated['baptism_location'] ?? null,
+                'confirmation_date' => $validated['confirmation_date'] ?? null,
+                'confirmation_location' => $validated['confirmation_location'] ?? null,
+
+                // Parent information
+                'father_occupation' => $validated['father_occupation'] ?? null,
+                'father_residence' => $validated['father_residence'] ?? null,
+                'mother_occupation' => $validated['mother_occupation'] ?? null,
+                'mother_residence' => $validated['mother_residence'] ?? null,
+
+                // Contact
+                'emergency_contact' => $validated['emergency_contact'] ?? null,
+                'emergency_phone' => $validated['emergency_phone'] ?? null,
+                'notes' => $validated['notes'] ?? null,
+            ];
+
+            // Handle marriage fields only for church marriages
+            if (($validated['matrimony_status'] ?? '') === 'married' && ($validated['marriage_type'] ?? '') === 'church') {
+                $memberData = array_merge($memberData, [
+                    'marriage_date' => $validated['marriage_date'] ?? null,
+                    'marriage_location' => $validated['marriage_location'] ?? null,
+                    'marriage_county' => $validated['marriage_county'] ?? null,
+                    'marriage_sub_county' => $validated['marriage_sub_county'] ?? null,
+                    'member_marriage_residence' => $validated['member_marriage_residence'] ?? null,
+
+                    // Set spouse name based on member's gender
+                    'spouse_name' => ($validated['gender'] ?? '') === 'Male' ?
+                        ($validated['bride_name'] ?? null) :
+                        ($validated['bridegroom_name'] ?? null),
+                ]);
+            }
 
             $member->update($memberData);
 
             // Clear cache for real-time stats updates
             $this->clearMemberCache();
 
-            return redirect()->route('members.show', $member)->with('success', 'Member updated successfully.');
+            return redirect()->route('members.index')->with('success', 'Member updated successfully.');
         } catch (\Exception $e) {
             Log::error('Failed to update member: '.$e->getMessage());
 
@@ -1408,7 +1487,7 @@ class MemberController extends Controller
 
             return redirect()->route('members.index')->with('success', 'Member deleted successfully.');
         } catch (\Exception $e) {
-            Log::error('Failed to delete member: ' . $e->getMessage(), [
+            Log::error('Failed to delete member: '.$e->getMessage(), [
                 'member_id' => $member->id,
                 'member_name' => $member->full_name ?? 'Unknown',
                 'error' => $e->getMessage(),
@@ -2299,7 +2378,7 @@ class MemberController extends Controller
                     'transferred_members' => $transferredMembers,
                     'deceased_members' => $deceasedMembers,
                     'recent_registrations' => $newThisMonth,
-                    
+
                     // Legacy Support & Additional Data
                     'new_this_month' => $newThisMonth,
                     'by_church' => $churchStats,
@@ -3131,7 +3210,7 @@ class MemberController extends Controller
             if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 // Get updated stats for the response
                 $stats = $this->getStats();
-                
+
                 return response()->json([
                     'success' => true,
                     'message' => "Member status updated to {$validated['membership_status']} successfully!",

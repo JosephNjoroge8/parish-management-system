@@ -249,7 +249,7 @@
                 
                 <div class="field compact-field">
                     <span class="field-label">Born on</span>
-                    <span class="field-value">{{ $member->birth_village }}</span>
+                    <span class="field-value">{{ $member->date_of_birth ? \Carbon\Carbon::parse($member->date_of_birth)->format('d/m/Y') : '' }}</span>
                     <div class="dotted-line"></div>
                 </div>
                 
@@ -260,8 +260,8 @@
                 </div>
                 
                 <div class="field compact-field">
-                    <span class="field-label">Date</span>
-                    <span class="field-value">{{ $member->date_of_birth ? \Carbon\Carbon::parse($member->date_of_birth)->format('d/m/Y') : '' }}</span>
+                    <span class="field-label">Birth Village</span>
+                    <span class="field-value">{{ $member->birth_village }}</span>
                     <div class="dotted-line"></div>
                 </div>
                 

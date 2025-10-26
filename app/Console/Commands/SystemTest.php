@@ -2,17 +2,18 @@
 
 namespace App\Console\Commands;
 
-use App\Models\User;
-use App\Models\Family;
-use App\Models\Member;
 use App\Models\Activity;
 use App\Models\CommunityGroup;
+use App\Models\Family;
+use App\Models\Member;
 use App\Models\Sacrament;
+use App\Models\User;
 use Illuminate\Console\Command;
 
 class SystemTest extends Command
 {
     protected $signature = 'system:test';
+
     protected $description = 'Test system functionality and database connectivity';
 
     public function handle()
@@ -23,7 +24,7 @@ class SystemTest extends Command
         // Test database connectivity
         try {
             $this->info('📊 Database Connection: ✅ Connected');
-            
+
             // Test models
             $userCount = User::count();
             $familyCount = Family::count();
@@ -46,13 +47,13 @@ class SystemTest extends Command
             if ($adminUser) {
                 $this->info("🔑 Admin User Found: {$adminUser->name} ({$adminUser->email})");
             } else {
-                $this->warn("⚠️ No admin user found!");
+                $this->warn('⚠️ No admin user found!');
             }
 
             $this->newLine();
             $this->info('✅ System Status: All components working properly!');
             $this->info('🌐 Server running at: http://127.0.0.1:8000');
-            
+
             if ($adminUser) {
                 $this->newLine();
                 $this->info('🔐 Login Credentials:');
@@ -61,7 +62,8 @@ class SystemTest extends Command
             }
 
         } catch (\Exception $e) {
-            $this->error('❌ System Error: ' . $e->getMessage());
+            $this->error('❌ System Error: '.$e->getMessage());
+
             return 1;
         }
 

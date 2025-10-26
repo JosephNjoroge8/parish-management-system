@@ -19,11 +19,11 @@ class ProductionMemberSeeder extends Seeder
 
         // Clear existing members to avoid conflicts during testing
         $this->command->info('Clearing existing member data...');
-        
+
         // Handle foreign key constraints based on database type - PRODUCTION SAFE
         $connection = \DB::connection();
         $driver = $connection->getDriverName();
-        
+
         if ($driver === 'sqlite') {
             // For SQLite, disable foreign key constraints
             \DB::statement('PRAGMA foreign_keys = OFF;');
@@ -31,16 +31,16 @@ class ProductionMemberSeeder extends Seeder
             // For MySQL/MariaDB - PRODUCTION SAFE
             \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         }
-        
+
         // Clear related tables first (in reverse dependency order) - PRODUCTION SAFE
         \DB::table('activity_participants')->delete();
         \DB::table('baptism_records')->delete();
         \DB::table('marriage_records')->delete();
         \DB::table('tithes')->delete();
-        
+
         // Now clear members table - PRODUCTION SAFE: Using DELETE not TRUNCATE
         \DB::table('members')->delete();
-        
+
         // Re-enable foreign key checks
         if ($driver === 'sqlite') {
             \DB::statement('PRAGMA foreign_keys = ON;');
@@ -53,12 +53,12 @@ class ProductionMemberSeeder extends Seeder
         foreach ($members as $index => $memberData) {
             $category = $memberData['category']; // Store category for display
             unset($memberData['category']); // Remove from database insert
-            
+
             try {
                 $member = Member::create($memberData);
-                $this->command->info("✅ Created member " . ($index + 1) . "/30: {$member->first_name} {$member->last_name} ({$category})");
+                $this->command->info('✅ Created member '.($index + 1)."/30: {$member->first_name} {$member->last_name} ({$category})");
             } catch (\Exception $e) {
-                $this->command->error("❌ Failed to create member " . ($index + 1) . ": {$e->getMessage()}");
+                $this->command->error('❌ Failed to create member '.($index + 1).": {$e->getMessage()}");
                 // Continue with next member instead of failing completely
             }
         }
@@ -851,45 +851,45 @@ class ProductionMemberSeeder extends Seeder
         // Gender breakdown
         $males = Member::where('gender', 'male')->count();
         $females = Member::where('gender', 'female')->count();
-        
-        $this->command->info("Total Members            : " . Member::count());
+
+        $this->command->info('Total Members            : '.Member::count());
         $this->command->info("Male Members             : {$males}");
         $this->command->info("Female Members           : {$females}");
-        
+
         // Membership status breakdown
         $active = Member::where('membership_status', 'active')->count();
         $inactive = Member::where('membership_status', 'inactive')->count();
         $transferred = Member::where('membership_status', 'transferred')->count();
         $deceased = Member::where('membership_status', 'deceased')->count();
-        
+
         $this->command->info("Active Members           : {$active}");
         $this->command->info("Inactive Members         : {$inactive}");
         $this->command->info("Transferred Members      : {$transferred}");
         $this->command->info("Deceased Members         : {$deceased}");
         $this->command->info('');
-        
+
         // Matrimony status breakdown
         $this->command->info('💒 MATRIMONY STATUS BREAKDOWN:');
         $single = Member::where('matrimony_status', 'single')->count();
         $married = Member::where('matrimony_status', 'married')->count();
         $widowed = Member::where('matrimony_status', 'widowed')->count();
         $divorced = Member::where('matrimony_status', 'divorced')->count();
-        
+
         $this->command->info("Single Members           : {$single}");
         $this->command->info("Married Members          : {$married}");
-        
+
         // Marriage type breakdown for married members
         $church_marriages = Member::where('marriage_type', 'church')->count();
         $civil_marriages = Member::where('marriage_type', 'civil')->count();
         $customary_marriages = Member::where('marriage_type', 'customary')->count();
-        
+
         $this->command->info("  - Church Marriages     : {$church_marriages}");
         $this->command->info("  - Civil Marriages      : {$civil_marriages}");
         $this->command->info("  - Customary Marriages  : {$customary_marriages}");
         $this->command->info("Widowed Members          : {$widowed}");
         $this->command->info("Divorced Members         : {$divorced}");
         $this->command->info('');
-        
+
         // Education levels breakdown
         $this->command->info('🎓 EDUCATION LEVELS:');
         $primary = Member::where('education_level', 'primary')->count();
@@ -899,7 +899,7 @@ class ProductionMemberSeeder extends Seeder
         $diploma = Member::where('education_level', 'diploma')->count();
         $degree = Member::where('education_level', 'degree')->count();
         $masters = Member::where('education_level', 'masters')->count();
-        
+
         $this->command->info("Primary                  : {$primary}");
         $this->command->info("KCPE                     : {$kcpe}");
         $this->command->info("KCSE                     : {$kcse}");
@@ -908,7 +908,7 @@ class ProductionMemberSeeder extends Seeder
         $this->command->info("Degree                   : {$degree}");
         $this->command->info("Masters                  : {$masters}");
         $this->command->info('');
-        
+
         // Employment breakdown
         $this->command->info('💼 OCCUPATION BREAKDOWN:');
         $employed = Member::whereNotNull('employer')->count();
@@ -916,29 +916,29 @@ class ProductionMemberSeeder extends Seeder
             ->whereNotIn('occupation', ['Student', 'Not Employed', 'Retired'])
             ->count();
         $not_employed = Member::whereIn('occupation', ['Student', 'Not Employed', 'Retired'])->count();
-        
+
         $this->command->info("Employed                 : {$employed}");
         $this->command->info("Self-Employed            : {$self_employed}");
         $this->command->info("Not Employed             : {$not_employed}");
         $this->command->info('');
-        
+
         // Age groups (calculated from date_of_birth)
         $this->command->info('📅 AGE GROUPS:');
         $now = Carbon::now();
-        
+
         $children = Member::whereRaw('DATEDIFF(?, date_of_birth) / 365 <= 12', [$now])->count();
         $teenagers = Member::whereRaw('DATEDIFF(?, date_of_birth) / 365 BETWEEN 13 AND 19', [$now])->count();
         $young_adults = Member::whereRaw('DATEDIFF(?, date_of_birth) / 365 BETWEEN 20 AND 35', [$now])->count();
         $middle_aged = Member::whereRaw('DATEDIFF(?, date_of_birth) / 365 BETWEEN 36 AND 60', [$now])->count();
         $seniors = Member::whereRaw('DATEDIFF(?, date_of_birth) / 365 > 60', [$now])->count();
-        
+
         $this->command->info("Children (0-12)          : {$children}");
         $this->command->info("Teenagers (13-19)        : {$teenagers}");
         $this->command->info("Young Adults (20-35)     : {$young_adults}");
         $this->command->info("Middle-aged (36-60)      : {$middle_aged}");
         $this->command->info("Seniors (60+)            : {$seniors}");
         $this->command->info('');
-        
+
         // Special features
         $this->command->info('✨ SPECIAL FEATURES TESTED:');
         $with_disabilities = Member::whereNotNull('disability_info')->count();
@@ -946,14 +946,14 @@ class ProductionMemberSeeder extends Seeder
         $with_marriage_residence = Member::whereNotNull('spouse_name')->count();
         $with_emails = Member::whereNotNull('email')->count();
         $with_phones = Member::whereNotNull('phone')->count();
-        
+
         $this->command->info("Members with Disabilities: {$with_disabilities}");
         $this->command->info("Recent Converts (2023+)  : {$recent_converts}");
         $this->command->info("Marriage Residence Data  : {$with_marriage_residence}");
         $this->command->info("Email Addresses          : {$with_emails}");
         $this->command->info("Phone Numbers            : {$with_phones}");
         $this->command->info('');
-        
+
         // Testing readiness summary
         $this->command->info('🎯 COMPREHENSIVE TESTING READY:');
         $this->command->info('  • All matrimony statuses represented (single, married, widowed, divorced)');
@@ -964,7 +964,7 @@ class ProductionMemberSeeder extends Seeder
         $this->command->info('  • All membership statuses (active, inactive, transferred, deceased)');
         $this->command->info('  • Cultural diversity represented');
         $this->command->info('');
-        
+
         // Login information
         $this->command->info('🔗 LOGIN TO TEST:');
         $this->command->info('  • URL: http://127.0.0.1:8000/login');

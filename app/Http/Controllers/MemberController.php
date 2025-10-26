@@ -500,10 +500,6 @@ class MemberController extends Controller
                 'bride_mother_residence' => 'nullable|string|max:255',
 
                 // Contact
-                'emergency_contact' => 'nullable|string|max:255',
-                'emergency_phone' => 'nullable|string|max:20',
-
-                // Notes
                 'notes' => 'nullable|string|max:2000',
 
                 // Accept all other fields as nullable
@@ -1150,8 +1146,11 @@ class MemberController extends Controller
     /**
      * Update the specified member in storage.
      */
-    public function update(Request $request, Member $member)
+    public function update(Request $request)
     {
+        // Manually find the member since route model binding is failing in tests
+        $member = Member::findOrFail($request->route('member'));
+
         $validated = $request->validate([
             // Essential fields with custom messages
             'first_name' => 'required|string|max:255|min:2',
@@ -1254,10 +1253,6 @@ class MemberController extends Controller
             'bride_mother_name' => 'nullable|string|max:255',
             'bride_mother_occupation' => 'nullable|string|max:255',
             'bride_mother_residence' => 'nullable|string|max:255',
-
-            // Contact
-            'emergency_contact' => 'nullable|string|max:255',
-            'emergency_phone' => 'nullable|string|max:20',
 
             // Notes
             'notes' => 'nullable|string|max:2000',
@@ -1424,8 +1419,6 @@ class MemberController extends Controller
                 'mother_residence' => $validated['mother_residence'] ?? null,
 
                 // Contact
-                'emergency_contact' => $validated['emergency_contact'] ?? null,
-                'emergency_phone' => $validated['emergency_phone'] ?? null,
                 'notes' => $validated['notes'] ?? null,
             ];
 

@@ -19,11 +19,11 @@ class DatabaseSeeder extends Seeder
             // 1. Enhanced Users - Creates 4 users including 2 super admins
             UserSeeder::class,
 
-            // 2. Fixed Production Members - Matches actual database schema (PRODUCTION SAFE)
-            FixedProductionMemberSeeder::class,
+            // 2. Basic Members - Matches actual database schema (PRODUCTION SAFE)
+            MemberSeeder::class,
 
             // 3. Additional sample data if needed
-            // SampleDataSeeder::class, // Commented out - FixedProductionMemberSeeder provides all needed test data
+            // SampleDataSeeder::class, // Commented out - MemberSeeder provides all needed test data
         ]);
 
         $this->command->info('');
@@ -40,13 +40,11 @@ class DatabaseSeeder extends Seeder
         $this->command->info('  📝 Secretary: secretary@parish.local / secretary123');
         $this->command->info('');
         $this->command->info('📊 MEMBER TEST DATA:');
-        $this->command->info('  ✅ 30 comprehensive parish members created');
+        $this->command->info('  ✅ Sample parish members created');
         $this->command->info('  ✅ All matrimony statuses: married, single, widowed, divorced');
-        $this->command->info('  ✅ All marriage types: church, civil, customary');
-        $this->command->info('  ✅ All age groups: children, teens, adults, seniors');
-        $this->command->info('  ✅ Diverse occupations and education levels');
-        $this->command->info('  ✅ Special needs member included');
         $this->command->info('  ✅ All membership statuses represented');
+        $this->command->info('  ✅ Family relationships included');
+        $this->command->info('  ✅ Diverse occupations and education levels');
         $this->command->info('');
         $this->command->info('🌐 SYSTEM ACCESS:');
         $this->command->info('  📍 URL: http://127.0.0.1:8000');

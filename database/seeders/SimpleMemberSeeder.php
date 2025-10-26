@@ -147,7 +147,7 @@ class SimpleMemberSeeder extends Seeder
         $this->generateRandomMembers(20);
 
         $this->command->info('Simple Member seeder completed successfully!');
-        $this->command->info('Created ' . (count($membersData) + 20) . ' members with various statuses for testing.');
+        $this->command->info('Created '.(count($membersData) + 20).' members with various statuses for testing.');
     }
 
     private function generateRandomMembers(int $count = 20): void
@@ -163,7 +163,7 @@ class SimpleMemberSeeder extends Seeder
         ];
 
         $lastNames = ['Kamau', 'Wanjiku', 'Ochieng', 'Akinyi', 'Mutua', 'Kiprotich', 'Mwangi', 'Otieno', 'Kimani', 'Kariuki'];
-        
+
         $localChurches = [
             'St James Kangemi',
             'St Veronica Pembe Tatu',
@@ -171,7 +171,7 @@ class SimpleMemberSeeder extends Seeder
             'St Peter Kiawara',
             'Sacred Heart Kandara',
         ];
-        
+
         $churchGroups = ['PMC', 'Youth', 'C.W.A', 'CMA', 'Choir', 'Catholic Action', 'Pioneer'];
         $membershipStatuses = ['active', 'inactive', 'pending', 'suspended'];
         $occupations = ['employed', 'self_employed', 'not_employed'];
@@ -199,9 +199,9 @@ class SimpleMemberSeeder extends Seeder
                 'last_name' => $lastName,
                 'date_of_birth' => $birthDate->format('Y-m-d'),
                 'gender' => strtolower($gender),
-                'phone' => $age >= 16 ? '+2547' . rand(10000000, 99999999) : null,
-                'email' => $age >= 16 ? strtolower($firstName . '.' . $lastName . rand(1, 99) . '@gmail.com') : null,
-                'id_number' => $age >= 18 ? (string)rand(10000000, 99999999) : null,
+                'phone' => $age >= 16 ? '+2547'.rand(10000000, 99999999) : null,
+                'email' => $age >= 16 ? strtolower($firstName.'.'.$lastName.rand(1, 99).'@gmail.com') : null,
+                'id_number' => $age >= 18 ? (string) rand(10000000, 99999999) : null,
                 'local_church' => $localChurch,
                 'church_group' => $churchGroup,
                 'membership_status' => $membershipStatuses[array_rand($membershipStatuses)],
@@ -210,17 +210,17 @@ class SimpleMemberSeeder extends Seeder
                 'education_level' => $educationLevels[array_rand($educationLevels)],
                 'matrimony_status' => $age >= 18 ? $matrimonyStatuses[array_rand($matrimonyStatuses)] : null,
                 'tribe' => $tribes[array_rand($tribes)],
-                'clan' => 'Clan ' . rand(1, 10),
+                'clan' => 'Clan '.rand(1, 10),
                 'baptism_date' => $baptismDate->format('Y-m-d'),
                 'confirmation_date' => $confirmationDate?->format('Y-m-d'),
-                'residence' => $localChurch . ' Area, House ' . rand(1, 100),
-                'sponsor' => $firstName . ' Sponsor',
-                'minister' => 'Fr. ' . ['John', 'Patrick', 'Francis', 'Michael', 'Joseph'][array_rand(['John', 'Patrick', 'Francis', 'Michael', 'Joseph'])] . ' Mukuria',
+                'residence' => $localChurch.' Area, House '.rand(1, 100),
+                'sponsor' => $firstName.' Sponsor',
+                'minister' => 'Fr. '.['John', 'Patrick', 'Francis', 'Michael', 'Joseph'][array_rand(['John', 'Patrick', 'Francis', 'Michael', 'Joseph'])].' Mukuria',
                 'parent' => $age < 18 ? 'Parent Name' : null,
-                'notes' => 'Generated test member - Status: ' . $membershipStatuses[array_rand($membershipStatuses)],
+                'notes' => 'Generated test member - Status: '.$membershipStatuses[array_rand($membershipStatuses)],
             ]);
         }
 
-        $this->command->info('Generated ' . $count . ' additional random members with various statuses.');
+        $this->command->info('Generated '.$count.' additional random members with various statuses.');
     }
 }

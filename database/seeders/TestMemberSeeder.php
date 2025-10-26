@@ -3,9 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Member;
-use Carbon\Carbon;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class TestMemberSeeder extends Seeder
 {
@@ -36,7 +34,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'married', 'marriage_type' => 'church',
                 'occupation' => 'teacher', 'education_level' => 'degree', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
                 'parent' => 'Samuel Njoroge Kamau', 'godparent' => 'Peter Mwangi Kariuki',
-                'minister' => 'Fr. Francis Githinji', 'notes' => 'Parish council chairman and catechist leader'
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'Parish council chairman and catechist leader',
             ],
             // 2. Youth Leader
             [
@@ -52,7 +50,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'single', 'marriage_type' => null,
                 'occupation' => 'student', 'education_level' => 'degree', 'tribe' => 'Kikuyu', 'clan' => 'Agachiku',
                 'parent' => 'David Kamau Mwangi', 'godparent' => 'Catherine Nyokabi',
-                'minister' => 'Fr. Michael Kiarie', 'notes' => 'Youth group chairperson and university student'
+                'minister' => 'Fr. Michael Kiarie', 'notes' => 'Youth group chairperson and university student',
             ],
             // 3. Women's Leader
             [
@@ -68,7 +66,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'married', 'marriage_type' => 'church',
                 'occupation' => 'business', 'education_level' => 'diploma', 'tribe' => 'Kikuyu', 'clan' => 'Ethaga',
                 'parent' => 'Paul Mwangi Githinji', 'godparent' => 'Agnes Wambui',
-                'minister' => 'Fr. Daniel Muturi', 'notes' => 'C.W.A chairperson and small business owner'
+                'minister' => 'Fr. Daniel Muturi', 'notes' => 'C.W.A chairperson and small business owner',
             ],
             // 4. Senior Member
             [
@@ -84,7 +82,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'widowed', 'marriage_type' => 'church',
                 'occupation' => 'retired', 'education_level' => 'primary', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
                 'parent' => 'Kariuki wa Kimani', 'godparent' => 'Unknown',
-                'minister' => 'Fr. Unknown', 'notes' => 'Founding member and elder of the parish'
+                'minister' => 'Fr. Unknown', 'notes' => 'Founding member and elder of the parish',
             ],
             // 5. Child Member
             [
@@ -100,7 +98,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'single', 'marriage_type' => null,
                 'occupation' => 'student', 'education_level' => 'primary', 'tribe' => 'Kikuyu', 'clan' => 'Agachiku',
                 'parent' => 'Samuel Githinji Muturi', 'godparent' => 'Joseph Njoroge Wanjiku',
-                'minister' => 'Fr. Francis Githinji', 'notes' => 'Active in children ministry and Sunday school'
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'Active in children ministry and Sunday school',
             ],
             // 6. Transferred Member
             [
@@ -115,7 +113,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'married', 'marriage_type' => 'church',
                 'occupation' => 'civil_servant', 'education_level' => 'masters', 'tribe' => 'Kikuyu', 'clan' => 'Ethaga',
                 'parent' => 'Michael Wairimu Kimani', 'godparent' => 'Sarah Njoki',
-                'minister' => 'Fr. Paul Kariuki', 'notes' => 'Transferred to Holy Family Cathedral Nairobi for work'
+                'minister' => 'Fr. Paul Kariuki', 'notes' => 'Transferred to Holy Family Cathedral Nairobi for work',
             ],
             // 7. Choir Member
             [
@@ -131,7 +129,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'single', 'marriage_type' => null,
                 'occupation' => 'teacher', 'education_level' => 'diploma', 'tribe' => 'Kikuyu', 'clan' => 'Agachiku',
                 'parent' => 'John Maina Kariuki', 'godparent' => 'Mary Njoki',
-                'minister' => 'Fr. Daniel Muturi', 'notes' => 'Choir director and music teacher'
+                'minister' => 'Fr. Daniel Muturi', 'notes' => 'Choir director and music teacher',
             ],
             // 8. Non-Kikuyu Member
             [
@@ -146,7 +144,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'married', 'marriage_type' => 'church',
                 'occupation' => 'business', 'education_level' => 'certificate', 'tribe' => 'Luo', 'clan' => 'Kogelo',
                 'parent' => 'Peter Ochieng Otieno', 'godparent' => 'Joseph Njoroge Wanjiku',
-                'minister' => 'Fr. Francis Githinji', 'notes' => 'Business owner and cultural bridge in the community'
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'Business owner and cultural bridge in the community',
             ],
             // 9. Inactive Member
             [
@@ -161,7 +159,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'single', 'marriage_type' => null,
                 'occupation' => 'not_employed', 'education_level' => 'kcse', 'tribe' => 'Kikuyu', 'clan' => 'Ethaga',
                 'parent' => 'Simon Kinyua Muturi', 'godparent' => 'Grace Wangari',
-                'minister' => 'Fr. Francis Githinji', 'notes' => 'Moved to coast for work, lost contact with parish'
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'Moved to coast for work, lost contact with parish',
             ],
             // 10. Farmer Member
             [
@@ -176,7 +174,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'married', 'marriage_type' => 'customary',
                 'occupation' => 'farmer', 'education_level' => 'kcpe', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
                 'parent' => 'Wachira wa Muturi', 'godparent' => 'Peter Kariuki',
-                'minister' => 'Fr. John Kamau', 'notes' => 'Active in farming cooperative and agricultural ministry'
+                'minister' => 'Fr. John Kamau', 'notes' => 'Active in farming cooperative and agricultural ministry',
             ],
             // 11. Young Professional
             [
@@ -192,7 +190,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'single', 'marriage_type' => null,
                 'occupation' => 'software_engineer', 'education_level' => 'degree', 'tribe' => 'Kikuyu', 'clan' => 'Agachiku',
                 'parent' => 'John Maina Kariuki', 'godparent' => 'David Kamau',
-                'minister' => 'Fr. Michael Kiarie', 'notes' => 'Software engineer, manages parish website and tech systems'
+                'minister' => 'Fr. Michael Kiarie', 'notes' => 'Software engineer, manages parish website and tech systems',
             ],
             // 12. Widow
             [
@@ -208,7 +206,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'widowed', 'marriage_type' => 'church',
                 'occupation' => 'small_business', 'education_level' => 'secondary', 'tribe' => 'Kikuyu', 'clan' => 'Ethaga',
                 'parent' => 'Samuel Muturi Githinji', 'godparent' => 'Margaret Wangari',
-                'minister' => 'Fr. Paul Kariuki', 'notes' => 'Active in widows ministry and small business cooperative'
+                'minister' => 'Fr. Paul Kariuki', 'notes' => 'Active in widows ministry and small business cooperative',
             ],
             // 13. Teacher
             [
@@ -224,7 +222,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'married', 'marriage_type' => 'church',
                 'occupation' => 'teacher', 'education_level' => 'masters', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
                 'parent' => 'Francis Kimani Wachira', 'godparent' => 'Sarah Wanjiku',
-                'minister' => 'Fr. Daniel Muturi', 'notes' => 'Head teacher and education ministry coordinator'
+                'minister' => 'Fr. Daniel Muturi', 'notes' => 'Head teacher and education ministry coordinator',
             ],
             // 14. Teenager
             [
@@ -240,7 +238,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'single', 'marriage_type' => null,
                 'occupation' => 'student', 'education_level' => 'secondary', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
                 'parent' => 'Joseph Njoroge Wanjiku', 'godparent' => 'Peter Kariuki',
-                'minister' => 'Fr. Francis Githinji', 'notes' => 'Son of parish leader, active altar server and youth leader'
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'Son of parish leader, active altar server and youth leader',
             ],
             // 15. Nurse
             [
@@ -256,7 +254,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'married', 'marriage_type' => 'church',
                 'occupation' => 'nurse', 'education_level' => 'diploma', 'tribe' => 'Kikuyu', 'clan' => 'Agachiku',
                 'parent' => 'Paul Gitau Maina', 'godparent' => 'Ruth Nyawira',
-                'minister' => 'Fr. Michael Kiarie', 'notes' => 'Parish health coordinator and nursing professional'
+                'minister' => 'Fr. Michael Kiarie', 'notes' => 'Parish health coordinator and nursing professional',
             ],
             // 16. Business Owner
             [
@@ -272,7 +270,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'married', 'marriage_type' => 'church',
                 'occupation' => 'business', 'education_level' => 'certificate', 'tribe' => 'Kikuyu', 'clan' => 'Ethaga',
                 'parent' => 'Wanjiku wa Kimani', 'godparent' => 'John Mwangi',
-                'minister' => 'Fr. Joseph Muturi', 'notes' => 'Hardware store owner and parish finance committee member'
+                'minister' => 'Fr. Joseph Muturi', 'notes' => 'Hardware store owner and parish finance committee member',
             ],
             // 17. Recent Convert
             [
@@ -287,7 +285,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'single', 'marriage_type' => null,
                 'occupation' => 'mechanic', 'education_level' => 'certificate', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
                 'parent' => 'Gichuki wa Kuria', 'godparent' => 'Joseph Njoroge Wanjiku',
-                'minister' => 'Fr. Francis Githinji', 'notes' => 'Recent adult convert, completed RCIA program in 2023'
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'Recent adult convert, completed RCIA program in 2023',
             ],
             // 18. University Student
             [
@@ -303,7 +301,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'single', 'marriage_type' => null,
                 'occupation' => 'student', 'education_level' => 'degree', 'tribe' => 'Kikuyu', 'clan' => 'Agachiku',
                 'parent' => 'James Kariuki Mwangi', 'godparent' => 'Catherine Nyokabi',
-                'minister' => 'Fr. Francis Githinji', 'notes' => 'University student studying medicine, active in campus ministry'
+                'minister' => 'Fr. Francis Githinji', 'notes' => 'University student studying medicine, active in campus ministry',
             ],
             // 19. Senior Couple
             [
@@ -319,7 +317,7 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'married', 'marriage_type' => 'church',
                 'occupation' => 'retired', 'education_level' => 'primary', 'tribe' => 'Kikuyu', 'clan' => 'Ethaga',
                 'parent' => 'Kariuki wa Wambui', 'godparent' => 'Unknown',
-                'minister' => 'Fr. Paul Kariuki', 'notes' => 'Golden jubilee couple, married 50 years, parish founding members'
+                'minister' => 'Fr. Paul Kariuki', 'notes' => 'Golden jubilee couple, married 50 years, parish founding members',
             ],
             // 20. Special Needs Member
             [
@@ -334,15 +332,15 @@ class TestMemberSeeder extends Seeder
                 'matrimony_status' => 'single', 'marriage_type' => null,
                 'occupation' => 'artisan', 'education_level' => 'secondary', 'tribe' => 'Kikuyu', 'clan' => 'Anjiru',
                 'parent' => 'Francis Kimani Wachira', 'godparent' => 'James Muturi',
-                'minister' => 'Fr. Michael Kiarie', 'notes' => 'Active in disability ministry and handcraft group'
-            ]
+                'minister' => 'Fr. Michael Kiarie', 'notes' => 'Active in disability ministry and handcraft group',
+            ],
         ];
 
         $categories = [
             'Parish Leader', 'Youth Leader', 'Women Leader', 'Senior Member', 'Child Member',
             'Transferred Member', 'Choir Member', 'Diverse Culture', 'Inactive Member', 'Rural Farmer',
             'Young Professional', 'Widow/Single Parent', 'Education Professional', 'Teenager', 'Healthcare Professional',
-            'Business Owner', 'Recent Convert', 'University Student', 'Senior Couple', 'Special Needs Member'
+            'Business Owner', 'Recent Convert', 'University Student', 'Senior Couple', 'Special Needs Member',
         ];
 
         foreach ($members as $index => $memberData) {
@@ -362,7 +360,7 @@ class TestMemberSeeder extends Seeder
     {
         $this->command->info('');
         $this->command->info('📊 MEMBER SEEDING SUMMARY');
-        $this->command->info('=' . str_repeat('=', 50));
+        $this->command->info('='.str_repeat('=', 50));
 
         $stats = [
             'Total Members' => Member::count(),
@@ -383,7 +381,7 @@ class TestMemberSeeder extends Seeder
         $categories = [
             'Parish Leaders', 'Youth Leaders', 'Women Leaders', 'Senior Members',
             'Children', 'Professionals', 'Farmers', 'Students', 'Business Owners',
-            'Healthcare Workers', 'Teachers', 'Recent Converts', 'Special Needs'
+            'Healthcare Workers', 'Teachers', 'Recent Converts', 'Special Needs',
         ];
 
         foreach ($categories as $category) {

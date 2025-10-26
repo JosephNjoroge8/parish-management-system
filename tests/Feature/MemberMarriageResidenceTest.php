@@ -176,28 +176,20 @@ class MemberMarriageResidenceTest extends TestCase
 
         $response = $this->put(route('members.update', $member), $updateData);
 
-        // Check for validation errors
-        if ($response->status() !== 302) {
-            dd('HTTP Status:', $response->status(), 'Response:', $response->getContent());
-        }
-
-        // Check session for validation errors
-        $errors = session('errors');
-        if ($errors && $errors->any()) {
-            dd('Validation errors:', $errors->all());
-        }
-
         $response->assertStatus(302);
 
-        // Refresh the member from database
-        $member->refresh();
-
         // Check if the matrimony status was updated
-        $this->assertEquals('married', $member->matrimony_status);
-        $this->assertEquals('church', $member->marriage_type);
+        $this->assertEquals('married', $member->fresh()->matrimony_status);
+        $this->assertEquals('church', $member->fresh()->marriage_type);
 
         // Most importantly, check if member_marriage_residence was updated
-        $this->assertEquals('Updated residence at marriage time', $member->member_marriage_residence);
+        $this->assertEquals('Updated residence at marriage time', $member->fresh()->member_marriage_residence);
+
+        // Also check the database directly
+        $updatedMember = Member::find($member->id);
+        $this->assertEquals('married', $updatedMember->matrimony_status);
+        $this->assertEquals('church', $updatedMember->marriage_type);
+        $this->assertEquals('Updated residence at marriage time', $updatedMember->member_marriage_residence);
     }
 
     /** @test */

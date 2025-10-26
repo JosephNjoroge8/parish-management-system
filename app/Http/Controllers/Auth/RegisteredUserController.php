@@ -117,6 +117,14 @@ class RegisteredUserController extends Controller
                 'is_admin' => $user->is_admin,
             ]);
 
+            // Log in the user if this is a public registration (not admin creating another user)
+            if (! Auth::check()) {
+                Auth::login($user);
+
+                return redirect()->route('dashboard')
+                    ->with('success', 'Welcome! Your account has been created successfully.');
+            }
+
             $userTypeDisplay = $user->is_admin ? 'Administrator' : 'Regular User';
 
             return redirect()->route('admin.users.index')

@@ -1,17 +1,17 @@
 <?php
 /**
  * PARISH MANAGEMENT SYSTEM - PRODUCTION DEPLOYMENT HELPER
- * 
+ *
  * Upload this file to your production server public/ directory
  * Visit: https://parish.quovadisyouthhub.org/production-helper.php
- * 
+ *
  * This script helps with deployment tasks when terminal access is limited
  * DELETE THIS FILE after successful deployment!
  */
 
 // Security check - only run in production environment
 if (php_sapi_name() === 'cli') {
-    die("This script should only be run via web browser\n");
+    exit("This script should only be run via web browser\n");
 }
 
 // Configuration
@@ -51,71 +51,73 @@ $publicPath = __DIR__;
     <?php
     // Handle form actions
     $action = $_GET['action'] ?? '';
-    $output = '';
+$output = '';
 
-    if ($action && file_exists($basePath . '/artisan')) {
-        chdir($basePath);
-        
-        switch ($action) {
-            case 'generate_key':
-                if (!file_exists('.env')) {
-                    $output = "<div class='error'>❌ .env file not found. Please create it first.</div>";
-                } else {
-                    exec('php artisan key:generate 2>&1', $result, $returnCode);
-                    if ($returnCode === 0) {
-                        $output = "<div class='success'>✅ Application key generated successfully!</div>";
-                    } else {
-                        $output = "<div class='error'>❌ Failed to generate key: " . implode('<br>', $result) . "</div>";
-                    }
-                }
-                break;
-                
-            case 'migrate':
-                exec('php artisan migrate --force 2>&1', $result, $returnCode);
+if ($action && file_exists($basePath.'/artisan')) {
+    chdir($basePath);
+
+    switch ($action) {
+        case 'generate_key':
+            if (! file_exists('.env')) {
+                $output = "<div class='error'>❌ .env file not found. Please create it first.</div>";
+            } else {
+                exec('php artisan key:generate 2>&1', $result, $returnCode);
                 if ($returnCode === 0) {
-                    $output = "<div class='success'>✅ Database migrations completed successfully!</div>";
+                    $output = "<div class='success'>✅ Application key generated successfully!</div>";
                 } else {
-                    $output = "<div class='error'>❌ Migration failed: " . implode('<br>', $result) . "</div>";
+                    $output = "<div class='error'>❌ Failed to generate key: ".implode('<br>', $result).'</div>';
                 }
-                break;
-                
-            case 'optimize':
-                $commands = [
-                    'config:clear' => 'Clear configuration cache',
-                    'route:clear' => 'Clear route cache', 
-                    'view:clear' => 'Clear view cache',
-                    'cache:clear' => 'Clear application cache',
-                    'config:cache' => 'Build configuration cache',
-                    'route:cache' => 'Build route cache',
-                    'view:cache' => 'Build view cache',
-                    'optimize' => 'Optimize application'
-                ];
-                
-                $output = "<div class='info'><h3>🔧 Running optimization commands...</h3>";
-                foreach ($commands as $cmd => $desc) {
-                    exec("php artisan $cmd 2>&1", $result, $returnCode);
-                    if ($returnCode === 0) {
-                        $output .= "<div class='success'>✅ $desc</div>";
-                    } else {
-                        $output .= "<div class='warning'>⚠️ $desc: " . implode(' ', $result) . "</div>";
-                    }
-                }
-                $output .= "</div>";
-                break;
-                
-            case 'storage_link':
-                exec('php artisan storage:link 2>&1', $result, $returnCode);
+            }
+            break;
+
+        case 'migrate':
+            exec('php artisan migrate --force 2>&1', $result, $returnCode);
+            if ($returnCode === 0) {
+                $output = "<div class='success'>✅ Database migrations completed successfully!</div>";
+            } else {
+                $output = "<div class='error'>❌ Migration failed: ".implode('<br>', $result).'</div>';
+            }
+            break;
+
+        case 'optimize':
+            $commands = [
+                'config:clear' => 'Clear configuration cache',
+                'route:clear' => 'Clear route cache',
+                'view:clear' => 'Clear view cache',
+                'cache:clear' => 'Clear application cache',
+                'config:cache' => 'Build configuration cache',
+                'route:cache' => 'Build route cache',
+                'view:cache' => 'Build view cache',
+                'optimize' => 'Optimize application',
+            ];
+
+            $output = "<div class='info'><h3>🔧 Running optimization commands...</h3>";
+            foreach ($commands as $cmd => $desc) {
+                exec("php artisan $cmd 2>&1", $result, $returnCode);
                 if ($returnCode === 0) {
-                    $output = "<div class='success'>✅ Storage link created successfully!</div>";
+                    $output .= "<div class='success'>✅ $desc</div>";
                 } else {
-                    $output = "<div class='error'>❌ Storage link failed: " . implode('<br>', $result) . "</div>";
+                    $output .= "<div class='warning'>⚠️ $desc: ".implode(' ', $result).'</div>';
                 }
-                break;
-        }
+            }
+            $output .= '</div>';
+            break;
+
+        case 'storage_link':
+            exec('php artisan storage:link 2>&1', $result, $returnCode);
+            if ($returnCode === 0) {
+                $output = "<div class='success'>✅ Storage link created successfully!</div>";
+            } else {
+                $output = "<div class='error'>❌ Storage link failed: ".implode('<br>', $result).'</div>';
+            }
+            break;
     }
+}
 
-    if ($output) echo $output;
-    ?>
+if ($output) {
+    echo $output;
+}
+?>
 
     <div class="grid">
         <!-- System Status -->
@@ -131,74 +133,74 @@ $publicPath = __DIR__;
             </ul>
 
             <h3>Laravel Status</h3>
-            <?php if (file_exists($basePath . '/artisan')): ?>
+            <?php if (file_exists($basePath.'/artisan')) { ?>
                 <div class="success">✅ Laravel detected</div>
                 
-                <?php if (file_exists($basePath . '/.env')): ?>
+                <?php if (file_exists($basePath.'/.env')) { ?>
                     <div class="success">✅ .env file exists</div>
-                <?php else: ?>
+                <?php } else { ?>
                     <div class="error">❌ .env file missing</div>
-                <?php endif; ?>
+                <?php } ?>
                 
-                <?php if (is_writable($basePath . '/storage')): ?>
+                <?php if (is_writable($basePath.'/storage')) { ?>
                     <div class="success">✅ Storage directory writable</div>
-                <?php else: ?>
+                <?php } else { ?>
                     <div class="error">❌ Storage directory not writable</div>
-                <?php endif; ?>
+                <?php } ?>
                 
-            <?php else: ?>
+            <?php } else { ?>
                 <div class="error">❌ Laravel not detected</div>
-            <?php endif; ?>
+            <?php } ?>
         </div>
 
         <!-- Asset Status -->
         <div class="card">
             <h2>📁 Asset Status</h2>
             
-            <?php if (is_dir($publicPath . '/build')): ?>
+            <?php if (is_dir($publicPath.'/build')) { ?>
                 <div class="success">✅ Build directory exists</div>
                 
                 <?php
-                $assetCount = iterator_count(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($publicPath . '/build', RecursiveDirectoryIterator::SKIP_DOTS)));
+            $assetCount = iterator_count(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($publicPath.'/build', RecursiveDirectoryIterator::SKIP_DOTS)));
                 ?>
                 <p><strong>Total assets:</strong> <?php echo $assetCount; ?> files</p>
                 
-                <?php if (file_exists($publicPath . '/build/manifest.json')): ?>
+                <?php if (file_exists($publicPath.'/build/manifest.json')) { ?>
                     <div class="success">✅ Manifest file exists</div>
                     <?php
-                    $manifestSize = filesize($publicPath . '/build/manifest.json');
-                    echo "<p><strong>Manifest size:</strong> " . number_format($manifestSize) . " bytes</p>";
+                    $manifestSize = filesize($publicPath.'/build/manifest.json');
+                    echo '<p><strong>Manifest size:</strong> '.number_format($manifestSize).' bytes</p>';
                     ?>
-                <?php else: ?>
+                <?php } else { ?>
                     <div class="error">❌ Manifest file missing</div>
-                <?php endif; ?>
+                <?php } ?>
                 
                 <?php
-                $cssFiles = glob($publicPath . '/build/assets/app-*.css');
-                $jsFiles = glob($publicPath . '/build/assets/app-*.js');
+                $cssFiles = glob($publicPath.'/build/assets/app-*.css');
+                $jsFiles = glob($publicPath.'/build/assets/app-*.js');
                 ?>
                 
-                <?php if (!empty($cssFiles)): ?>
+                <?php if (! empty($cssFiles)) { ?>
                     <div class="success">✅ CSS assets found (<?php echo count($cssFiles); ?>)</div>
-                <?php else: ?>
+                <?php } else { ?>
                     <div class="error">❌ CSS assets missing</div>
-                <?php endif; ?>
+                <?php } ?>
                 
-                <?php if (!empty($jsFiles)): ?>
+                <?php if (! empty($jsFiles)) { ?>
                     <div class="success">✅ JavaScript assets found (<?php echo count($jsFiles); ?>)</div>
-                <?php else: ?>
+                <?php } else { ?>
                     <div class="error">❌ JavaScript assets missing</div>
-                <?php endif; ?>
+                <?php } ?>
                 
-            <?php else: ?>
+            <?php } else { ?>
                 <div class="error">❌ Build directory missing</div>
                 <p>Please upload the /public/build/ directory from your local build</p>
-            <?php endif; ?>
+            <?php } ?>
         </div>
     </div>
 
     <!-- Deployment Actions -->
-    <?php if (file_exists($basePath . '/artisan')): ?>
+    <?php if (file_exists($basePath.'/artisan')) { ?>
     <div class="section">
         <h2>🔧 Deployment Actions</h2>
         <p>Click the buttons below to perform common deployment tasks:</p>
@@ -212,20 +214,20 @@ $publicPath = __DIR__;
             <strong>Note:</strong> These actions will be performed on the production server. Make sure you have proper backups before proceeding.
         </div>
     </div>
-    <?php endif; ?>
+    <?php } ?>
 
     <!-- Environment Check -->
     <div class="section">
         <h2>⚙️ Environment Configuration</h2>
         
-        <?php if (file_exists($basePath . '/.env')): ?>
+        <?php if (file_exists($basePath.'/.env')) { ?>
             <?php
-            $envContent = file_get_contents($basePath . '/.env');
+            $envContent = file_get_contents($basePath.'/.env');
             $envLines = explode("\n", $envContent);
             $envConfig = [];
-            
+
             foreach ($envLines as $line) {
-                if (strpos($line, '=') !== false && !str_starts_with(trim($line), '#')) {
+                if (strpos($line, '=') !== false && ! str_starts_with(trim($line), '#')) {
                     [$key, $value] = explode('=', $line, 2);
                     $envConfig[trim($key)] = trim($value);
                 }
@@ -235,36 +237,36 @@ $publicPath = __DIR__;
             <h3>Critical Settings</h3>
             <ul>
                 <li>APP_ENV: <strong><?php echo $envConfig['APP_ENV'] ?? 'not set'; ?></strong>
-                    <?php if (($envConfig['APP_ENV'] ?? '') === 'production'): ?>
+                    <?php if (($envConfig['APP_ENV'] ?? '') === 'production') { ?>
                         <span style="color: #059669;">✅</span>
-                    <?php else: ?>
+                    <?php } else { ?>
                         <span style="color: #dc2626;">❌</span>
-                    <?php endif; ?>
+                    <?php } ?>
                 </li>
                 
                 <li>APP_DEBUG: <strong><?php echo $envConfig['APP_DEBUG'] ?? 'not set'; ?></strong>
-                    <?php if (($envConfig['APP_DEBUG'] ?? '') === 'false'): ?>
+                    <?php if (($envConfig['APP_DEBUG'] ?? '') === 'false') { ?>
                         <span style="color: #059669;">✅</span>
-                    <?php else: ?>
+                    <?php } else { ?>
                         <span style="color: #dc2626;">❌</span>
-                    <?php endif; ?>
+                    <?php } ?>
                 </li>
                 
                 <li>APP_KEY: 
-                    <?php if (!empty($envConfig['APP_KEY'] ?? '')): ?>
+                    <?php if (! empty($envConfig['APP_KEY'] ?? '')) { ?>
                         <span style="color: #059669;">✅ Set</span>
-                    <?php else: ?>
+                    <?php } else { ?>
                         <span style="color: #dc2626;">❌ Not set</span>
-                    <?php endif; ?>
+                    <?php } ?>
                 </li>
                 
                 <li>DB_CONNECTION: <strong><?php echo $envConfig['DB_CONNECTION'] ?? 'not set'; ?></strong></li>
                 <li>DB_DATABASE: <strong><?php echo $envConfig['DB_DATABASE'] ?? 'not set'; ?></strong></li>
             </ul>
             
-        <?php else: ?>
+        <?php } else { ?>
             <div class="error">❌ .env file not found. Please create it based on .env.example</div>
-        <?php endif; ?>
+        <?php } ?>
     </div>
 
     <!-- Quick Tests -->
@@ -273,18 +275,18 @@ $publicPath = __DIR__;
         
         <h3>Database Connection</h3>
         <?php
-        if (file_exists($basePath . '/.env')) {
+        if (file_exists($basePath.'/.env')) {
             try {
                 // Load Laravel to test database
-                require_once $basePath . '/vendor/autoload.php';
-                $app = require_once $basePath . '/bootstrap/app.php';
-                
+                require_once $basePath.'/vendor/autoload.php';
+                $app = require_once $basePath.'/bootstrap/app.php';
+
                 $db = $app->make('db');
                 $connection = $db->connection();
                 $connection->getPdo();
-                
+
                 echo "<div class='success'>✅ Database connection successful</div>";
-                
+
                 // Check if migrations table exists
                 $tables = $connection->getDoctrineSchemaManager()->listTableNames();
                 if (in_array('migrations', $tables)) {
@@ -292,14 +294,14 @@ $publicPath = __DIR__;
                 } else {
                     echo "<div class='warning'>⚠️ Migrations table not found - run migrations</div>";
                 }
-                
+
             } catch (Exception $e) {
-                echo "<div class='error'>❌ Database connection failed: " . htmlspecialchars($e->getMessage()) . "</div>";
+                echo "<div class='error'>❌ Database connection failed: ".htmlspecialchars($e->getMessage()).'</div>';
             }
         } else {
             echo "<div class='error'>❌ Cannot test database - .env file missing</div>";
         }
-        ?>
+?>
     </div>
 
     <!-- Cleanup Warning -->
@@ -318,16 +320,16 @@ $publicPath = __DIR__;
             <button class="danger">🗑️ Delete This Helper File</button>
         </a>
         
-        <?php if ($action === 'delete_self'): ?>
+        <?php if ($action === 'delete_self') { ?>
             <?php
-            // Self-destruct
-            if (unlink(__FILE__)) {
-                echo "<script>alert('Helper file deleted successfully!'); window.location.href = '/';</script>";
-            } else {
-                echo "<div class='error'>❌ Could not delete helper file. Please remove manually.</div>";
-            }
+    // Self-destruct
+    if (unlink(__FILE__)) {
+        echo "<script>alert('Helper file deleted successfully!'); window.location.href = '/';</script>";
+    } else {
+        echo "<div class='error'>❌ Could not delete helper file. Please remove manually.</div>";
+    }
             ?>
-        <?php endif; ?>
+        <?php } ?>
     </div>
 
     <footer style="text-align: center; margin-top: 40px; padding: 20px; border-top: 1px solid #e5e7eb; color: #6b7280;">

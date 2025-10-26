@@ -18,11 +18,11 @@ class Enhanced30MemberSeeder extends Seeder
 
         // Clear existing members to avoid conflicts during testing
         $this->command->info('Clearing existing member data...');
-        
+
         // Handle foreign key constraints based on database type
         $connection = \DB::connection();
         $driver = $connection->getDriverName();
-        
+
         if ($driver === 'sqlite') {
             // For SQLite, disable foreign key constraints
             \DB::statement('PRAGMA foreign_keys = OFF;');
@@ -30,16 +30,16 @@ class Enhanced30MemberSeeder extends Seeder
             // For MySQL/MariaDB
             \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         }
-        
+
         // Clear related tables first (in reverse dependency order)
         \DB::table('activity_participants')->delete();
         \DB::table('baptism_records')->delete();
         \DB::table('marriage_records')->delete();
         \DB::table('tithes')->delete();
-        
+
         // Now clear members table
         \DB::table('members')->delete();
-        
+
         // Re-enable foreign key checks
         if ($driver === 'sqlite') {
             \DB::statement('PRAGMA foreign_keys = ON;');
@@ -52,12 +52,12 @@ class Enhanced30MemberSeeder extends Seeder
         foreach ($members as $index => $memberData) {
             $category = $memberData['category']; // Store category for display
             unset($memberData['category']); // Remove from database insert
-            
+
             try {
                 $member = Member::create($memberData);
-                $this->command->info("✅ Created member " . ($index + 1) . "/30: {$member->first_name} {$member->last_name} ({$category})");
+                $this->command->info('✅ Created member '.($index + 1)."/30: {$member->first_name} {$member->last_name} ({$category})");
             } catch (\Exception $e) {
-                $this->command->error("❌ Failed to create member " . ($index + 1) . ": {$e->getMessage()}");
+                $this->command->error('❌ Failed to create member '.($index + 1).": {$e->getMessage()}");
             }
         }
 
@@ -105,7 +105,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Mary Wanjiku Njoroge',
                 'sponsor' => 'Peter Mwangi Kariuki',
                 'minister' => 'Fr. Francis Githinji',
-                'notes' => 'Parish council chairman and catechist leader'
+                'notes' => 'Parish council chairman and catechist leader',
             ],
 
             // 2. Single Female Youth Leader
@@ -136,7 +136,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Jane Wanjiru Kamau',
                 'sponsor' => 'Catherine Nyokabi',
                 'minister' => 'Fr. Michael Kiarie',
-                'notes' => 'Youth group chairperson and university graduate'
+                'notes' => 'Youth group chairperson and university graduate',
             ],
 
             // 3. Married Female (Church Marriage) - Women's Group Leader
@@ -173,7 +173,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Ruth Nyawira Mwangi',
                 'sponsor' => 'Agnes Wambui',
                 'minister' => 'Fr. Daniel Muturi',
-                'notes' => 'C.W.A chairperson and small business owner'
+                'notes' => 'C.W.A chairperson and small business owner',
             ],
 
             // 4. Widowed Male - Senior Member
@@ -205,7 +205,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Wanjiku wa Kariuki',
                 'sponsor' => 'Unknown',
                 'minister' => 'Fr. Unknown',
-                'notes' => 'Founding member and elder of the parish'
+                'notes' => 'Founding member and elder of the parish',
             ],
 
             // 5. Child Member - Male
@@ -235,7 +235,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Elizabeth Wanjiru Githinji',
                 'sponsor' => 'Joseph Njoroge Wanjiku',
                 'minister' => 'Fr. Francis Githinji',
-                'notes' => 'Active in children ministry and Sunday school'
+                'notes' => 'Active in children ministry and Sunday school',
             ],
 
             // 6. Divorced Female
@@ -267,7 +267,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Joyce Wangui Wairimu',
                 'sponsor' => 'Sarah Njoki',
                 'minister' => 'Fr. Paul Kariuki',
-                'notes' => 'Working professional, single mother'
+                'notes' => 'Working professional, single mother',
             ],
 
             // 7. Married Male (Civil Marriage)
@@ -299,7 +299,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Grace Achieng Ochieng',
                 'sponsor' => 'Joseph Njoroge Wanjiku',
                 'minister' => 'Fr. Francis Githinji',
-                'notes' => 'Business owner and cultural bridge in the community'
+                'notes' => 'Business owner and cultural bridge in the community',
             ],
 
             // 8. Married Male (Customary Marriage)
@@ -331,7 +331,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Nyawira wa Wachira',
                 'sponsor' => 'Peter Kariuki',
                 'minister' => 'Fr. John Kamau',
-                'notes' => 'Farmer and agricultural ministry volunteer'
+                'notes' => 'Farmer and agricultural ministry volunteer',
             ],
 
             // 9. Single Male Professional
@@ -362,7 +362,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Ann Wangui Maina',
                 'sponsor' => 'David Kamau',
                 'minister' => 'Fr. Michael Kiarie',
-                'notes' => 'Software engineer, tech ministry coordinator'
+                'notes' => 'Software engineer, tech ministry coordinator',
             ],
 
             // 10. Widowed Female
@@ -394,7 +394,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Grace Wanjiku Muturi',
                 'sponsor' => 'Margaret Wangari',
                 'minister' => 'Fr. Paul Kariuki',
-                'notes' => 'Widow, small business owner, active in widows ministry'
+                'notes' => 'Widow, small business owner, active in widows ministry',
             ],
 
             // 11. Teenage Member - Female
@@ -425,7 +425,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Grace Wangari Mwangi',
                 'sponsor' => 'Catherine Nyokabi',
                 'minister' => 'Fr. Francis Githinji',
-                'notes' => 'High school student, youth group active member'
+                'notes' => 'High school student, youth group active member',
             ],
 
             // 12. Married Female (Church Marriage) - Nurse
@@ -462,7 +462,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Mary Wangui Gitau',
                 'sponsor' => 'Ruth Nyawira',
                 'minister' => 'Fr. Michael Kiarie',
-                'notes' => 'Parish health coordinator and nursing professional'
+                'notes' => 'Parish health coordinator and nursing professional',
             ],
 
             // 13. Single Male Student
@@ -493,7 +493,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Grace Wangari Njoroge',
                 'sponsor' => 'Peter Kariuki',
                 'minister' => 'Fr. Francis Githinji',
-                'notes' => 'University student, altar server, youth leader'
+                'notes' => 'University student, altar server, youth leader',
             ],
 
             // 14. Married Male Business Owner
@@ -530,7 +530,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Nyawira wa Wanjiku',
                 'sponsor' => 'John Mwangi',
                 'minister' => 'Fr. Joseph Muturi',
-                'notes' => 'Hardware store owner and parish finance committee member'
+                'notes' => 'Hardware store owner and parish finance committee member',
             ],
 
             // 15. Single Male Recent Convert
@@ -560,7 +560,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Wanjiku wa Gichuki',
                 'sponsor' => 'Joseph Njoroge Wanjiku',
                 'minister' => 'Fr. Francis Githinji',
-                'notes' => 'Recent adult convert, completed RCIA program in 2023'
+                'notes' => 'Recent adult convert, completed RCIA program in 2023',
             ],
 
             // 16. Senior Married Female
@@ -597,7 +597,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Nyawira wa Kariuki',
                 'sponsor' => 'Unknown',
                 'minister' => 'Fr. Paul Kariuki',
-                'notes' => 'Golden jubilee couple, married 50 years, founding member'
+                'notes' => 'Golden jubilee couple, married 50 years, founding member',
             ],
 
             // 17. Single Female Teacher
@@ -628,7 +628,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Joyce Nyokabi Kimani',
                 'sponsor' => 'Sarah Wanjiku',
                 'minister' => 'Fr. Daniel Muturi',
-                'notes' => 'Primary school teacher and education ministry coordinator'
+                'notes' => 'Primary school teacher and education ministry coordinator',
             ],
 
             // 18. Married Male with Disability
@@ -667,7 +667,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'minister' => 'Fr. Michael Kiarie',
                 'is_differently_abled' => true,
                 'disability_description' => 'Mobility impairment - uses wheelchair',
-                'notes' => 'Active in disability ministry and handcraft group'
+                'notes' => 'Active in disability ministry and handcraft group',
             ],
 
             // 19. Single Female Choir Member
@@ -698,7 +698,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Ann Wangui Maina',
                 'sponsor' => 'Mary Njoki',
                 'minister' => 'Fr. Daniel Muturi',
-                'notes' => 'Choir director and music teacher'
+                'notes' => 'Choir director and music teacher',
             ],
 
             // 20. Inactive Member
@@ -729,7 +729,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Rose Wangui Kinyua',
                 'sponsor' => 'Grace Wangari',
                 'minister' => 'Fr. Francis Githinji',
-                'notes' => 'Moved to coast for work, lost contact with parish'
+                'notes' => 'Moved to coast for work, lost contact with parish',
             ],
 
             // 21. Transferred Member
@@ -760,7 +760,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Mary Cheptoo Kiprotich',
                 'sponsor' => 'Grace Wangari',
                 'minister' => 'Fr. Francis Githinji',
-                'notes' => 'Transferred to St. Teresa Eldoret for work'
+                'notes' => 'Transferred to St. Teresa Eldoret for work',
             ],
 
             // 22. Deceased Member (for testing system)
@@ -792,7 +792,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Wanjiku wa Githui',
                 'sponsor' => 'Unknown',
                 'minister' => 'Fr. Unknown',
-                'notes' => 'Founding member, passed away 2020, memorial record'
+                'notes' => 'Founding member, passed away 2020, memorial record',
             ],
 
             // 23. Young Adult Male - Recent Graduate
@@ -823,7 +823,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Jane Wanjiru Ndungu',
                 'sponsor' => 'Joseph Njoroge',
                 'minister' => 'Fr. Francis Githinji',
-                'notes' => 'Recent engineering graduate, youth technology coordinator'
+                'notes' => 'Recent engineering graduate, youth technology coordinator',
             ],
 
             // 24. Middle-aged Single Female Professional
@@ -854,7 +854,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Grace Nyokabi Ndung\'u',
                 'sponsor' => 'Margaret Wangari',
                 'minister' => 'Fr. Joseph Muturi',
-                'notes' => 'Lawyer, legal aid ministry coordinator'
+                'notes' => 'Lawyer, legal aid ministry coordinator',
             ],
 
             // 25. Married Couple - Husband (Farmer)
@@ -891,7 +891,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Nyawira wa Mbugua',
                 'sponsor' => 'Francis Wachira',
                 'minister' => 'Fr. John Kamau',
-                'notes' => 'Coffee farmer, agricultural cooperative leader'
+                'notes' => 'Coffee farmer, agricultural cooperative leader',
             ],
 
             // 26. Elderly Female - Pioneer Member
@@ -923,7 +923,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Wangari wa Wanjiru',
                 'sponsor' => 'Unknown',
                 'minister' => 'Fr. Paul Kariuki',
-                'notes' => 'Pioneer member, church construction contributor'
+                'notes' => 'Pioneer member, church construction contributor',
             ],
 
             // 27. Young Married Couple - Wife
@@ -960,7 +960,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Mary Njeri Kamanja',
                 'sponsor' => 'Joyce Gitau',
                 'minister' => 'Fr. Michael Kiarie',
-                'notes' => 'Newlywed, youth ministry coordinator'
+                'notes' => 'Newlywed, youth ministry coordinator',
             ],
 
             // 28. Male Student - Secondary School
@@ -991,7 +991,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Catherine Wangui Mwangi',
                 'sponsor' => 'James Maina',
                 'minister' => 'Fr. Daniel Muturi',
-                'notes' => 'Form 4 student, altar server, football team captain'
+                'notes' => 'Form 4 student, altar server, football team captain',
             ],
 
             // 29. Single Female - Social Worker
@@ -1022,7 +1022,7 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Agnes Wambui Kariuki',
                 'sponsor' => 'Elizabeth Muturi',
                 'minister' => 'Fr. Francis Githinji',
-                'notes' => 'Social worker, community outreach coordinator'
+                'notes' => 'Social worker, community outreach coordinator',
             ],
 
             // 30. Male Retiree - Volunteer
@@ -1059,8 +1059,8 @@ class Enhanced30MemberSeeder extends Seeder
                 'mother_name' => 'Nyokabi wa Wachira',
                 'sponsor' => 'Samuel Wanjiku',
                 'minister' => 'Fr. Joseph Muturi',
-                'notes' => 'Retired civil servant, catechist, parish volunteer coordinator'
-            ]
+                'notes' => 'Retired civil servant, catechist, parish volunteer coordinator',
+            ],
         ];
     }
 
@@ -1071,7 +1071,7 @@ class Enhanced30MemberSeeder extends Seeder
     {
         $this->command->info('');
         $this->command->info('📊 30-MEMBER SEEDING SUMMARY');
-        $this->command->info('=' . str_repeat('=', 60));
+        $this->command->info('='.str_repeat('=', 60));
 
         $stats = [
             'Total Members' => Member::count(),

@@ -2,16 +2,16 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Activity;
 use App\Models\Family;
 use App\Models\Member;
-use App\Models\Activity;
-use App\Models\CommunityGroup;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 class AddSampleData extends Command
 {
     protected $signature = 'data:sample';
+
     protected $description = 'Add sample data for testing the parish system';
 
     public function handle()
@@ -29,17 +29,17 @@ class AddSampleData extends Command
                 'phone' => '+254712345678',
                 'email' => 'johnson.family@gmail.com',
                 'registration_date' => now()->subMonths(6),
-                'status' => 'active'
+                'status' => 'active',
             ]);
 
             $family2 = Family::create([
-                'family_name' => 'The Wanjiku Family', 
+                'family_name' => 'The Wanjiku Family',
                 'head_of_family' => 'Mary Wanjiku',
                 'address' => '456 Faith Avenue, Kiambu',
                 'phone' => '+254723456789',
                 'email' => 'wanjiku.family@gmail.com',
                 'registration_date' => now()->subMonths(3),
-                'status' => 'active'
+                'status' => 'active',
             ]);
 
             // Create sample members
@@ -55,7 +55,7 @@ class AddSampleData extends Command
                 'occupation' => 'Teacher',
                 'marital_status' => 'Married',
                 'member_since' => now()->subMonths(6),
-                'status' => 'active'
+                'status' => 'active',
             ]);
 
             Member::create([
@@ -70,7 +70,7 @@ class AddSampleData extends Command
                 'occupation' => 'Nurse',
                 'marital_status' => 'Married',
                 'member_since' => now()->subMonths(6),
-                'status' => 'active'
+                'status' => 'active',
             ]);
 
             Member::create([
@@ -85,7 +85,7 @@ class AddSampleData extends Command
                 'occupation' => 'Business Owner',
                 'marital_status' => 'Widowed',
                 'member_since' => now()->subMonths(3),
-                'status' => 'active'
+                'status' => 'active',
             ]);
 
             // Create sample activities (simplified)
@@ -95,7 +95,7 @@ class AddSampleData extends Command
                 'activity_date' => now()->addDays(7)->setHour(8)->setMinute(0),
                 'location' => 'Main Church',
                 'status' => 'scheduled',
-                'created_by' => 1
+                'created_by' => 1,
             ]);
 
             Activity::create([
@@ -104,7 +104,7 @@ class AddSampleData extends Command
                 'activity_date' => now()->addDays(14)->setHour(15)->setMinute(0),
                 'location' => 'Parish Hall',
                 'status' => 'scheduled',
-                'created_by' => 1
+                'created_by' => 1,
             ]);
 
             DB::commit();
@@ -117,7 +117,8 @@ class AddSampleData extends Command
 
         } catch (\Exception $e) {
             DB::rollback();
-            $this->error('❌ Error adding sample data: ' . $e->getMessage());
+            $this->error('❌ Error adding sample data: '.$e->getMessage());
+
             return 1;
         }
 

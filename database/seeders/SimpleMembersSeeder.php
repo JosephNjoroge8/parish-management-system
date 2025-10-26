@@ -18,7 +18,7 @@ class SimpleMembersSeeder extends Seeder
         Member::truncate();
 
         // Create 20 members with different characteristics using the factory
-        
+
         // 1-3: Parish Leaders (married, active, older)
         Member::factory(3)
             ->active()
@@ -39,7 +39,7 @@ class SimpleMembersSeeder extends Seeder
             ->state([
                 'church_group' => 'Youth',
                 'matrimony_status' => 'single',
-                'date_of_birth' => fake()->dateTimeBetween('-25 years', '-16 years')->format('Y-m-d')
+                'date_of_birth' => fake()->dateTimeBetween('-25 years', '-16 years')->format('Y-m-d'),
             ])
             ->create();
 
@@ -50,7 +50,7 @@ class SimpleMembersSeeder extends Seeder
                 'church_group' => 'PMC',
                 'matrimony_status' => 'single',
                 'date_of_birth' => fake()->dateTimeBetween('-15 years', '-5 years')->format('Y-m-d'),
-                'education_level' => 'primary'
+                'education_level' => 'primary',
             ])
             ->create();
 
@@ -65,7 +65,7 @@ class SimpleMembersSeeder extends Seeder
             ->active()
             ->state([
                 'church_group' => 'Pioneer',
-                'date_of_birth' => fake()->dateTimeBetween('-80 years', '-60 years')->format('Y-m-d')
+                'date_of_birth' => fake()->dateTimeBetween('-80 years', '-60 years')->format('Y-m-d'),
             ])
             ->create();
 
@@ -73,7 +73,7 @@ class SimpleMembersSeeder extends Seeder
         Member::factory(1)
             ->state([
                 'membership_status' => 'inactive',
-                'church_group' => 'Youth'
+                'church_group' => 'Youth',
             ])
             ->create();
 
@@ -81,7 +81,7 @@ class SimpleMembersSeeder extends Seeder
         Member::factory(1)
             ->state([
                 'membership_status' => 'transferred',
-                'church_group' => 'C.W.A'
+                'church_group' => 'C.W.A',
             ])
             ->create();
 
@@ -102,7 +102,7 @@ class SimpleMembersSeeder extends Seeder
     {
         $this->command->info('');
         $this->command->info('📊 MEMBER SEEDING SUMMARY');
-        $this->command->info('=' . str_repeat('=', 50));
+        $this->command->info('='.str_repeat('=', 50));
 
         $stats = [
             'Total Members' => Member::count(),

@@ -6,9 +6,9 @@ use App\Models\Family;
 use App\Models\Member;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\App;
 
 class MemberSeeder extends Seeder
 {
@@ -23,14 +23,16 @@ class MemberSeeder extends Seeder
             if ($memberCount > 0) {
                 $this->command->warn('Production environment detected with existing data.');
                 $this->command->warn("Current member count: {$memberCount}");
-                
-                if (!$this->command->confirm('This will DELETE ALL existing member data. Are you absolutely sure you want to continue?')) {
+
+                if (! $this->command->confirm('This will DELETE ALL existing member data. Are you absolutely sure you want to continue?')) {
                     $this->command->info('Seeding cancelled to protect existing data.');
+
                     return;
                 }
-                
-                if (!$this->command->confirm('This is your FINAL WARNING. All member and family data will be permanently deleted. Continue?')) {
+
+                if (! $this->command->confirm('This is your FINAL WARNING. All member and family data will be permanently deleted. Continue?')) {
                     $this->command->info('Seeding cancelled.');
+
                     return;
                 }
             }
@@ -48,7 +50,7 @@ class MemberSeeder extends Seeder
         $this->createSampleMembers($families);
 
         // Generate additional test members (only in non-production)
-        if (!App::environment('production')) {
+        if (! App::environment('production')) {
             $this->generateRandomMembers(15);
         } else {
             $this->command->info('Skipping random member generation in production environment.');
@@ -63,11 +65,11 @@ class MemberSeeder extends Seeder
     private function clearExistingData(): void
     {
         $this->command->info('Clearing existing data...');
-        
+
         try {
             // Disable foreign key checks for clean truncation
             DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-            
+
             Member::truncate();
             $this->command->info('Cleared existing members.');
 
@@ -76,14 +78,14 @@ class MemberSeeder extends Seeder
                 Family::truncate();
                 $this->command->info('Cleared existing families.');
             }
-            
+
             // Re-enable foreign key checks
             DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-            
+
         } catch (\Exception $e) {
             // For SQLite or other databases that don't support foreign key check toggling
             $this->command->warn('Using alternative data clearing method...');
-            
+
             try {
                 Member::query()->delete();
                 if (Schema::hasTable('families')) {
@@ -91,7 +93,7 @@ class MemberSeeder extends Seeder
                 }
                 $this->command->info('Data cleared successfully.');
             } catch (\Exception $e2) {
-                $this->command->error('Failed to clear existing data: ' . $e2->getMessage());
+                $this->command->error('Failed to clear existing data: '.$e2->getMessage());
                 throw $e2;
             }
         }
@@ -103,9 +105,10 @@ class MemberSeeder extends Seeder
     private function createFamilies(): array
     {
         $families = [];
-        
-        if (!Schema::hasTable('families')) {
+
+        if (! Schema::hasTable('families')) {
             $this->command->warn('Families table does not exist. Skipping family creation.');
+
             return $families;
         }
 
@@ -113,7 +116,7 @@ class MemberSeeder extends Seeder
 
         // Check what columns exist in the families table
         $familyColumns = Schema::getColumnListing('families');
-        $this->command->info('Available family columns: ' . implode(', ', $familyColumns));
+        $this->command->info('Available family columns: '.implode(', ', $familyColumns));
 
         $familiesData = [
             [
@@ -153,11 +156,12 @@ class MemberSeeder extends Seeder
                 $family = Family::create($familyData);
                 $families[] = $family;
             } catch (\Exception $e) {
-                $this->command->error("Failed to create family: {$familyData['family_name']} - " . $e->getMessage());
+                $this->command->error("Failed to create family: {$familyData['family_name']} - ".$e->getMessage());
             }
         }
 
-        $this->command->info('Created ' . count($families) . ' families.');
+        $this->command->info('Created '.count($families).' families.');
+
         return $families;
     }
 
@@ -176,7 +180,7 @@ class MemberSeeder extends Seeder
                 Member::create($memberData);
                 $successCount++;
             } catch (\Exception $e) {
-                $this->command->error("Failed to create member {$index}: " . $e->getMessage());
+                $this->command->error("Failed to create member {$index}: ".$e->getMessage());
             }
         }
 
@@ -544,6 +548,7 @@ class MemberSeeder extends Seeder
         // Skip in production environment
         if (App::environment('production')) {
             $this->command->info('Skipping random member generation in production.');
+
             return;
         }
 
@@ -608,29 +613,29 @@ class MemberSeeder extends Seeder
                     'last_name' => $lastName,
                     'date_of_birth' => $birthDate->format('Y-m-d'),
                     'gender' => $gender,
-                    'phone' => '+2547' . rand(10000000, 99999999),
-                    'email' => strtolower($firstName . '.' . $lastName . rand(1, 99) . '@gmail.com'),
+                    'phone' => '+2547'.rand(10000000, 99999999),
+                    'email' => strtolower($firstName.'.'.$lastName.rand(1, 99).'@gmail.com'),
                     'id_number' => $age >= 18 ? (string) rand(10000000, 99999999) : null,
-                    'sponsor' => $firstName . ' Sponsor',
+                    'sponsor' => $firstName.' Sponsor',
                     'occupation' => $occupations[array_rand($occupations)],
                     'education_level' => $educationLevels[array_rand($educationLevels)],
                     'family_id' => null,
                     'parent' => $age < 18 ? 'Parent Name' : null,
-                    'minister' => 'Fr. ' . ['John', 'Patrick', 'Francis', 'Michael', 'Joseph'][array_rand(['John', 'Patrick', 'Francis', 'Michael', 'Joseph'])] . ' Mukuria',
+                    'minister' => 'Fr. '.['John', 'Patrick', 'Francis', 'Michael', 'Joseph'][array_rand(['John', 'Patrick', 'Francis', 'Michael', 'Joseph'])].' Mukuria',
                     'tribe' => $tribes[array_rand($tribes)],
                     'clan' => 'Clan Name',
                     'baptism_date' => $baptismDate->format('Y-m-d'),
-                    'residence' => $localChurch . ' Area, House ' . rand(1, 100),
+                    'residence' => $localChurch.' Area, House '.rand(1, 100),
                     'confirmation_date' => $confirmationDate?->format('Y-m-d'),
                     'matrimony_status' => $age >= 18 ? $matrimonyStatuses[array_rand($matrimonyStatuses)] : 'single',
                     'membership_date' => $membershipDate->format('Y-m-d'),
                     'membership_status' => $membershipStatuses[array_rand($membershipStatuses)],
                     'notes' => 'Generated test member for development/testing purposes',
                 ]);
-                
+
                 $successCount++;
             } catch (\Exception $e) {
-                $this->command->error("Failed to create random member {$i}: " . $e->getMessage());
+                $this->command->error("Failed to create random member {$i}: ".$e->getMessage());
             }
         }
 

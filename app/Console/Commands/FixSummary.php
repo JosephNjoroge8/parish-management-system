@@ -7,12 +7,13 @@ use Illuminate\Console\Command;
 class FixSummary extends Command
 {
     protected $signature = 'fix:summary';
+
     protected $description = 'Summary of fixes applied to resolve 419 CSRF errors';
 
     public function handle()
     {
         $this->info('🔧 CSRF 419 Error - Fixes Applied');
-        $this->info('=' . str_repeat('=', 50));
+        $this->info('='.str_repeat('=', 50));
         $this->newLine();
 
         $this->info('🎯 Root Causes Identified & Fixed:');
@@ -61,7 +62,7 @@ class FixSummary extends Command
         $this->newLine();
 
         $this->info('✨ Status: 419 CSRF errors should now be resolved!');
-        
+
         return 0;
     }
 }

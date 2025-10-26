@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RoleAndPermissionSeeder extends Seeder
 {
@@ -24,13 +24,13 @@ class RoleAndPermissionSeeder extends Seeder
             'edit members',
             'delete members',
             'manage member sacraments',
-            
+
             // Family management
             'view families',
             'create families',
             'edit families',
             'delete families',
-            
+
             // Sacrament records
             'view sacraments',
             'create sacraments',
@@ -38,32 +38,32 @@ class RoleAndPermissionSeeder extends Seeder
             'delete sacraments',
             'manage baptism records',
             'manage marriage records',
-            
+
             // Financial management
             'view tithes',
             'create tithes',
             'edit tithes',
             'delete tithes',
             'view financial reports',
-            
+
             // Activity management
             'view activities',
             'create activities',
             'edit activities',
             'delete activities',
             'manage activity participants',
-            
+
             // Community groups
             'view community groups',
             'create community groups',
             'edit community groups',
             'delete community groups',
-            
+
             // Reports and analytics
             'view reports',
             'generate reports',
             'export data',
-            
+
             // System administration
             'manage users',
             'manage roles',
@@ -77,24 +77,24 @@ class RoleAndPermissionSeeder extends Seeder
         }
 
         // Create roles and assign permissions
-        
+
         // Super Admin - has all permissions
         $superAdmin = Role::create(['name' => 'super_admin']);
         $superAdmin->givePermissionTo(Permission::all());
-        
+
         // Parish Priest - has most permissions except system administration
         $parishPriest = Role::create(['name' => 'parish_priest']);
         $parishPriest->givePermissionTo([
             'view members', 'create members', 'edit members', 'delete members', 'manage member sacraments',
             'view families', 'create families', 'edit families', 'delete families',
-            'view sacraments', 'create sacraments', 'edit sacraments', 'delete sacraments', 
+            'view sacraments', 'create sacraments', 'edit sacraments', 'delete sacraments',
             'manage baptism records', 'manage marriage records',
             'view tithes', 'create tithes', 'edit tithes', 'view financial reports',
             'view activities', 'create activities', 'edit activities', 'delete activities', 'manage activity participants',
             'view community groups', 'create community groups', 'edit community groups', 'delete community groups',
             'view reports', 'generate reports', 'export data',
         ]);
-        
+
         // Parish Secretary - administrative tasks
         $secretary = Role::create(['name' => 'secretary']);
         $secretary->givePermissionTo([
@@ -106,7 +106,7 @@ class RoleAndPermissionSeeder extends Seeder
             'view community groups',
             'view reports', 'export data',
         ]);
-        
+
         // Treasurer - financial focus
         $treasurer = Role::create(['name' => 'treasurer']);
         $treasurer->givePermissionTo([
@@ -116,7 +116,7 @@ class RoleAndPermissionSeeder extends Seeder
             'view activities',
             'view reports', 'generate reports',
         ]);
-        
+
         // Catechist - sacrament focus
         $catechist = Role::create(['name' => 'catechist']);
         $catechist->givePermissionTo([
@@ -126,7 +126,7 @@ class RoleAndPermissionSeeder extends Seeder
             'view activities', 'create activities', 'edit activities', 'manage activity participants',
             'view community groups',
         ]);
-        
+
         // Group Leader - limited to their groups
         $groupLeader = Role::create(['name' => 'group_leader']);
         $groupLeader->givePermissionTo([
@@ -135,7 +135,7 @@ class RoleAndPermissionSeeder extends Seeder
             'view activities', 'create activities', 'manage activity participants',
             'view community groups', 'edit community groups',
         ]);
-        
+
         // Member - read-only access to own data
         $member = Role::create(['name' => 'member']);
         $member->givePermissionTo([

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 class TestAuthFlow extends Command
 {
     protected $signature = 'auth:test';
+
     protected $description = 'Test authentication flow and CSRF functionality';
 
     public function handle()
@@ -18,14 +19,14 @@ class TestAuthFlow extends Command
         // Check auth routes
         $authRoutes = [
             'login' => 'Login page',
-            'login.store' => 'Login form submission', 
+            'login.store' => 'Login form submission',
             'dashboard' => 'Dashboard (authenticated)',
-            'logout' => 'Logout'
+            'logout' => 'Logout',
         ];
 
         foreach ($authRoutes as $route => $description) {
             if (Route::has($route)) {
-                $this->info("✅ {$description}: " . route($route));
+                $this->info("✅ {$description}: ".route($route));
             } else {
                 $this->error("❌ Missing route: {$route}");
             }
@@ -35,19 +36,19 @@ class TestAuthFlow extends Command
 
         // Check session configuration
         $this->info('📋 Session Configuration:');
-        $this->info('   Driver: ' . config('session.driver'));
-        $this->info('   Lifetime: ' . config('session.lifetime') . ' minutes');
-        $this->info('   Domain: ' . (config('session.domain') ?: 'localhost'));
-        $this->info('   Secure: ' . (config('session.secure_cookie') ? 'Yes' : 'No'));
-        $this->info('   HTTP Only: ' . (config('session.http_only') ? 'Yes' : 'No'));
-        $this->info('   Same Site: ' . config('session.same_site'));
+        $this->info('   Driver: '.config('session.driver'));
+        $this->info('   Lifetime: '.config('session.lifetime').' minutes');
+        $this->info('   Domain: '.(config('session.domain') ?: 'localhost'));
+        $this->info('   Secure: '.(config('session.secure_cookie') ? 'Yes' : 'No'));
+        $this->info('   HTTP Only: '.(config('session.http_only') ? 'Yes' : 'No'));
+        $this->info('   Same Site: '.config('session.same_site'));
 
         $this->newLine();
 
         // Check CSRF middleware
         $middlewareGroups = config('app.middleware_groups', []);
         $webMiddleware = $middlewareGroups['web'] ?? [];
-        
+
         $csrfFound = false;
         foreach ($webMiddleware as $middleware) {
             if (str_contains($middleware, 'VerifyCsrfToken')) {

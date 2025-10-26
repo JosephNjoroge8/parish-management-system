@@ -3,19 +3,20 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
 class SystemHealthCheck extends Command
 {
     protected $signature = 'system:health';
+
     protected $description = 'Comprehensive health check of the Parish Management System';
 
     public function handle()
     {
         $this->info('🏥 Parish Management System - Health Check');
-        $this->info('=' . str_repeat('=', 50));
+        $this->info('='.str_repeat('=', 50));
         $this->newLine();
 
         $passed = 0;
@@ -65,7 +66,7 @@ class SystemHealthCheck extends Command
         $routeNames = ['login', 'dashboard'];
         $routesExist = true;
         foreach ($routeNames as $routeName) {
-            if (!Route::has($routeName)) {
+            if (! Route::has($routeName)) {
                 $routesExist = false;
                 break;
             }
@@ -91,7 +92,7 @@ class SystemHealthCheck extends Command
 
         $this->newLine();
         $this->info("📊 Health Check Results: {$passed}/{$total} checks passed");
-        
+
         if ($passed === $total) {
             $this->info('🎉 System is fully operational!');
             $this->newLine();
@@ -107,9 +108,11 @@ class SystemHealthCheck extends Command
             $this->info('   • Activity & Event Management');
             $this->info('   • Community Groups');
             $this->info('   • Reports & Analytics');
+
             return 0;
         } else {
             $this->warn('⚠️ Some issues detected. Please review and fix.');
+
             return 1;
         }
     }

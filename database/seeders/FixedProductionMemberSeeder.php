@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Member;
-use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 
 class FixedProductionMemberSeeder extends Seeder
@@ -19,11 +18,11 @@ class FixedProductionMemberSeeder extends Seeder
 
         // Clear existing members to avoid conflicts during testing
         $this->command->info('Clearing existing member data...');
-        
+
         // Handle foreign key constraints based on database type - PRODUCTION SAFE
         $connection = \DB::connection();
         $driver = $connection->getDriverName();
-        
+
         if ($driver === 'sqlite') {
             // For SQLite, disable foreign key constraints
             \DB::statement('PRAGMA foreign_keys = OFF;');
@@ -31,16 +30,16 @@ class FixedProductionMemberSeeder extends Seeder
             // For MySQL/MariaDB - PRODUCTION SAFE
             \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         }
-        
+
         // Clear related tables first (in reverse dependency order) - PRODUCTION SAFE
         \DB::table('activity_participants')->delete();
         \DB::table('baptism_records')->delete();
         \DB::table('marriage_records')->delete();
         \DB::table('tithes')->delete();
-        
+
         // Now clear members table - PRODUCTION SAFE: Using DELETE not TRUNCATE
         \DB::table('members')->delete();
-        
+
         // Re-enable foreign key checks
         if ($driver === 'sqlite') {
             \DB::statement('PRAGMA foreign_keys = ON;');
@@ -53,12 +52,12 @@ class FixedProductionMemberSeeder extends Seeder
         foreach ($members as $index => $memberData) {
             $category = $memberData['category']; // Store category for display
             unset($memberData['category']); // Remove from database insert
-            
+
             try {
                 $member = Member::create($memberData);
-                $this->command->info("✅ Created member " . ($index + 1) . "/30: {$member->first_name} {$member->last_name} ({$category})");
+                $this->command->info('✅ Created member '.($index + 1)."/30: {$member->first_name} {$member->last_name} ({$category})");
             } catch (\Exception $e) {
-                $this->command->error("❌ Failed to create member " . ($index + 1) . ": {$e->getMessage()}");
+                $this->command->error('❌ Failed to create member '.($index + 1).": {$e->getMessage()}");
                 // Continue with next member instead of failing completely
             }
         }
@@ -429,20 +428,20 @@ class FixedProductionMemberSeeder extends Seeder
     {
         $this->command->info('🎉 Successfully created parish members!');
         $this->command->info('');
-        
+
         $total = Member::count();
         $males = Member::where('gender', 'Male')->count();
         $females = Member::where('gender', 'Female')->count();
         $active = Member::where('membership_status', 'active')->count();
-        
-        $this->command->info("📊 PRODUCTION MEMBER SUMMARY");
-        $this->command->info("========================================");
+
+        $this->command->info('📊 PRODUCTION MEMBER SUMMARY');
+        $this->command->info('========================================');
         $this->command->info("Total Members Created    : {$total}");
         $this->command->info("Male Members             : {$males}");
         $this->command->info("Female Members           : {$females}");
         $this->command->info("Active Members           : {$active}");
         $this->command->info('');
-        
+
         $this->command->info('✅ Production seeding completed successfully!');
         $this->command->info('🔗 Ready for testing and production use.');
     }

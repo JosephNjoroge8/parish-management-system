@@ -1,0 +1,37 @@
+# Protect webhook and deployment scripts
+<Files "webhook.php">
+    Order Deny,Allow
+    Deny from all
+    # Allow GitHub webhook IPs
+    Allow from 140.82.112.0/20
+    Allow from 143.55.64.0/20
+    Allow from 185.199.108.0/22
+    Allow from 192.30.252.0/22
+</Files>
+
+<Files "deploy.php">
+    Order Deny,Allow
+    Deny from all
+    # Only allow localhost (webhook.php calls this internally)
+    Allow from 127.0.0.1
+    Allow from ::1
+</Files>
+
+# Prevent access to debug and helper scripts in production
+<Files "debug-assets.php">
+    Order Deny,Allow
+    Deny from all
+    # Uncomment to allow access when debugging
+    # Allow from all
+</Files>
+
+<Files "production-helper.php">
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+# Protect sensitive files
+<FilesMatch "(\.env|\.git|composer\.json|composer\.lock|package\.json|package-lock\.json)">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>

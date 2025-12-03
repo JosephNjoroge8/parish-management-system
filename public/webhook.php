@@ -57,11 +57,19 @@ define('LOG_FILE', DEPLOYMENT_PATH . '/storage/logs/webhook.log');
 // DO NOT EDIT BELOW THIS LINE
 // ============================================================================
 
+// Prevent Laravel bootstrap - this is a standalone script
+define('LARAVEL_START', microtime(true));
+
 // Set error reporting for production
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 ini_set('error_log', DEPLOYMENT_PATH . '/storage/logs/webhook-errors.log');
+
+// Prevent any output buffering
+if (ob_get_level()) {
+    ob_end_clean();
+}
 
 /**
  * Log messages with timestamp

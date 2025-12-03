@@ -1,0 +1,35 @@
+# CI/CD Files - Do NOT ignore these
+# These files should be committed to Git
+
+# Core Pipeline Files (INCLUDE)
+!public/webhook.php
+!public/deploy.php
+!.github/workflows/laravel.yml
+!.cpanel.yml
+
+# Documentation (INCLUDE)
+!README_CICD.md
+!CICD_SETUP_GUIDE.md
+!CICD_QUICK_START.md
+!CICD_TESTING_GUIDE.md
+!CICD_ARCHITECTURE.md
+
+# Scripts (INCLUDE)
+!setup-webhook.sh
+!install-cicd.sh
+
+# Security Files (INCLUDE)
+!public/.htaccess-webhook-security
+
+# Runtime Files (IGNORE)
+storage/logs/webhook.log
+storage/logs/webhook-errors.log
+storage/logs/deployment.log
+backups/*.tar.gz
+
+# Temporary Test Files (IGNORE)
+public/server-check.php
+public/db-check.php
+public/debug-assets.php
+test-webhook.sh
+production-checklist.txt

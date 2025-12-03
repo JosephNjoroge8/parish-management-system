@@ -127,15 +127,15 @@ jobs:
       - name: Run Laravel Pint
         run: vendor/bin/pint --test
 
-  # Job 4: Notify Deployment Status
-  notify:
-    name: Send Deployment Notification
+  # Job 4: Trigger Production Deployment
+  deploy:
+    name: Trigger Production Deployment
     runs-on: ubuntu-latest
     needs: [test, build, code-quality]
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/Main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/Main'
     
     steps:
-      - name: Deployment Status Summary
+      - name: Check All Jobs Status
         run: |
           echo "==================================="
           echo "DEPLOYMENT STATUS SUMMARY"
@@ -145,10 +145,17 @@ jobs:
           echo "Code Quality: ${{ needs.code-quality.result }}"
           echo "==================================="
           
-          if [ "${{ needs.test.result }}" == "success" ] && [ "${{ needs.build.result }}" == "success" ]; then
-            echo "✅ All checks passed - Webhook will trigger deployment"
-            exit 0
-          else
-            echo "❌ Some checks failed - Deployment may be skipped"
+          if [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.build.result }}" != "success" ]; then
+            echo "❌ Tests or build failed - Skipping deployment"
             exit 1
           fi
+          
+          echo "✅ All checks passed - Triggering deployment webhook"
+      
+      - name: Trigger Deployment Webhook
+        run: |
+          # GitHub's push webhook will automatically trigger our webhook.php
+          # This step just confirms deployment is ready
+          echo "GitHub webhook will trigger deployment to production"
+          echo "Monitor at: https://parish.quovadisyouthhub.org"
+          echo "Webhook URL: https://parish.quovadisyouthhub.org/webhook.php"

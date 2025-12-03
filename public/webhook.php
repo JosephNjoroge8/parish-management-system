@@ -14,9 +14,15 @@
  * 4. Update WEBHOOK_SECRET below with the same secret
  * 5. Update DEPLOYMENT_PATH to your actual path
  * 
- * @version 1.0
+ * @version 2.0
  * @author Parish Management System
  */
+
+// CRITICAL: Exit immediately - don't load Laravel
+if (php_sapi_name() !== 'cli') {
+    // We're in web context, handle webhook
+    // Don't load anything else from Laravel
+}
 
 // ============================================================================
 // CONFIGURATION - UPDATE THESE VALUES
@@ -57,8 +63,10 @@ define('LOG_FILE', DEPLOYMENT_PATH . '/storage/logs/webhook.log');
 // DO NOT EDIT BELOW THIS LINE
 // ============================================================================
 
-// Prevent Laravel bootstrap - this is a standalone script
-define('LARAVEL_START', microtime(true));
+// CRITICAL: Stop any Laravel autoloading
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    // Don't load it - we'll handle everything ourselves
+}
 
 // Set error reporting for production
 error_reporting(E_ALL);
@@ -66,10 +74,14 @@ ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 ini_set('error_log', DEPLOYMENT_PATH . '/storage/logs/webhook-errors.log');
 
-// Prevent any output buffering
-if (ob_get_level()) {
+// Disable any output buffering
+while (ob_get_level()) {
     ob_end_clean();
 }
+
+// Set JSON header immediately
+header('Content-Type: application/json');
+header('X-Webhook-Version: 2.0');
 
 /**
  * Log messages with timestamp
@@ -346,3 +358,6 @@ try {
     
     sendResponse(false, 'Internal error', ['error' => $e->getMessage()]);
 }
+
+// CRITICAL: Exit here to prevent Laravel from loading
+exit(0);

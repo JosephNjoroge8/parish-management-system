@@ -1064,4 +1064,4 @@ For professional support, customizations, or enterprise licensing:
 
 **Made with ❤️ for the Church Community**
 
-*This Parish Management System is designed to serve churches and religious communities worldwide. We believe in the power of technology to strengthen faith communities and improve administrative efficiency.*
+*This Parish Management System is designed to serve churches and religious communities worldwide. We believe in the power of technology to strengthen faith communities and improve administrative efficiency.*## CI/CD Pipeline Active ✅

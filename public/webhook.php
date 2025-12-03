@@ -23,7 +23,7 @@
 // ============================================================================
 
 // CRITICAL: Set a strong secret key (must match GitHub webhook secret)
-define('WEBHOOK_SECRET', 'your-super-secret-webhook-key-change-this');
+define('WEBHOOK_SECRET', '7c405eeeaca081e63d0fd443c7f564b1719bf0594169601aa2a706cbea276a8a');
 
 // Deployment path - where your Laravel application is installed
 define('DEPLOYMENT_PATH', '/home2/shemidig/parish_system');
@@ -36,7 +36,7 @@ define('REPO_URL', 'https://github.com/JosephNjoroge8/parish-management-system.g
 define('BRANCH', 'Main'); // Your main branch name
 
 // Email notifications (optional)
-define('NOTIFY_EMAIL', 'admin@quovadisyouthhub.org');
+define('NOTIFY_EMAIL', 'no_reply@parish.quovadisyouthhub.org');
 define('SEND_EMAIL_NOTIFICATIONS', false); // Set to true to enable
 
 // Allowed IP addresses (GitHub webhook IPs) - leave empty to allow all

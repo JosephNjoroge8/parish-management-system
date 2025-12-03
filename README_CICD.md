@@ -289,7 +289,7 @@ git push origin feature/new-feature
 
 ```bash
 # Watch deployment log
-tail -f /home2/YOUR_USERNAME/parish_system/storage/logs/deployment.log
+tail -f /home2/shemidig/parish_system/storage/logs/deployment.log
 
 # Or check GitHub
 # Repository → Actions → Latest workflow run

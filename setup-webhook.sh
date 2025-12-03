@@ -30,13 +30,21 @@ update_config() {
 
 # Get configuration values
 echo "Please provide the following information:"
+echo "(Press Enter to use default values shown in brackets)"
 echo ""
 
 read -p "Enter your webhook secret key (min 32 characters): " WEBHOOK_SECRET
-read -p "Enter your deployment path (e.g., /home2/username/parish_system): " DEPLOY_PATH
-read -p "Enter your PHP version (82, 83, 84): " PHP_VER
-read -p "Enter your notification email (optional): " NOTIFY_EMAIL
-read -p "Enter your domain (e.g., parish.quovadisyouthhub.org): " DOMAIN
+read -p "Enter your deployment path [/home2/shemidig/parish_system]: " DEPLOY_PATH
+DEPLOY_PATH=${DEPLOY_PATH:-/home2/shemidig/parish_system}
+
+read -p "Enter your PHP version [82]: " PHP_VER
+PHP_VER=${PHP_VER:-82}
+
+read -p "Enter your notification email [no_reply@parish.quovadisyouthhub.org]: " NOTIFY_EMAIL
+NOTIFY_EMAIL=${NOTIFY_EMAIL:-no_reply@parish.quovadisyouthhub.org}
+
+read -p "Enter your domain [parish.quovadisyouthhub.org]: " DOMAIN
+DOMAIN=${DOMAIN:-parish.quovadisyouthhub.org}
 
 echo ""
 echo "Updating configuration files..."

@@ -146,7 +146,7 @@ bash setup-webhook.sh
 The script will ask for:
 - **Webhook Secret**: A strong random key (min 32 characters)
   - Generate one: `openssl rand -hex 32`
-- **Deployment Path**: Your cPanel path (e.g., `/home2/username/parish_system`)
+- **Deployment Path**: `/home2/shemidig/parish_system`
 - **PHP Version**: Your PHP version (82, 83, 84)
 - **Notification Email**: Your admin email
 - **Domain**: Your production domain
@@ -159,7 +159,7 @@ The script will ask for:
 define('WEBHOOK_SECRET', 'YOUR_GENERATED_SECRET_HERE');
 
 // Line 27: Update path
-define('DEPLOYMENT_PATH', '/home2/YOUR_USERNAME/parish_system');
+define('DEPLOYMENT_PATH', '/home2/shemidig/parish_system');
 
 // Line 30: Update PHP version
 define('PHP_VERSION', '82'); // Your PHP version
@@ -168,7 +168,7 @@ define('PHP_VERSION', '82'); // Your PHP version
 **File 2: `public/deploy.php`**
 ```php
 // Line 20: Update path
-define('DEPLOYMENT_PATH', '/home2/YOUR_USERNAME/parish_system');
+define('DEPLOYMENT_PATH', '/home2/shemidig/parish_system');
 
 // Line 21: Update PHP version
 define('PHP_VERSION', '82');
@@ -180,7 +180,7 @@ define('DEPLOY_SECRET', 'YOUR_GENERATED_SECRET_HERE');
 **File 3: `.cpanel.yml`**
 ```yaml
 # Line 9: Update path
-- export DEPLOYPATH=/home2/YOUR_USERNAME/parish_system
+- export DEPLOYPATH=/home2/shemidig/parish_system
 
 # Line 10: Update PHP version
 - export PHPVER=82

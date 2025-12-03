@@ -32,7 +32,7 @@ define('BRANCH', 'Main');
 define('REPO_URL', 'https://github.com/JosephNjoroge8/parish-management-system.git');
 
 // Deployment secret (for security)
-define('DEPLOY_SECRET', 'your-super-secret-webhook-key-change-this');
+define('DEPLOY_SECRET', '7c405eeeaca081e63d0fd443c7f564b1719bf0594169601aa2a706cbea276a8a');
 
 // Maintenance mode settings
 define('ENABLE_MAINTENANCE_MODE', true);

@@ -30,8 +30,8 @@ Or manually update these values in:
 
 **Required values:**
 - Webhook secret: `openssl rand -hex 32`
-- Deployment path: `/home2/YOUR_USERNAME/parish_system`
-- PHP version: `82` (or your version)
+- Deployment path: `/home2/shemidig/parish_system`
+- PHP version: `82`
 
 Commit changes:
 ```bash
@@ -43,10 +43,10 @@ git push origin Main
 ### Step 2: Setup cPanel (15 minutes)
 
 1. **Create database** (cPanel → MySQL Databases)
-   - Database: `username_parish`
-   - User: `username_parish_user`
-   - Password: Strong password
-   - Grant ALL PRIVILEGES
+   - Database: `shemidig_parish_system` ✅ Already created
+   - User: `shemidig_NjoroParish` ✅ Already created
+   - Password: ✅ Already configured
+   - Grant ALL PRIVILEGES ✅ Already set
 
 2. **Configure PHP** (cPanel → Select PHP Version)
    - Version: PHP 8.2+
@@ -60,20 +60,20 @@ git push origin Main
 
 4. **Clone repository** (cPanel → Git Version Control or Terminal)
    ```bash
-   git clone -b Main https://github.com/JosephNjoroge8/parish-management-system.git /home2/YOUR_USERNAME/parish_system
+   git clone -b Main https://github.com/JosephNjoroge8/parish-management-system.git /home2/shemidig/parish_system
    ```
 
 5. **Create .env file**
    ```bash
-   cd /home2/YOUR_USERNAME/parish_system
-   cp .env.production .env
-   # Edit .env with your database credentials
+   cd /home2/shemidig/parish_system
+   # .env already exists in production ✅
+   # Verify it contains correct database credentials
    ```
 
 6. **Run initial setup**
    ```bash
+   cd /home2/shemidig/parish_system
    /usr/local/bin/ea-php82 /opt/cpanel/composer/bin/composer install --no-dev
-   /usr/local/bin/ea-php82 artisan key:generate
    /usr/local/bin/ea-php82 artisan migrate --force
    npm install && npm run build
    /usr/local/bin/ea-php82 artisan optimize
@@ -81,12 +81,14 @@ git push origin Main
 
 7. **Set permissions**
    ```bash
-   chmod -R 755 /home2/YOUR_USERNAME/parish_system
+   chmod -R 755 /home2/shemidig/parish_system
+   cd /home2/shemidig/parish_system
    chmod -R 775 storage bootstrap/cache
    ```
 
 8. **Configure domain**
-   - Point domain/subdomain to `parish_system/public` directory
+   - Domain: `parish.quovadisyouthhub.org` ✅ Already configured
+   - Document root: `/home2/shemidig/parish_system/public` ✅ Already set
 
 ### Step 3: Configure GitHub Webhook (5 minutes)
 
@@ -122,7 +124,7 @@ git push origin Main
 2. **Webhook**: GitHub → Settings → Webhooks → Recent Deliveries
 3. **Logs**: 
    ```bash
-   tail -f /home2/YOUR_USERNAME/parish_system/storage/logs/deployment.log
+   tail -f /home2/shemidig/parish_system/storage/logs/deployment.log
    ```
 
 ### Expected Timeline
@@ -170,7 +172,7 @@ chmod 644 public/deploy.php
 ### Assets Not Loading
 ```bash
 # Rebuild assets manually
-cd /home2/YOUR_USERNAME/parish_system
+cd /home2/shemidig/parish_system
 npm install
 npm run build
 php artisan optimize:clear
@@ -217,12 +219,12 @@ git push origin Main
 # Click "Pull or Deploy"
 
 # Or directly
-/usr/local/bin/ea-php82 /home2/YOUR_USERNAME/parish_system/public/deploy.php
+/usr/local/bin/ea-php82 /home2/shemidig/parish_system/public/deploy.php
 ```
 
 ### Rollback
 ```bash
-cd /home2/YOUR_USERNAME/parish_system
+cd /home2/shemidig/parish_system
 tar -xzf backups/backup_LATEST.tar.gz
 php artisan optimize
 ```
@@ -230,13 +232,13 @@ php artisan optimize
 ### View Logs
 ```bash
 # Deployment logs
-tail -f storage/logs/deployment.log
+tail -f /home2/shemidig/parish_system/storage/logs/deployment.log
 
 # Webhook logs
-tail -f storage/logs/webhook.log
+tail -f /home2/shemidig/parish_system/storage/logs/webhook.log
 
 # Application errors
-tail -f storage/logs/laravel.log
+tail -f /home2/shemidig/parish_system/storage/logs/laravel.log
 ```
 
 ---

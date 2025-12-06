@@ -17,7 +17,7 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: parish_test
+          MYSQL_DATABASE: parish_testing
         ports:
           - 3306:3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
@@ -51,7 +51,7 @@ jobs:
           DB_CONNECTION: mysql
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
-          DB_DATABASE: parish_test
+          DB_DATABASE: parish_testing
           DB_USERNAME: root
           DB_PASSWORD: password
         run: php artisan migrate --force
@@ -61,7 +61,7 @@ jobs:
           DB_CONNECTION: mysql
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
-          DB_DATABASE: parish_test
+          DB_DATABASE: parish_testing
           DB_USERNAME: root
           DB_PASSWORD: password
         run: php artisan test

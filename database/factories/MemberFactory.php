@@ -72,48 +72,14 @@ class MemberFactory extends Factory
             'tribe' => $this->faker->randomElement(['Kikuyu', 'Luo', 'Luhya', 'Kamba', 'Kalenjin']),
             'clan' => $this->faker->optional(0.7)->word(),
 
-            // Family data (main fields - entered once)
-            'parent' => $fatherName, // Father's name (main field)
-            'mother_name' => $motherName, // Mother's name (main field)
-            'godparent' => $isBaptized ? $godparentName : null, // Godparent name (main field)
-            'minister' => $isBaptized ? $ministerName : null, // Minister name (main field)
+            // Family data - only fields that exist in members table
+            'parent' => $fatherName, // Father's name
+            'godparent' => $isBaptized ? $godparentName : null,
+            'minister' => $isBaptized ? $ministerName : null,
 
-            // Auto-synced fields (populated from main fields above)
-            'father_name' => $fatherName, // Auto-synced from 'parent'
-            'baptized_by' => $isBaptized ? $ministerName : null, // Auto-synced from 'minister'
-            'sponsor' => $isBaptized ? $godparentName : null, // Auto-synced from 'godparent'
-
-            // Sacrament information
+            // Sacrament information - only dates stored in members table
             'baptism_date' => $isBaptized ? $this->faker->dateTimeBetween('-30 years', '-1 month')->format('Y-m-d') : null,
-            'baptism_location' => $isBaptized ? $this->faker->randomElement(['Sacred Heart Kandara', 'St. Joseph Thika', 'Holy Family Kiambu']) : null,
             'confirmation_date' => $isConfirmed ? $this->faker->dateTimeBetween('-25 years', 'now')->format('Y-m-d') : null,
-            'confirmation_location' => $isConfirmed ? $this->faker->randomElement(['Sacred Heart Kandara', 'St. Joseph Thika']) : null,
-
-            // Marriage certificate information (if married)
-            'marriage_date' => $isMarried ? $this->faker->dateTimeBetween('-20 years', 'now')->format('Y-m-d') : null,
-            'marriage_location' => $isMarried ? $this->faker->randomElement(['Sacred Heart Kandara', 'St. Joseph Thika', 'Murang\'a AG Office']) : null,
-            'marriage_county' => $isMarried ? $this->faker->randomElement(['Murang\'a', 'Kiambu', 'Nyeri']) : null,
-            'marriage_sub_county' => $isMarried ? $this->faker->randomElement(['Kandara', 'Thika', 'Nyeri Central']) : null,
-            'marriage_religion' => $isMarried ? $this->faker->randomElement(['Catholic', 'Civil', 'Christian']) : null,
-            'marriage_officiant_name' => $isMarried ? 'Fr. '.$this->faker->name() : null,
-
-            // Spouse information (if married)
-            'spouse_name' => $isMarried ? $this->faker->name() : null,
-            'spouse_age' => $isMarried ? $this->faker->numberBetween(18, 70) : null,
-            'spouse_residence' => $isMarried ? $this->faker->city() : null,
-            'spouse_county' => $isMarried ? $this->faker->randomElement(['Murang\'a', 'Kiambu', 'Nyeri']) : null,
-            'spouse_marital_status' => $isMarried ? $this->faker->randomElement(['Single', 'Widowed']) : null,
-            'spouse_occupation' => $isMarried ? $this->faker->jobTitle() : null,
-            'spouse_father_name' => $isMarried ? $this->faker->name() : null,
-            'spouse_mother_name' => $isMarried ? $this->faker->name() : null,
-
-            // Location information
-            'birth_village' => $this->faker->optional(0.8)->city(),
-            'county' => $this->faker->randomElement(['Murang\'a', 'Kiambu', 'Nyeri', 'Kirinyaga']),
-
-            // Disability information
-            'is_differently_abled' => $this->faker->boolean(5), // 5% chance
-            'disability_description' => null, // Will be set conditionally
 
             // Notes
             'notes' => $this->faker->optional(0.3)->sentence(),

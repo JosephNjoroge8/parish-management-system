@@ -2,6 +2,23 @@
 
 A comprehensive Laravel-based Parish Management System designed for modern church administration with member management, sacrament records, and family tracking capabilities.
 
+> **💡 Quick Setup:** Use Docker for local development! Run `./docker-setup.sh` for instant setup.  
+> **📚 New here?** Read [DEPLOYMENT_STRATEGY.md](DEPLOYMENT_STRATEGY.md) to understand dev vs production setup.
+
+---
+
+## 🎯 Environment Strategy
+
+This project uses **MySQL everywhere** for consistency:
+
+- **🐳 Development:** Docker (MySQL + Redis) - Run `./docker-setup.sh`
+- **🌐 Production:** Shared hosting (Apache + MySQL) - Traditional deployment
+- **✅ Testing:** MySQL (separate test database) - Production-like tests
+
+See [DEPLOYMENT_STRATEGY.md](DEPLOYMENT_STRATEGY.md) for complete details.
+
+---
+
 ## 🌟 Features
 
 ### Member Management
@@ -27,7 +44,26 @@ A comprehensive Laravel-based Parish Management System designed for modern churc
 
 ## 🚀 Quick Start
 
-### Development Setup
+### Recommended: Docker Development (30 seconds)
+
+```bash
+# Clone the repository
+git clone https://github.com/JosephNjoroge8/parish-management-system.git
+cd parish-management-system
+
+# One-command setup
+./docker-setup.sh
+
+# Access at http://localhost:8000
+```
+
+That's it! Docker provides MySQL, Redis, queue workers, and everything you need.
+
+**See:** [DOCKER_QUICK_START.md](DOCKER_QUICK_START.md) for complete guide.
+
+---
+
+### Alternative: Traditional Setup (Manual)
 
 ```bash
 # Clone the repository

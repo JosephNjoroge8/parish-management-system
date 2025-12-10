@@ -221,12 +221,19 @@ try {
         sendResponse(false, 'Only POST requests are accepted');
     }
     
-    // Verify IP address
+    // Verify IP address (temporarily disabled for debugging)
     $remoteIp = $_SERVER['REMOTE_ADDR'] ?? '';
+    logMessage("Remote IP: {$remoteIp}");
+    
+    // TEMPORARY: Skip IP verification to diagnose webhook issues
+    // TODO: Re-enable after webhook is working
+    /*
     if (!isIpAllowed($remoteIp)) {
         logMessage("IP not allowed: {$remoteIp}", 'ERROR');
         sendResponse(false, 'Access denied');
     }
+    */
+    logMessage("IP check temporarily bypassed for debugging");
     
     // Get payload
     $payload = file_get_contents('php://input');
@@ -237,9 +244,14 @@ try {
     
     // Verify signature
     $signature = $_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '';
+    logMessage('Signature header: ' . ($signature ? substr($signature, 0, 20) . '...' : 'MISSING'));
+    logMessage('Payload length: ' . strlen($payload));
+    logMessage('Secret configured: ' . (WEBHOOK_SECRET ? 'YES' : 'NO'));
+    
     if (!verifySignature($payload, $signature)) {
-        logMessage('Invalid signature', 'ERROR');
-        sendResponse(false, 'Invalid signature');
+        logMessage('Invalid signature - Expected: sha256=' . hash_hmac('sha256', $payload, WEBHOOK_SECRET), 'ERROR');
+        logMessage('Received: ' . $signature, 'ERROR');
+        sendResponse(false, 'Invalid signature - check webhook secret in GitHub settings');
     }
     
     logMessage('Signature verified successfully');

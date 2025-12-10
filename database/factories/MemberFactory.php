@@ -61,8 +61,9 @@ class MemberFactory extends Factory
             // Membership information
             'membership_status' => $this->faker->randomElement(['active', 'inactive', 'transferred', 'deceased']),
             'membership_date' => $this->faker->dateTimeBetween('-20 years', 'now')->format('Y-m-d'),
-            'matrimony_status' => $isMarried ? 'married' : $this->faker->randomElement(['single', 'widowed', 'separated']),
-            'marriage_type' => $isMarried ? $this->faker->randomElement(['church', 'civil', 'customary']) : null,
+            'matrimony_status' => $isMarried ? 'married' : $this->faker->randomElement(['single', 'widowed', 'divorced']),
+            'marriage_type' => $isMarried ? $this->faker->randomElement(['church', 'customary', 'civil']) : null,
+            'member_marriage_residence' => $isMarried ? $this->faker->optional(0.8)->city() : null,
 
             // Personal details
             'occupation' => $this->faker->randomElement(['teacher', 'farmer', 'business', 'civil_servant', 'student', 'not_employed']),
@@ -106,11 +107,8 @@ class MemberFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'matrimony_status' => 'married',
-            'marriage_type' => $this->faker->randomElement(['church', 'civil', 'customary']),
-            'marriage_date' => $this->faker->dateTimeBetween('-20 years', 'now')->format('Y-m-d'),
-            'marriage_location' => $this->faker->randomElement(['Sacred Heart Kandara', 'St. Joseph Thika', 'Murang\'a AG Office']),
-            'spouse_name' => $this->faker->name(),
-            'spouse_age' => $this->faker->numberBetween(18, 70),
+            'marriage_type' => $this->faker->randomElement(['church', 'customary']),
+            'member_marriage_residence' => $this->faker->optional(0.9)->city(),
         ]);
     }
 
@@ -121,11 +119,8 @@ class MemberFactory extends Factory
 
         return $this->state(fn (array $attributes) => [
             'baptism_date' => $this->faker->dateTimeBetween('-30 years', '-1 month')->format('Y-m-d'),
-            'baptism_location' => $this->faker->randomElement(['Sacred Heart Kandara', 'St. Joseph Thika', 'Holy Family Kiambu']),
             'godparent' => $godparentName,
             'minister' => $ministerName,
-            'sponsor' => $godparentName, // Auto-synced
-            'baptized_by' => $ministerName, // Auto-synced
         ]);
     }
 

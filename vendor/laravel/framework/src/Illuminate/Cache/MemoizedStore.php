@@ -68,12 +68,9 @@ class MemoizedStore implements LockProvider, Store
 
         if (count($missing) > 0) {
             $retrieved = tap($this->repository->many($missing), function ($values) {
-                $this->cache = [
-                    ...$this->cache,
-                    ...collect($values)->mapWithKeys(fn ($value, $key) => [
-                        $this->prefix($key) => $value,
-                    ]),
-                ];
+                foreach ($values as $key => $value) {
+                    $this->cache[$this->prefix($key)] = $value;
+                }
             });
         }
 
@@ -108,6 +105,7 @@ class MemoizedStore implements LockProvider, Store
     /**
      * Store multiple items in the cache for a given number of seconds.
      *
+     * @param  array  $values
      * @param  int  $seconds
      * @return bool
      */

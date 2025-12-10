@@ -442,18 +442,18 @@ class Member extends Model
     // Enhanced Mutators for Data Consistency
     public function setGenderAttribute($value): void
     {
-        $this->attributes['gender'] = ucfirst(strtolower(trim($value)));
+        $this->attributes['gender'] = $value ? ucfirst(strtolower(trim($value))) : null;
     }
 
     public function setPhoneAttribute($value): void
     {
         // Normalize phone number format
-        $this->attributes['phone'] = preg_replace('/[^0-9+]/', '', $value);
+        $this->attributes['phone'] = $value ? preg_replace('/[^0-9+]/', '', $value) : null;
     }
 
     public function setEmailAttribute($value): void
     {
-        $this->attributes['email'] = strtolower(trim($value));
+        $this->attributes['email'] = $value ? strtolower(trim($value)) : null;
     }
 
     public function setDateOfBirthAttribute($value)

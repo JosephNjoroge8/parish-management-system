@@ -53,7 +53,7 @@ return new class extends Migration
             // Marriage Information
             $table->enum('matrimony_status', ['single', 'married', 'widowed', 'divorced'])
                 ->default('single');
-            $table->enum('marriage_type', ['customary', 'church'])->nullable();
+            $table->enum('marriage_type', ['customary', 'church', 'civil'])->nullable();
 
             // Personal Details
             $table->string('occupation')->nullable();

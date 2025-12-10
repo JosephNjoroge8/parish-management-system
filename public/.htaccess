@@ -18,11 +18,15 @@
     </FilesMatch>
     
     # ========================================
-    # ASSET SERVING (Before Laravel Routing)
+    # ASSET SERVING (CRITICAL - Before Laravel Routing)
     # ========================================
-    # Serve build assets directly without routing through Laravel
-    RewriteCond %{REQUEST_URI} ^/build/ [NC]
+    # Serve static files directly (images, fonts, etc.)
     RewriteCond %{REQUEST_FILENAME} -f
+    RewriteCond %{REQUEST_URI} !index\.php
+    RewriteRule \.(css|js|mjs|json|jpg|jpeg|png|gif|svg|webp|woff|woff2|ttf|otf|ico)$ - [L]
+    
+    # Serve build directory assets directly
+    RewriteCond %{REQUEST_URI} ^/build/
     RewriteRule ^ - [L]
     
     # ========================================
@@ -67,9 +71,12 @@
     </FilesMatch>
     
     # ========================================
-    # HTTPS ENFORCEMENT
+    # HTTPS ENFORCEMENT (Conditional)
     # ========================================
+    # Only enforce HTTPS in production, skip for localhost
     RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP_HOST} !^localhost
+    RewriteCond %{HTTP_HOST} !^127\.0\.0\.1
     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
     
     # ========================================

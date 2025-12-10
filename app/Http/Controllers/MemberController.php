@@ -122,7 +122,7 @@ class MemberController extends Controller
             ]);
 
             // Add eager loading to prevent N+1 queries
-            $query = Member::with(['family:id,family_name', 'sacraments:id,member_id,sacrament_type,date_administered']);
+            $query = Member::with(['family:id,family_name', 'sacraments:id,member_id,sacrament_type,sacrament_date']);
 
             // Enhanced search functionality with comprehensive field coverage and SQL injection protection
             if ($request->filled('search')) {
@@ -424,7 +424,7 @@ class MemberController extends Controller
                 // Membership fields
                 'membership_status' => 'nullable|string|in:active,inactive,transferred,deceased',
                 'membership_date' => 'nullable|date|before_or_equal:today',
-                'matrimony_status' => 'nullable|string|in:single,married,widowed,separated,divorced',
+                'matrimony_status' => 'nullable|string|in:single,married,widowed,divorced',
                 'marriage_type' => 'nullable|string|in:customary,church,civil',
                 'occupation' => 'nullable|string|in:employed,self_employed,not_employed,student,retired',
                 'education_level' => 'nullable|string|in:none,primary,kcpe,secondary,kcse,certificate,diploma,degree,masters,phd',
@@ -589,6 +589,31 @@ class MemberController extends Controller
             }
             // Remove strict name+DOB duplicate check to allow family members with similar names
 
+            // Map bride/bridegroom fields to spouse fields for consistency
+            if ($validated['matrimony_status'] === 'married' && isset($validated['gender'])) {
+                if ($validated['gender'] === 'Male' && isset($validated['bride_name'])) {
+                    // Map bride fields to spouse fields
+                    $validated['spouse_name'] = $validated['bride_name'] ?? null;
+                    $validated['spouse_age'] = $validated['bride_age'] ?? null;
+                    $validated['spouse_residence'] = $validated['bride_residence'] ?? null;
+                    $validated['spouse_county'] = $validated['bride_county'] ?? null;
+                    $validated['spouse_marital_status'] = $validated['bride_marital_status'] ?? null;
+                    $validated['spouse_occupation'] = $validated['bride_occupation'] ?? null;
+                    $validated['spouse_father_name'] = $validated['bride_father_name'] ?? null;
+                    $validated['spouse_mother_name'] = $validated['bride_mother_name'] ?? null;
+                } elseif ($validated['gender'] === 'Female' && isset($validated['bridegroom_name'])) {
+                    // Map bridegroom fields to spouse fields
+                    $validated['spouse_name'] = $validated['bridegroom_name'] ?? null;
+                    $validated['spouse_age'] = $validated['bridegroom_age'] ?? null;
+                    $validated['spouse_residence'] = $validated['bridegroom_residence'] ?? null;
+                    $validated['spouse_county'] = $validated['bridegroom_county'] ?? null;
+                    $validated['spouse_marital_status'] = $validated['bridegroom_marital_status'] ?? null;
+                    $validated['spouse_occupation'] = $validated['bridegroom_occupation'] ?? null;
+                    $validated['spouse_father_name'] = $validated['bridegroom_father_name'] ?? null;
+                    $validated['spouse_mother_name'] = $validated['bridegroom_mother_name'] ?? null;
+                }
+            }
+
             // Process and clean the data
             $memberData = $this->processValidatedMemberData($validated);
 
@@ -709,6 +734,10 @@ class MemberController extends Controller
         $memberData['id_number'] = $validated['id_number'] ?? null;
         $memberData['residence'] = $validated['residence'] ?? null;
 
+        // Emergency contact
+        $memberData['emergency_contact'] = $validated['emergency_contact'] ?? null;
+        $memberData['emergency_phone'] = $validated['emergency_phone'] ?? null;
+
         // Church information
         $memberData['local_church'] = $validated['local_church'];
         $memberData['small_christian_community'] = $validated['small_christian_community'] ?? null;
@@ -718,98 +747,73 @@ class MemberController extends Controller
         // Membership
         $memberData['membership_status'] = $validated['membership_status'] ?? 'active';
         $memberData['membership_date'] = ! empty($validated['membership_date']) ? $validated['membership_date'] : now()->format('Y-m-d');
-        $memberData['matrimony_status'] = $validated['matrimony_status'] ?? 'single';
-        $memberData['marriage_type'] = $validated['marriage_type'] ?? null;
+
+        // Matrimony status - ensure only valid enum values
+        $matrimonyStatus = $validated['matrimony_status'] ?? 'single';
+        $memberData['matrimony_status'] = in_array($matrimonyStatus, ['single', 'married', 'widowed', 'divorced']) ? $matrimonyStatus : 'single';
+
+        // Marriage type - ensure only valid enum values
+        $marriageType = $validated['marriage_type'] ?? null;
+        $memberData['marriage_type'] = in_array($marriageType, ['church', 'customary', 'civil']) ? $marriageType : null;
+
+        $memberData['member_marriage_residence'] = $validated['member_marriage_residence'] ?? null;
         $memberData['occupation'] = $validated['occupation'] ?? 'not_employed';
         $memberData['education_level'] = $validated['education_level'] ?? 'none';
 
-        // Family relationships
+        // Family relationships and information
         $memberData['family_id'] = (! empty($validated['family_id']) && $validated['family_id'] !== '' && is_numeric($validated['family_id'])) ? (int) $validated['family_id'] : null;
-
-        // Handle father name - prioritize father_name field from form, fallback to parent field
-        $fatherName = $validated['father_name'] ?? $validated['parent'] ?? null;
-        $memberData['parent'] = $fatherName;
-        $memberData['father_name'] = $fatherName;
-
+        $memberData['parent'] = $validated['parent'] ?? null;
+        $memberData['father_name'] = $validated['father_name'] ?? null;
         $memberData['mother_name'] = $validated['mother_name'] ?? null;
         $memberData['father_occupation'] = $validated['father_occupation'] ?? null;
-        $memberData['father_residence'] = $validated['father_residence'] ?? null;
         $memberData['mother_occupation'] = $validated['mother_occupation'] ?? null;
+        $memberData['father_residence'] = $validated['father_residence'] ?? null;
         $memberData['mother_residence'] = $validated['mother_residence'] ?? null;
+        $memberData['birth_village'] = $validated['birth_village'] ?? null;
+        $memberData['county'] = $validated['county'] ?? null;
         $memberData['godparent'] = $validated['godparent'] ?? null;
         $memberData['minister'] = $validated['minister'] ?? null;
 
-        // Auto-sync fields for sacramental records
-        $memberData['baptized_by'] = $memberData['minister'];
-        $memberData['sponsor'] = $memberData['godparent'];
-
+        // Cultural information
         $memberData['tribe'] = $validated['tribe'] ?? null;
         $memberData['clan'] = $validated['clan'] ?? null;
 
-        // Disability
-        $memberData['is_differently_abled'] = ($validated['is_differently_abled'] ?? 'no') === 'yes';
-        $memberData['disability_description'] = $memberData['is_differently_abled'] ? ($validated['disability_description'] ?? null) : null;
-
-        // Sacraments
+        // Sacrament information
         $memberData['baptism_date'] = ! empty($validated['baptism_date']) ? $validated['baptism_date'] : null;
         $memberData['baptism_location'] = $validated['baptism_location'] ?? null;
-        $memberData['baptized_by'] = $validated['baptized_by'] ?? $memberData['minister'];
+        $memberData['baptized_by'] = $validated['baptized_by'] ?? null;
+        $memberData['sponsor'] = $validated['sponsor'] ?? null;
+
         $memberData['confirmation_date'] = ! empty($validated['confirmation_date']) ? $validated['confirmation_date'] : null;
         $memberData['confirmation_location'] = $validated['confirmation_location'] ?? null;
-        $memberData['confirmation_register_number'] = $validated['confirmation_register_number'] ?? null;
         $memberData['confirmation_number'] = $validated['confirmation_number'] ?? null;
+        $memberData['confirmation_register_number'] = $validated['confirmation_register_number'] ?? null;
+
         $memberData['eucharist_date'] = ! empty($validated['eucharist_date']) ? $validated['eucharist_date'] : null;
         $memberData['eucharist_location'] = $validated['eucharist_location'] ?? null;
 
         // Marriage information
         $memberData['marriage_date'] = ! empty($validated['marriage_date']) ? $validated['marriage_date'] : null;
         $memberData['marriage_location'] = $validated['marriage_location'] ?? null;
+        $memberData['marriage_church'] = $validated['marriage_church'] ?? null;
         $memberData['marriage_county'] = $validated['marriage_county'] ?? null;
         $memberData['marriage_sub_county'] = $validated['marriage_sub_county'] ?? null;
-        $memberData['marriage_entry_number'] = $validated['marriage_entry_number'] ?? null;
-        $memberData['marriage_certificate_number'] = $validated['marriage_certificate_number'] ?? null;
         $memberData['marriage_religion'] = $validated['marriage_religion'] ?? null;
-        $memberData['marriage_license_number'] = $validated['marriage_license_number'] ?? null;
         $memberData['marriage_officiant_name'] = $validated['marriage_officiant_name'] ?? null;
-        $memberData['marriage_witness1_name'] = $validated['marriage_witness1_name'] ?? null;
-        $memberData['marriage_witness2_name'] = $validated['marriage_witness2_name'] ?? null;
-        $memberData['member_marriage_residence'] = $validated['member_marriage_residence'] ?? null;
 
-        // Map bridegroom/bride information to spouse fields in database
-        // Determine which fields to use based on member's gender
-        if ($validated['gender'] === 'Male') {
-            // For male members, bride information is the spouse
-            $memberData['spouse_name'] = $validated['bride_name'] ?? null;
-            $memberData['spouse_age'] = ! empty($validated['bride_age']) && is_numeric($validated['bride_age']) ? (int) $validated['bride_age'] : null;
-            $memberData['spouse_residence'] = $validated['bride_residence'] ?? null;
-            $memberData['spouse_county'] = $validated['bride_county'] ?? null;
-            $memberData['spouse_marital_status'] = $validated['bride_marital_status'] ?? null;
-            $memberData['spouse_occupation'] = $validated['bride_occupation'] ?? null;
-            $memberData['spouse_father_name'] = $validated['bride_father_name'] ?? null;
-            $memberData['spouse_father_occupation'] = $validated['bride_father_occupation'] ?? null;
-            $memberData['spouse_father_residence'] = $validated['bride_father_residence'] ?? null;
-            $memberData['spouse_mother_name'] = $validated['bride_mother_name'] ?? null;
-            $memberData['spouse_mother_occupation'] = $validated['bride_mother_occupation'] ?? null;
-            $memberData['spouse_mother_residence'] = $validated['bride_mother_residence'] ?? null;
-        } else {
-            // For female members, bridegroom information is the spouse
-            $memberData['spouse_name'] = $validated['bridegroom_name'] ?? null;
-            $memberData['spouse_age'] = ! empty($validated['bridegroom_age']) && is_numeric($validated['bridegroom_age']) ? (int) $validated['bridegroom_age'] : null;
-            $memberData['spouse_residence'] = $validated['bridegroom_residence'] ?? null;
-            $memberData['spouse_county'] = $validated['bridegroom_county'] ?? null;
-            $memberData['spouse_marital_status'] = $validated['bridegroom_marital_status'] ?? null;
-            $memberData['spouse_occupation'] = $validated['bridegroom_occupation'] ?? null;
-            $memberData['spouse_father_name'] = $validated['bridegroom_father_name'] ?? null;
-            $memberData['spouse_father_occupation'] = $validated['bridegroom_father_occupation'] ?? null;
-            $memberData['spouse_father_residence'] = $validated['bridegroom_father_residence'] ?? null;
-            $memberData['spouse_mother_name'] = $validated['bridegroom_mother_name'] ?? null;
-            $memberData['spouse_mother_occupation'] = $validated['bridegroom_mother_occupation'] ?? null;
-            $memberData['spouse_mother_residence'] = $validated['bridegroom_mother_residence'] ?? null;
-        }
+        // Spouse information
+        $memberData['spouse_name'] = $validated['spouse_name'] ?? null;
+        $memberData['spouse_age'] = $validated['spouse_age'] ?? null;
+        $memberData['spouse_residence'] = $validated['spouse_residence'] ?? null;
+        $memberData['spouse_county'] = $validated['spouse_county'] ?? null;
+        $memberData['spouse_marital_status'] = $validated['spouse_marital_status'] ?? null;
+        $memberData['spouse_occupation'] = $validated['spouse_occupation'] ?? null;
+        $memberData['spouse_father_name'] = $validated['spouse_father_name'] ?? null;
+        $memberData['spouse_mother_name'] = $validated['spouse_mother_name'] ?? null;
 
-        // Contact
-        $memberData['emergency_contact'] = $validated['emergency_contact'] ?? null;
-        $memberData['emergency_phone'] = $validated['emergency_phone'] ?? null;
+        // Disability information
+        $memberData['is_differently_abled'] = isset($validated['is_differently_abled']) ? (bool) $validated['is_differently_abled'] : false;
+        $memberData['disability_description'] = $validated['disability_description'] ?? null;
 
         // Notes
         $memberData['notes'] = $validated['notes'] ?? null;
@@ -1174,7 +1178,7 @@ class MemberController extends Controller
             // Membership fields
             'membership_status' => 'nullable|string|in:active,inactive,transferred,deceased',
             'membership_date' => 'nullable|date|before_or_equal:today',
-            'matrimony_status' => 'nullable|string|in:single,married,widowed,separated,divorced',
+            'matrimony_status' => 'nullable|string|in:single,married,widowed,divorced',
             'marriage_type' => 'nullable|string|in:customary,church,civil',
             'occupation' => 'nullable|string|in:employed,self_employed,not_employed,student,retired',
             'education_level' => 'nullable|string|in:none,primary,kcpe,secondary,kcse,certificate,diploma,degree,masters,phd',

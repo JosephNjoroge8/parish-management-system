@@ -6,11 +6,13 @@
 # ============================================================================
 
 # ============================================================================
-# Environment files (CRITICAL - NEVER COMMIT)
+# ENVIRONMENT FILES (CRITICAL - NEVER COMMIT)
 # ============================================================================
 .env
 .env.*
 !.env.example
+!.env.docker
+!.env.production.docker
 .env.backup
 .env.production
 .env.local
@@ -21,6 +23,21 @@
 auth.json
 oauth-private.key
 oauth-public.key
+
+# ============================================================================
+# DOCKER FILES
+# ============================================================================
+# Docker environment overrides
+docker-compose.override.yml
+.docker/
+
+# Docker volumes (data persistence)
+docker/volumes/
+mysql-data/
+redis-data/
+
+# Docker build cache
+.dockerignore.local
 
 # ============================================================================
 # DATABASE FILES (CRITICAL - CONTAINS SENSITIVE DATA)
@@ -84,6 +101,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # PHP dependencies
+/vendor/
 composer.phar
 npm-debug.log
 yarn-error.log

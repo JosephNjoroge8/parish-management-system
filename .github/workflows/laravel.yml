@@ -1,5 +1,8 @@
 name: Laravel CI/CD Pipeline
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches: [ Main ]
@@ -24,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -33,12 +36,24 @@ jobs:
           extensions: ctype, curl, dom, exif, fileinfo, gd, iconv, intl, libxml, mbstring, openssl, pdo, pdo_mysql, simplexml, tokenizer, xml, xmlreader, xmlwriter, zip
           coverage: none
 
+      - name: Show PHP Environment
+        run: |
+          php -v
+          php -m
+          composer --version
+
+      - name: Validate Composer Files
+        run: composer validate --strict
+
       - name: Copy .env
         run: |
           php -r "file_exists('.env') || copy('.env.example', '.env');"
           
       - name: Install Composer Dependencies
-        run: composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader
+        run: composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts -vvv
+
+      - name: Run Package Discovery
+        run: php artisan package:discover --ansi
 
       - name: Generate Application Key
         run: php artisan key:generate
@@ -75,7 +90,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -113,7 +128,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2

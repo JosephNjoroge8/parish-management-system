@@ -35,7 +35,7 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: {
-                    vendor: ['react', 'react-dom'],
+                    framework: ['react', 'react-dom'],
                     inertia: ['@inertiajs/react'],
                     lodash: ['lodash'],
                 },

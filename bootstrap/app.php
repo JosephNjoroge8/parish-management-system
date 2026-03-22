@@ -17,6 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->web(prepend: [
+            \App\Http\Middleware\ProductionSecurityMiddleware::class,
+        ]);
+
         // Essential global middleware
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,

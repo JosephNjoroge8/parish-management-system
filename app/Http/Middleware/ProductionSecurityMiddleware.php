@@ -10,12 +10,52 @@ use Symfony\Component\HttpFoundation\Response;
 class ProductionSecurityMiddleware
 {
     /**
+     * Common payload signatures used in SQLi / XSS / traversal probes.
+     *
+     * @var array<int, string>
+     */
+    private const BLOCKED_PATTERNS = [
+        '/\bunion\b\s+\bselect\b/i',
+        '/\b(or|and)\b\s+\d+\s*=\s*\d+/i',
+        '/\bdrop\b\s+\btable\b/i',
+        '/\binsert\b\s+\binto\b/i',
+        '/\bupdate\b\s+\w+\s+\bset\b/i',
+        '/\bdelete\b\s+\bfrom\b/i',
+        '/<\s*script\b/i',
+        '/javascript\s*:/i',
+        '/\.\.\//i',
+        '/%2e%2e%2f/i',
+    ];
+
+    /**
      * Handle an incoming request.
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
+        if ($this->shouldSkipInspection($request) === false) {
+            $attackPattern = $this->detectAttackPattern($request);
+
+            if ($attackPattern !== null) {
+                Log::warning('Blocked suspicious request payload', [
+                    'ip' => $request->ip(),
+                    'method' => $request->method(),
+                    'path' => $request->path(),
+                    'matched_pattern' => $attackPattern,
+                    'user_agent' => $request->userAgent(),
+                ]);
+
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'message' => 'Request blocked by security policy.',
+                    ], 403);
+                }
+
+                return response('Request blocked by security policy.', 403);
+            }
+        }
+
         // Force HTTPS in production
         if (config('production.security.force_https', false) && ! $request->secure() && app()->environment('production')) {
             return redirect()->secure($request->getRequestUri(), 301);
@@ -139,12 +179,9 @@ class ProductionSecurityMiddleware
     {
         // Log failed login attempts
         if ($request->is('login') && $request->isMethod('POST')) {
-            $ip = $request->ip();
-            $userAgent = $request->userAgent();
-
-            Log::channel('security')->info('Login attempt', [
-                'ip' => $ip,
-                'user_agent' => $userAgent,
+            Log::info('Login attempt', [
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
                 'timestamp' => now(),
             ]);
         }
@@ -160,7 +197,7 @@ class ProductionSecurityMiddleware
         $uri = $request->getRequestUri();
         foreach ($suspiciousPatterns as $pattern) {
             if (preg_match($pattern, $uri)) {
-                Log::channel('security')->warning('Suspicious request detected', [
+                Log::warning('Suspicious request detected', [
                     'ip' => $request->ip(),
                     'uri' => $uri,
                     'user_agent' => $request->userAgent(),
@@ -170,5 +207,54 @@ class ProductionSecurityMiddleware
                 break;
             }
         }
+    }
+
+    private function shouldSkipInspection(Request $request): bool
+    {
+        return $request->is('build/*') || $request->is('storage/*') || $request->is('favicon.ico');
+    }
+
+    private function detectAttackPattern(Request $request): ?string
+    {
+        $values = [
+            $request->getRequestUri(),
+            ...$this->flattenPayloadValues($request->query()),
+            ...$this->flattenPayloadValues($request->request->all()),
+        ];
+
+        foreach ($values as $value) {
+            $decodedValue = urldecode((string) $value);
+
+            foreach (self::BLOCKED_PATTERNS as $pattern) {
+                if (preg_match($pattern, $decodedValue) === 1) {
+                    return $pattern;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<int, string>
+     */
+    private function flattenPayloadValues(array $payload): array
+    {
+        $values = [];
+
+        foreach ($payload as $value) {
+            if (is_array($value)) {
+                $values = [...$values, ...$this->flattenPayloadValues($value)];
+
+                continue;
+            }
+
+            if (is_scalar($value) || $value === null) {
+                $values[] = (string) $value;
+            }
+        }
+
+        return $values;
     }
 }

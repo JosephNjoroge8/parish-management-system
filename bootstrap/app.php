@@ -63,6 +63,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Handle 404 errors
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
+            if ($request->is('build/*') || $request->is('storage/*') || $request->is('favicon.ico')) {
+                return response('Not Found', 404);
+            }
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Resource not found.',

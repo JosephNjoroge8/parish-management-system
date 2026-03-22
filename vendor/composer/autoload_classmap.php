@@ -7771,6 +7771,7 @@ return array(
     'Tests\\Feature\\MemberManagementTest' => $baseDir . '/tests/Feature/MemberManagementTest.php',
     'Tests\\Feature\\MemberMarriageResidenceTest' => $baseDir . '/tests/Feature/MemberMarriageResidenceTest.php',
     'Tests\\Feature\\ProfileTest' => $baseDir . '/tests/Feature/ProfileTest.php',
+    'Tests\\Feature\\SecurityMiddlewareTest' => $baseDir . '/tests/Feature/SecurityMiddlewareTest.php',
     'Tests\\TestCase' => $baseDir . '/tests/TestCase.php',
     'Tests\\Unit\\ExampleTest' => $baseDir . '/tests/Unit/ExampleTest.php',
     'Tests\\WithoutCsrfMiddleware' => $baseDir . '/tests/WithoutCsrfMiddleware.php',

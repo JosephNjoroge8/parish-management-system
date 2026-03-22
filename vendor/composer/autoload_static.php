@@ -8420,6 +8420,7 @@ class ComposerStaticInita2c662ec17cdbb9b1bb0747b04d55adb
         'Tests\\Feature\\MemberManagementTest' => __DIR__ . '/../..' . '/tests/Feature/MemberManagementTest.php',
         'Tests\\Feature\\MemberMarriageResidenceTest' => __DIR__ . '/../..' . '/tests/Feature/MemberMarriageResidenceTest.php',
         'Tests\\Feature\\ProfileTest' => __DIR__ . '/../..' . '/tests/Feature/ProfileTest.php',
+        'Tests\\Feature\\SecurityMiddlewareTest' => __DIR__ . '/../..' . '/tests/Feature/SecurityMiddlewareTest.php',
         'Tests\\TestCase' => __DIR__ . '/../..' . '/tests/TestCase.php',
         'Tests\\Unit\\ExampleTest' => __DIR__ . '/../..' . '/tests/Unit/ExampleTest.php',
         'Tests\\WithoutCsrfMiddleware' => __DIR__ . '/../..' . '/tests/WithoutCsrfMiddleware.php',

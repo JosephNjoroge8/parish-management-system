@@ -32,4 +32,13 @@ class SecurityMiddlewareTest extends TestCase
         $response->assertStatus(403);
         $response->assertSee('Request blocked by security policy.');
     }
+
+    #[Test]
+    public function missing_build_asset_returns_404_instead_of_dashboard_redirect(): void
+    {
+        $response = $this->get('/build/assets/does-not-exist.js');
+
+        $response->assertStatus(404);
+        $response->assertHeaderMissing('Location');
+    }
 }

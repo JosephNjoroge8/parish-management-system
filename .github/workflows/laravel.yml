@@ -14,6 +14,17 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    env:
+      APP_ENV: testing
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: parish_testing
+      DB_USERNAME: root
+      DB_PASSWORD: password
     
     services:
       mysql:
@@ -62,23 +73,9 @@ jobs:
         run: chmod -R 777 storage bootstrap/cache
 
       - name: Run Database Migrations
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: parish_testing
-          DB_USERNAME: root
-          DB_PASSWORD: password
         run: php artisan migrate --force
 
       - name: Execute Tests
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: parish_testing
-          DB_USERNAME: root
-          DB_PASSWORD: password
         run: php artisan test
 
   # Job 2: Build Assets (Only on Push to Main)
@@ -137,7 +134,7 @@ jobs:
           extensions: ctype, curl, dom, fileinfo, iconv, libxml, mbstring, openssl, simplexml, tokenizer, xml, xmlreader, xmlwriter
 
       - name: Install Composer Dependencies
-        run: composer install --prefer-dist --no-interaction --no-progress
+        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
 
       - name: Run Laravel Pint
         run: vendor/bin/pint --test

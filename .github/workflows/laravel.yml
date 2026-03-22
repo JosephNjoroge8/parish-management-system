@@ -162,10 +162,15 @@ jobs:
           echo "✅ All checks passed - Triggering deployment webhook"
       
       - name: Trigger Deployment Webhook
-        if: ${{ secrets.PRODUCTION_WEBHOOK_URL != '' }}
         env:
           WEBHOOK_URL: ${{ secrets.PRODUCTION_WEBHOOK_URL }}
         run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "PRODUCTION_WEBHOOK_URL secret is not configured."
+            echo "Set it in GitHub repository settings to enable automatic HostPinnacle deployment."
+            exit 0
+          fi
+
           echo "Triggering HostPinnacle webhook..."
           curl --fail --show-error --silent \
             -X POST "$WEBHOOK_URL" \
@@ -173,9 +178,3 @@ jobs:
             -H "X-GitHub-Event: push" \
             --data '{"ref":"refs/heads/Main","pusher":{"name":"github-actions"},"commits":[{"message":"CI deployment trigger"}]}'
           echo "Webhook trigger sent successfully"
-
-      - name: Missing Deployment Secret
-        if: ${{ secrets.PRODUCTION_WEBHOOK_URL == '' }}
-        run: |
-          echo "PRODUCTION_WEBHOOK_URL secret is not configured."
-          echo "Set it in GitHub repository settings to enable automatic HostPinnacle deployment."

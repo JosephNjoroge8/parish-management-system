@@ -30,7 +30,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, mysql, pdo_mysql, bcmath, gd, exif, intl
+          extensions: ctype, curl, dom, exif, fileinfo, gd, iconv, intl, libxml, mbstring, openssl, pdo, pdo_mysql, simplexml, tokenizer, xml, xmlreader, xmlwriter, zip
           coverage: none
 
       - name: Copy .env
@@ -119,7 +119,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: mbstring
+          extensions: ctype, curl, dom, fileinfo, iconv, libxml, mbstring, openssl, simplexml, tokenizer, xml, xmlreader, xmlwriter
 
       - name: Install Composer Dependencies
         run: composer install --prefer-dist --no-interaction --no-progress

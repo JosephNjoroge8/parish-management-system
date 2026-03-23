@@ -17,11 +17,7 @@ jobs:
   test:
     name: 🧪 Test Suite
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        php-version: ['8.2', '8.3']
-      fail-fast: true
-    
+
     env:
       APP_ENV: testing
       CACHE_STORE: array
@@ -59,13 +55,13 @@ jobs:
           echo "🌿 Branch: ${{ github.ref_name }}"
           echo "📝 Commit: ${{ github.sha }}"
           echo "💬 Message: $(git log -1 --pretty=%B)"
-          echo "🐘 PHP Version: ${{ matrix.php-version }}"
+          echo "🐘 PHP Version: ${{ env.PHP_VERSION }}"
           echo "======================================"
 
-      - name: 🐘 Setup PHP ${{ matrix.php-version }}
+      - name: 🐘 Setup PHP ${{ env.PHP_VERSION }}
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-version }}
+          php-version: ${{ env.PHP_VERSION }}
           extensions: ctype, curl, dom, exif, fileinfo, gd, iconv, intl, libxml, mbstring, openssl, pdo, pdo_mysql, simplexml, tokenizer, xml, xmlreader, xmlwriter, zip
           tools: composer:v2
           coverage: none
@@ -78,9 +74,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: |
-            ${{ runner.os }}-composer-${{ matrix.php-version }}-
+            ${{ runner.os }}-composer-
 
       - name: 📋 Validate Composer files
         run: composer validate --strict

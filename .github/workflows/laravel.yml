@@ -205,6 +205,17 @@ jobs:
     needs: [test, build, code-quality]
     if: github.event_name == 'push' && github.ref == 'refs/heads/Main'
     environment: production
+    env:
+      CPANEL_FTP_SERVER: ${{ secrets.CPANEL_FTP_SERVER }}
+      CPANEL_FTP_USERNAME: ${{ secrets.CPANEL_FTP_USERNAME }}
+      CPANEL_FTP_PASSWORD: ${{ secrets.CPANEL_FTP_PASSWORD }}
+      CPANEL_SERVER_DIR: ${{ secrets.CPANEL_SERVER_DIR }}
+      CPANEL_SSH_HOST: ${{ secrets.CPANEL_SSH_HOST }}
+      CPANEL_SSH_USERNAME: ${{ secrets.CPANEL_SSH_USERNAME }}
+      CPANEL_SSH_PASSWORD: ${{ secrets.CPANEL_SSH_PASSWORD }}
+      CPANEL_SSH_PORT: ${{ secrets.CPANEL_SSH_PORT }}
+      PRODUCTION_WEBHOOK_URL: ${{ secrets.PRODUCTION_WEBHOOK_URL }}
+      APP_URL: ${{ secrets.APP_URL }}
 
     steps:
       - name: 📥 Checkout code
@@ -236,15 +247,15 @@ jobs:
           fi
 
       - name: 🌐 Attempt FTP Deployment (if configured)
-        if: ${{ secrets.CPANEL_FTP_SERVER != '' && secrets.CPANEL_FTP_USERNAME != '' }}
+        if: env.CPANEL_FTP_SERVER != '' && env.CPANEL_FTP_USERNAME != ''
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         continue-on-error: true
         with:
-          server: ${{ secrets.CPANEL_FTP_SERVER }}
-          username: ${{ secrets.CPANEL_FTP_USERNAME }}
-          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          server: ${{ env.CPANEL_FTP_SERVER }}
+          username: ${{ env.CPANEL_FTP_USERNAME }}
+          password: ${{ env.CPANEL_FTP_PASSWORD }}
           local-dir: ./
-          server-dir: ${{ secrets.CPANEL_SERVER_DIR }}
+          server-dir: ${{ env.CPANEL_SERVER_DIR }}
           dangerous-clean-slate: false
           exclude: |
             **/.git*
@@ -258,20 +269,20 @@ jobs:
             **/*.md
 
       - name: 🔧 Execute SSH Post-Deployment (if configured)
-        if: ${{ secrets.CPANEL_SSH_HOST != '' && secrets.CPANEL_SSH_USERNAME != '' }}
+        if: env.CPANEL_SSH_HOST != '' && env.CPANEL_SSH_USERNAME != ''
         uses: appleboy/ssh-action@v1.0.3
         continue-on-error: true
         with:
-          host: ${{ secrets.CPANEL_SSH_HOST }}
-          username: ${{ secrets.CPANEL_SSH_USERNAME }}
-          password: ${{ secrets.CPANEL_SSH_PASSWORD }}
-          port: ${{ secrets.CPANEL_SSH_PORT || '22' }}
+          host: ${{ env.CPANEL_SSH_HOST }}
+          username: ${{ env.CPANEL_SSH_USERNAME }}
+          password: ${{ env.CPANEL_SSH_PASSWORD }}
+          port: ${{ env.CPANEL_SSH_PORT || '22' }}
           timeout: 120s
           script: |
             #!/bin/bash
             set -e
             echo "🔧 Starting post-deployment configuration..."
-            cd ${{ secrets.CPANEL_SERVER_DIR }} || { echo "❌ Directory not found"; exit 1; }
+            cd "$CPANEL_SERVER_DIR" || { echo "❌ Directory not found"; exit 1; }
             
             echo "📍 Current directory: $(pwd)"
             echo "🐘 PHP version: $(php -v | head -n 1)"
@@ -313,9 +324,9 @@ jobs:
             
             echo "🎉 Post-deployment completed!"
 
-      - name: 🌐 Fallback: Trigger Webhook Deployment
+      - name: "🌐 Fallback: Trigger Webhook Deployment"
         env:
-          WEBHOOK_URL: ${{ secrets.PRODUCTION_WEBHOOK_URL }}
+          WEBHOOK_URL: ${{ env.PRODUCTION_WEBHOOK_URL }}
         run: |
           if [ -z "$WEBHOOK_URL" ]; then
             echo "⚠️  No webhook configured. Deployment via SSH/FTP above."
@@ -338,11 +349,11 @@ jobs:
         run: |
           echo "🏥 Performing health check..."
           
-          if [ -n "${{ secrets.APP_URL }}" ]; then
-            echo "🌐 Checking: ${{ secrets.APP_URL }}"
+          if [ -n "$APP_URL" ]; then
+            echo "🌐 Checking: $APP_URL"
             sleep 10
             
-            HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}" -L "${{ secrets.APP_URL }}" --connect-timeout 10 --max-time 30 || echo "000")
+            HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}" -L "$APP_URL" --connect-timeout 10 --max-time 30 || echo "000")
             
             if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
               echo "✅ Health check passed! Status: $HTTP_CODE"
@@ -393,8 +404,8 @@ jobs:
           echo "- ✅ Database Migrations" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Cache Optimization" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -n "${{ secrets.APP_URL }}" ]; then
-            echo "🌐 **Live URL:** [${{ secrets.APP_URL }}](${{ secrets.APP_URL }})" >> $GITHUB_STEP_SUMMARY
+          if [ -n "$APP_URL" ]; then
+            echo "🌐 **Live URL:** [$APP_URL]($APP_URL)" >> $GITHUB_STEP_SUMMARY
           fi
 
   # ============================================================================
@@ -405,22 +416,29 @@ jobs:
     runs-on: ubuntu-latest
     if: failure() && github.event_name == 'workflow_dispatch'
     needs: deploy
+    env:
+      CPANEL_SSH_HOST: ${{ secrets.CPANEL_SSH_HOST }}
+      CPANEL_SSH_USERNAME: ${{ secrets.CPANEL_SSH_USERNAME }}
+      CPANEL_SSH_PASSWORD: ${{ secrets.CPANEL_SSH_PASSWORD }}
+      CPANEL_SSH_PORT: ${{ secrets.CPANEL_SSH_PORT }}
+      CPANEL_SERVER_DIR: ${{ secrets.CPANEL_SERVER_DIR }}
+      ROLLBACK_WEBHOOK_URL: ${{ secrets.ROLLBACK_WEBHOOK_URL }}
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
       - name: 🔙 Execute Rollback via SSH
-        if: ${{ secrets.CPANEL_SSH_HOST != '' }}
+        if: env.CPANEL_SSH_HOST != ''
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.CPANEL_SSH_HOST }}
-          username: ${{ secrets.CPANEL_SSH_USERNAME }}
-          password: ${{ secrets.CPANEL_SSH_PASSWORD }}
-          port: ${{ secrets.CPANEL_SSH_PORT || '22' }}
+          host: ${{ env.CPANEL_SSH_HOST }}
+          username: ${{ env.CPANEL_SSH_USERNAME }}
+          password: ${{ env.CPANEL_SSH_PASSWORD }}
+          port: ${{ env.CPANEL_SSH_PORT || '22' }}
           script: |
             echo "🔙 Rolling back to previous version..."
-            cd ${{ secrets.CPANEL_SERVER_DIR }}
+            cd "$CPANEL_SERVER_DIR"
             
             echo "📍 Current directory: $(pwd)"
             echo "🔄 Running rollback..."
@@ -441,11 +459,11 @@ jobs:
             php artisan up
             echo "✅ Rollback completed - site is live"
 
-      - name: 🌐 Fallback: Manual Rollback via Webhook
-        if: ${{ secrets.ROLLBACK_WEBHOOK_URL != '' }}
+      - name: "🌐 Fallback: Manual Rollback via Webhook"
+        if: env.ROLLBACK_WEBHOOK_URL != ''
         run: |
           echo "Triggering rollback webhook..."
-          curl --fail -X POST "${{ secrets.ROLLBACK_WEBHOOK_URL }}" \
+          curl --fail -X POST "$ROLLBACK_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             --data '{"action":"rollback"}'
           echo "✅ Rollback webhook triggered"

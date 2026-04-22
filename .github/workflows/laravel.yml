@@ -279,45 +279,45 @@ jobs:
             set -e
             echo "🔧 Starting post-deployment configuration..."
             cd "$CPANEL_SERVER_DIR" || { echo "❌ Directory not found"; exit 1; }
-            
+
             echo "📍 Current directory: $(pwd)"
             echo "🐘 PHP version: $(php -v | head -n 1)"
-            
+
             echo "📦 Installing Composer dependencies..."
             composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist || {
               echo "❌ Composer install failed"
               exit 1
             }
-            
+
             echo "⏸️  Enabling maintenance mode..."
             php artisan down --render="errors::503" --retry=60 --refresh=10 2>/dev/null || true
-            
+
             echo "🔐 Setting permissions..."
             chmod -R 755 storage bootstrap/cache 2>/dev/null || true
-            
+
             echo "🧹 Clearing caches..."
             php artisan config:clear 2>/dev/null || true
             php artisan cache:clear 2>/dev/null || true
             php artisan route:clear 2>/dev/null || true
             php artisan view:clear 2>/dev/null || true
-            
+
             echo "📊 Running migrations..."
             php artisan migrate --force || { echo "❌ Migration failed"; php artisan up; exit 1; }
-            
+
             echo "⚡ Optimizing for production..."
             php artisan config:cache && echo "✓ Config cached"
             php artisan route:cache && echo "✓ Routes cached"
             php artisan view:cache && echo "✓ Views cached"
-            
+
             echo "🔗 Linking storage..."
             php artisan storage:link 2>/dev/null && echo "✓ Storage linked" || echo "✓ Storage already linked"
-            
+
             echo "🔄 Restarting queue..."
             php artisan queue:restart 2>/dev/null || true
-            
+
             echo "✅ Bringing site online..."
             php artisan up
-            
+
             echo "🎉 Post-deployment completed!"
 
       - name: "🌐 Fallback: Trigger Webhook Deployment"
@@ -328,7 +328,7 @@ jobs:
             echo "⚠️  No webhook configured. Deployment via SSH/FTP above."
             exit 0
           fi
-          
+
           echo "🌐 Triggering webhook deployment..."
           curl --fail --show-error --connect-timeout 10 --max-time 30 \
             -X POST "$WEBHOOK_URL" \
@@ -344,13 +344,13 @@ jobs:
         if: success()
         run: |
           echo "🏥 Performing health check..."
-          
+
           if [ -n "$APP_URL" ]; then
             echo "🌐 Checking: $APP_URL"
             sleep 10
-            
+
             HTTP_CODE=$(curl -o /dev/null -s -w "%{http_code}" -L "$APP_URL" --connect-timeout 10 --max-time 30 || echo "000")
-            
+
             if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
               echo "✅ Health check passed! Status: $HTTP_CODE"
             else
@@ -435,22 +435,22 @@ jobs:
           script: |
             echo "🔙 Rolling back to previous version..."
             cd "$CPANEL_SERVER_DIR"
-            
+
             echo "📍 Current directory: $(pwd)"
             echo "🔄 Running rollback..."
-            
+
             # Attempt Git rollback
             git reset --hard HEAD~1 && echo "✅ Git rolled back" || echo "⚠️  Git rollback not available"
-            
+
             # Restore caches
             php artisan config:clear 2>/dev/null || true
             php artisan cache:clear 2>/dev/null || true
             php artisan route:clear 2>/dev/null || true
-            
+
             # Restore schema
             composer install --no-dev --optimize-autoloader 2>/dev/null || true
             php artisan migrate:rollback 2>/dev/null || true
-            
+
             # Bring site online
             php artisan up
             echo "✅ Rollback completed - site is live"

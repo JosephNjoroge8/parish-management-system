@@ -200,7 +200,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test, build, code-quality]
     if: github.event_name == 'push' && github.ref == 'refs/heads/Main'
-    environment: production
+    environment:
+      name: production
     env:
       CPANEL_FTP_SERVER: ${{ secrets.CPANEL_FTP_SERVER }}
       CPANEL_FTP_USERNAME: ${{ secrets.CPANEL_FTP_USERNAME }}

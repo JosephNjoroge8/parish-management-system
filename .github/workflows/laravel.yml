@@ -70,11 +70,16 @@ jobs:
         id: composer-cache
         run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
-      - name: � Validate Composer files
-        run: composer validate --strict
+      - name: 🧹 Aggressive Cache Clear
+        run: |
+          rm -rf vendor/ composer.lock
+          composer clear-cache
+          rm -rf ~/.composer/cache
+          rm -rf /tmp/composer-*
+          php -r "echo 'Cache cleared at ' . date('Y-m-d H:i:s') . PHP_EOL;"
 
-      - name: 🧹 Clean Previous Installs
-        run: rm -rf vendor/ composer.lock && composer clear-cache
+      - name: 📋 Validate Composer files
+        run: composer validate --strict
 
       - name: 🔧 Copy environment file
         run: php -r "file_exists('.env') || copy('.env.example', '.env');"
@@ -173,8 +178,13 @@ jobs:
         id: composer-cache
         run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
-      - name: 🧹 Clean Previous Installs
-        run: rm -rf vendor/ composer.lock && composer clear-cache
+      - name: 🧹 Aggressive Cache Clear
+        run: |
+          rm -rf vendor/ composer.lock
+          composer clear-cache
+          rm -rf ~/.composer/cache
+          rm -rf /tmp/composer-*
+          php -r "echo 'Cache cleared at ' . date('Y-m-d H:i:s') . PHP_EOL;"
 
       - name: 📦 Install Composer Dependencies (Fresh)
         run: composer install --no-cache --prefer-dist --no-interaction --no-progress --no-scripts

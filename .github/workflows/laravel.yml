@@ -70,23 +70,17 @@ jobs:
         id: composer-cache
         run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
-      - name: 💾 Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-fresh-${{ hashFiles('**/composer.lock') }}
-
-      - name: 📋 Validate Composer files
+      - name: � Validate Composer files
         run: composer validate --strict
 
-      - name: 🧹 Clear Composer Cache
-        run: composer clear-cache
+      - name: 🧹 Clean Previous Installs
+        run: rm -rf vendor/ composer.lock && composer clear-cache
 
       - name: 🔧 Copy environment file
         run: php -r "file_exists('.env') || copy('.env.example', '.env');"
 
-      - name: 📦 Install Composer Dependencies
-        run: composer install --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts
+      - name: 📦 Install Composer Dependencies (Fresh)
+        run: composer install --no-cache --prefer-dist --no-interaction --no-progress --optimize-autoloader --no-scripts
 
       - name: 🔑 Generate Application Key
         run: php artisan key:generate
@@ -179,17 +173,11 @@ jobs:
         id: composer-cache
         run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
-      - name: 💾 Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-quality-fresh-${{ hashFiles('**/composer.lock') }}
+      - name: 🧹 Clean Previous Installs
+        run: rm -rf vendor/ composer.lock && composer clear-cache
 
-      - name: 🧹 Clear Composer Cache
-        run: composer clear-cache
-
-      - name: 📦 Install Composer Dependencies
-        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
+      - name: 📦 Install Composer Dependencies (Fresh)
+        run: composer install --no-cache --prefer-dist --no-interaction --no-progress --no-scripts
 
       - name: 🎨 Run Laravel Pint
         run: vendor/bin/pint --test

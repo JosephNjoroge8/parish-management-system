@@ -78,7 +78,8 @@
         },
         "platform": {
             "php": "8.2.0"
-        }
+        },
+        "process-timeout": 600
     },
     "minimum-stability": "stable",
     "prefer-stable": true

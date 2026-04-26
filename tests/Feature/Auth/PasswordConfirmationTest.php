@@ -2,8 +2,14 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Session\ArraySessionHandler;
+use Illuminate\Session\Store;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class PasswordConfirmationTest extends TestCase
@@ -24,28 +30,28 @@ class PasswordConfirmationTest extends TestCase
         $user = User::factory()->create();
 
         // Test the password confirmation logic directly by calling the controller method
-        $controller = new \App\Http\Controllers\Auth\ConfirmablePasswordController;
+        $controller = new ConfirmablePasswordController;
 
         // Create a mock request
-        $request = new \Illuminate\Http\Request(['password' => 'password']);
+        $request = new Request(['password' => 'password']);
         $request->setUserResolver(function () use ($user) {
             return $user;
         });
 
         // Mock the session
-        $session = new \Illuminate\Session\Store('test', new \Illuminate\Session\ArraySessionHandler(120));
+        $session = new Store('test', new ArraySessionHandler(120));
         $request->setLaravelSession($session);
 
         try {
             $response = $controller->store($request);
 
             // If we get here without an exception, the password was confirmed successfully
-            $this->assertInstanceOf(\Illuminate\Http\RedirectResponse::class, $response);
+            $this->assertInstanceOf(RedirectResponse::class, $response);
             $this->assertStringEndsWith('/dashboard', $response->getTargetUrl());
 
             // Check that the session has the password confirmation timestamp
             $this->assertNotNull($session->get('auth.password_confirmed_at'));
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->fail('Password confirmation failed: '.$e->getMessage());
         }
     }
@@ -55,20 +61,20 @@ class PasswordConfirmationTest extends TestCase
         $user = User::factory()->create();
 
         // Test the password confirmation logic directly with wrong password
-        $controller = new \App\Http\Controllers\Auth\ConfirmablePasswordController;
+        $controller = new ConfirmablePasswordController;
 
         // Create a mock request with wrong password
-        $request = new \Illuminate\Http\Request(['password' => 'wrong-password']);
+        $request = new Request(['password' => 'wrong-password']);
         $request->setUserResolver(function () use ($user) {
             return $user;
         });
 
         // Mock the session
-        $session = new \Illuminate\Session\Store('test', new \Illuminate\Session\ArraySessionHandler(120));
+        $session = new Store('test', new ArraySessionHandler(120));
         $request->setLaravelSession($session);
 
         // Expect a ValidationException to be thrown
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
 
         $controller->store($request);
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers\DatabaseCompatibilityHelper;
 use App\Models\BaptismRecord;
 use App\Models\Member;
+use App\Models\Sacrament;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -53,7 +54,7 @@ class BaptismRecordController extends Controller
             $baptismRecord = BaptismRecord::create($validated);
 
             // Create corresponding sacrament record
-            \App\Models\Sacrament::create([
+            Sacrament::create([
                 'member_id' => $validated['member_id'],
                 'sacrament_type' => 'baptism',
                 'sacrament_date' => $validated['baptism_date'],
@@ -110,7 +111,7 @@ class BaptismRecordController extends Controller
             $baptismRecord->update($validated);
 
             // Update corresponding sacrament record
-            $sacrament = \App\Models\Sacrament::where('member_id', $validated['member_id'])
+            $sacrament = Sacrament::where('member_id', $validated['member_id'])
                 ->where('sacrament_type', 'baptism')
                 ->first();
 
@@ -133,7 +134,7 @@ class BaptismRecordController extends Controller
     {
         DB::transaction(function () use ($baptismRecord) {
             // Delete corresponding sacrament record
-            \App\Models\Sacrament::where('member_id', $baptismRecord->member_id)
+            Sacrament::where('member_id', $baptismRecord->member_id)
                 ->where('sacrament_type', 'baptism')
                 ->delete();
 

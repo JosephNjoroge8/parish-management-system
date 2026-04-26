@@ -1,7 +1,7 @@
 name: 🚀 Production Deployment Pipeline
 
 env:
-  PHP_VERSION: '8.2'
+  PHP_VERSION: '8.4'
   NODE_VERSION: '20'
 
 on:
@@ -72,11 +72,10 @@ jobs:
 
       - name: 🧹 Aggressive Cache Clear
         run: |
-          rm -rf vendor/ composer.lock
+          rm -rf vendor/
           composer clear-cache
           rm -rf ~/.composer/cache
           rm -rf /tmp/composer-*
-          php -r "echo 'Cache cleared at ' . date('Y-m-d H:i:s') . PHP_EOL;"
 
       - name: 📋 Validate Composer files
         run: composer validate --strict
@@ -180,11 +179,10 @@ jobs:
 
       - name: 🧹 Aggressive Cache Clear
         run: |
-          rm -rf vendor/ composer.lock
+          rm -rf vendor/
           composer clear-cache
           rm -rf ~/.composer/cache
           rm -rf /tmp/composer-*
-          php -r "echo 'Cache cleared at ' . date('Y-m-d H:i:s') . PHP_EOL;"
 
       - name: 📦 Install Composer Dependencies (Fresh)
         run: composer install --no-cache --prefer-dist --no-interaction --no-progress --no-scripts

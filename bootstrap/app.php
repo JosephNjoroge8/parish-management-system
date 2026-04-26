@@ -2,10 +2,17 @@
 
 // filepath: c:\Users\Joseph Njoroge\parish-system\bootstrap\app.php
 
+use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\ProductionSecurityMiddleware;
+use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -19,23 +26,23 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(prepend: [
-            \App\Http\Middleware\ProductionSecurityMiddleware::class,
+            ProductionSecurityMiddleware::class,
         ]);
 
         // Essential global middleware
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            HandleInertiaRequests::class,
+            AddLinkHeadersForPreloadedAssets::class,
         ]);
 
         // Use our custom CSRF middleware that disables during testing
         $middleware->web(replace: [
-            \Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class => \App\Http\Middleware\VerifyCsrfToken::class,
+            Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class => VerifyCsrfToken::class,
         ]);
 
         // Route middleware aliases
         $middleware->alias([
-            'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'admin' => AdminMiddleware::class,
         ]);
 
         // Middleware groups
@@ -51,7 +58,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ])
     ->withExceptions(function (Exceptions $exceptions) {
         // Handle 403 errors gracefully
-        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e, $request) {
+        $exceptions->render(function (AccessDeniedHttpException $e, $request) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Access denied. You do not have permission to perform this action.',
@@ -63,7 +70,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         // Handle 404 errors
-        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
+        $exceptions->render(function (NotFoundHttpException $e, $request) {
             if ($request->is('build/*') || $request->is('storage/*') || $request->is('favicon.ico')) {
                 return response('Not Found', 404);
             }

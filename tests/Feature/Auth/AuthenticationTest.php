@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -28,7 +29,7 @@ class AuthenticationTest extends TestCase
         ];
 
         // Use Laravel's Auth::attempt to test authentication logic
-        $canAuthenticate = \Illuminate\Support\Facades\Auth::attempt($credentials);
+        $canAuthenticate = Auth::attempt($credentials);
         $this->assertTrue($canAuthenticate, 'User should be able to authenticate with correct credentials');
 
         // Test that user gets redirected to dashboard when visiting login while authenticated
@@ -53,11 +54,11 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create();
 
         // Test logout by starting as authenticated user and calling logout
-        \Illuminate\Support\Facades\Auth::login($user);
+        Auth::login($user);
         $this->assertAuthenticated();
 
         // Call logout
-        \Illuminate\Support\Facades\Auth::logout();
+        Auth::logout();
         $this->assertGuest();
     }
 }

@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class DebugController extends Controller
 {
@@ -44,8 +47,8 @@ class DebugController extends Controller
     {
         try {
             DB::connection()->getPdo();
-            $userCount = \App\Models\User::count();
-            $roleCount = \Spatie\Permission\Models\Role::count();
+            $userCount = User::count();
+            $roleCount = Role::count();
 
             return [
                 'status' => 'healthy',
@@ -83,7 +86,7 @@ class DebugController extends Controller
     private function checkPermissions()
     {
         try {
-            $permissionCount = \Spatie\Permission\Models\Permission::count();
+            $permissionCount = Permission::count();
             $rolePermissionCount = DB::table('role_has_permissions')->count();
 
             return [
@@ -102,7 +105,7 @@ class DebugController extends Controller
     private function checkRoles()
     {
         try {
-            $roles = \Spatie\Permission\Models\Role::with('permissions')->get();
+            $roles = Role::with('permissions')->get();
 
             return [
                 'status' => 'healthy',
@@ -167,7 +170,7 @@ class DebugController extends Controller
             Artisan::call('view:clear');
 
             // Clear permission cache
-            app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+            app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
             Log::info('All caches cleared successfully');
 

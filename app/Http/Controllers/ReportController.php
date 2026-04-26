@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
@@ -410,7 +411,7 @@ class ReportController extends Controller
 
         if ($format === 'excel') {
             return Excel::download(
-                new class($monthlyData) implements \Maatwebsite\Excel\Concerns\FromArray
+                new class($monthlyData) implements FromArray
                 {
                     private $data;
 
@@ -1066,10 +1067,10 @@ class ReportController extends Controller
             ],
             'demographics' => [
                 'age_groups' => [
-                    'children' => \App\Helpers\DatabaseHelper::getMembersByAgeGroup('children'),
-                    'youth' => \App\Helpers\DatabaseHelper::getMembersByAgeGroup('youth'),
-                    'adults' => \App\Helpers\DatabaseHelper::getMembersByAgeGroup('adults'),
-                    'seniors' => \App\Helpers\DatabaseHelper::getMembersByAgeGroup('seniors'),
+                    'children' => DatabaseHelper::getMembersByAgeGroup('children'),
+                    'youth' => DatabaseHelper::getMembersByAgeGroup('youth'),
+                    'adults' => DatabaseHelper::getMembersByAgeGroup('adults'),
+                    'seniors' => DatabaseHelper::getMembersByAgeGroup('seniors'),
                 ],
                 'gender_distribution' => [
                     'male' => Member::where('gender', 'Male')->count(),

@@ -10,6 +10,7 @@ use App\Models\Member;
 use App\Models\Sacrament;
 use App\Models\Tithe;
 use App\Models\User;
+use App\Services\DatabaseCompatibilityService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -912,7 +913,7 @@ class DashboardController extends Controller
     private function getOptimizedMembershipTrends(): array
     {
         // Use DatabaseCompatibilityService for cross-database compatibility
-        $dbService = app(\App\Services\DatabaseCompatibilityService::class);
+        $dbService = app(DatabaseCompatibilityService::class);
 
         if ($dbService->isSQLite()) {
             return DB::table('members')

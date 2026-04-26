@@ -113,7 +113,7 @@ class TitheController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        \App\Models\Tithe::create($validated);
+        Tithe::create($validated);
 
         return redirect()->route('tithes.index')->with('success', 'Contribution recorded successfully!');
     }

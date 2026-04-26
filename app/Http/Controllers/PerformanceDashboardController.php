@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Middleware\PerformanceMonitor;
+use Illuminate\Cache\ArrayStore;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -235,7 +237,7 @@ class PerformanceDashboardController extends Controller
         }
 
         // Cache recommendations
-        if (Cache::getStore() instanceof \Illuminate\Cache\ArrayStore) {
+        if (Cache::getStore() instanceof ArrayStore) {
             $recommendations[] = [
                 'type' => 'warning',
                 'category' => 'Caching',
@@ -454,7 +456,7 @@ class PerformanceDashboardController extends Controller
     /**
      * Clear performance cache
      */
-    public function clearCache(): \Illuminate\Http\JsonResponse
+    public function clearCache(): JsonResponse
     {
         try {
             Cache::forget('performance_metrics_recent');

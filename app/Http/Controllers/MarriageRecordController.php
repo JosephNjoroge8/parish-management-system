@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Helpers\DatabaseCompatibilityHelper;
 use App\Models\MarriageRecord;
 use App\Models\Member;
+use App\Models\Sacrament;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -74,7 +76,7 @@ class MarriageRecordController extends Controller
 
             // Create corresponding sacrament records for both spouses if they are members
             if ($validated['husband_id']) {
-                \App\Models\Sacrament::create([
+                Sacrament::create([
                     'member_id' => $validated['husband_id'],
                     'sacrament_type' => 'marriage',
                     'sacrament_date' => $validated['marriage_date'],
@@ -86,7 +88,7 @@ class MarriageRecordController extends Controller
             }
 
             if ($validated['wife_id']) {
-                \App\Models\Sacrament::create([
+                Sacrament::create([
                     'member_id' => $validated['wife_id'],
                     'sacrament_type' => 'marriage',
                     'sacrament_date' => $validated['marriage_date'],
@@ -163,7 +165,7 @@ class MarriageRecordController extends Controller
 
             // Update corresponding sacrament records
             if ($validated['husband_id']) {
-                $sacrament = \App\Models\Sacrament::where('member_id', $validated['husband_id'])
+                $sacrament = Sacrament::where('member_id', $validated['husband_id'])
                     ->where('sacrament_type', 'marriage')
                     ->first();
 
@@ -179,7 +181,7 @@ class MarriageRecordController extends Controller
             }
 
             if ($validated['wife_id']) {
-                $sacrament = \App\Models\Sacrament::where('member_id', $validated['wife_id'])
+                $sacrament = Sacrament::where('member_id', $validated['wife_id'])
                     ->where('sacrament_type', 'marriage')
                     ->first();
 
@@ -204,13 +206,13 @@ class MarriageRecordController extends Controller
         DB::transaction(function () use ($marriageRecord) {
             // Delete corresponding sacrament records
             if ($marriageRecord->husband_id) {
-                \App\Models\Sacrament::where('member_id', $marriageRecord->husband_id)
+                Sacrament::where('member_id', $marriageRecord->husband_id)
                     ->where('sacrament_type', 'marriage')
                     ->delete();
             }
 
             if ($marriageRecord->wife_id) {
-                \App\Models\Sacrament::where('member_id', $marriageRecord->wife_id)
+                Sacrament::where('member_id', $marriageRecord->wife_id)
                     ->where('sacrament_type', 'marriage')
                     ->delete();
             }
@@ -349,7 +351,7 @@ class MarriageRecordController extends Controller
         if ($marriageRecord->husband) {
             $husband = $marriageRecord->husband;
             $enhanced['husband_age'] = $husband->date_of_birth ?
-                \Carbon\Carbon::parse($husband->date_of_birth)->age : '';
+                Carbon::parse($husband->date_of_birth)->age : '';
             $enhanced['husband_residence'] = $husband->address ?? $marriageRecord->husband_domicile ?? '';
             $enhanced['husband_county'] = $husband->county ?? $marriageRecord->province ?? '';
             $enhanced['husband_occupation'] = $husband->occupation ?? '';
@@ -368,7 +370,7 @@ class MarriageRecordController extends Controller
         if ($marriageRecord->wife) {
             $wife = $marriageRecord->wife;
             $enhanced['wife_age'] = $wife->date_of_birth ?
-                \Carbon\Carbon::parse($wife->date_of_birth)->age : '';
+                Carbon::parse($wife->date_of_birth)->age : '';
             $enhanced['wife_residence'] = $wife->address ?? $marriageRecord->wife_domicile ?? '';
             $enhanced['wife_county'] = $wife->county ?? $marriageRecord->province ?? '';
             $enhanced['wife_occupation'] = $wife->occupation ?? '';

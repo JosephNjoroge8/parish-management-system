@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Console\Command;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class SetupPermissions extends Command
 {
@@ -93,7 +94,7 @@ class SetupPermissions extends Command
         }
 
         // Clear permission cache
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         $this->info('Setup completed successfully!');
 

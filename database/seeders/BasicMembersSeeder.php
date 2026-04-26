@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Member;
+use Faker\Factory;
 use Faker\Factory as Faker;
 use Illuminate\Database\Seeder;
 
@@ -124,7 +125,7 @@ class BasicMembersSeeder extends Seeder
             return 'retired';
         }
 
-        return \Faker\Factory::create()->randomElement($occupations);
+        return Factory::create()->randomElement($occupations);
     }
 
     private function getAgeAppropriateEducation($age, $levels)
@@ -139,7 +140,7 @@ class BasicMembersSeeder extends Seeder
             return 'secondary';
         }
 
-        return \Faker\Factory::create()->randomElement(['certificate', 'diploma', 'degree']);
+        return Factory::create()->randomElement(['certificate', 'diploma', 'degree']);
     }
 
     private function displaySummary(): void

@@ -26,7 +26,7 @@ return new class extends Migration
                     $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
                 }
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // Ignore on connections without Doctrine (SQLite in testing), but log in production if needed
         }
     }

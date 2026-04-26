@@ -11,6 +11,7 @@ use App\Models\Member;
 use App\Models\Sacrament;
 use App\Services\MarriageCertificateValidator;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Maatwebsite\Excel\Facades\Excel;
@@ -558,8 +560,8 @@ class MemberController extends Controller
 
             // Additional custom validation for date logic
             if (! empty($validated['confirmation_date']) && ! empty($validated['baptism_date'])) {
-                $baptismDate = \Carbon\Carbon::parse($validated['baptism_date']);
-                $confirmationDate = \Carbon\Carbon::parse($validated['confirmation_date']);
+                $baptismDate = Carbon::parse($validated['baptism_date']);
+                $confirmationDate = Carbon::parse($validated['confirmation_date']);
 
                 if ($confirmationDate->lt($baptismDate)) {
                     return back()->withErrors([
@@ -660,7 +662,7 @@ class MemberController extends Controller
             return redirect()->route('members.show', $member)
                 ->with('success', 'Member '.$member->first_name.' '.$member->last_name.' successfully added! (ID: '.$member->id.')');
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             Log::warning('Member creation validation failed', [
                 'user_id' => Auth::id(),
                 'errors' => $e->errors(),
@@ -1318,8 +1320,8 @@ class MemberController extends Controller
 
         // Additional custom validation for date logic
         if (! empty($validated['confirmation_date']) && ! empty($validated['baptism_date'])) {
-            $baptismDate = \Carbon\Carbon::parse($validated['baptism_date']);
-            $confirmationDate = \Carbon\Carbon::parse($validated['confirmation_date']);
+            $baptismDate = Carbon::parse($validated['baptism_date']);
+            $confirmationDate = Carbon::parse($validated['confirmation_date']);
 
             if ($confirmationDate->lt($baptismDate)) {
                 return back()->withErrors([
@@ -2018,13 +2020,13 @@ class MemberController extends Controller
             'first_name' => trim($row['first_name']),
             'middle_name' => ! empty($row['middle_name']) ? trim($row['middle_name']) : null,
             'last_name' => trim($row['last_name']),
-            'date_of_birth' => \Carbon\Carbon::parse($row['date_of_birth'])->format('Y-m-d'),
+            'date_of_birth' => Carbon::parse($row['date_of_birth'])->format('Y-m-d'),
             'gender' => ucfirst(strtolower(trim($row['gender']))), // Fixed: Ensure proper capitalization
             'local_church' => trim($row['local_church']),
             'church_group' => trim($row['church_group']),
             'membership_status' => ! empty($row['membership_status']) ? trim($row['membership_status']) : 'active',
             'membership_date' => ! empty($row['membership_date']) ?
-                \Carbon\Carbon::parse($row['membership_date'])->format('Y-m-d') :
+                Carbon::parse($row['membership_date'])->format('Y-m-d') :
                 now()->format('Y-m-d'),
             'phone' => ! empty($row['phone']) ? $this->formatPhoneNumber(trim($row['phone'])) : null,
             'email' => ! empty($row['email']) ? strtolower(trim($row['email'])) : null,
@@ -2039,9 +2041,9 @@ class MemberController extends Controller
             'education_level' => ! empty($row['education_level']) ? trim($row['education_level']) : 'none',
             'matrimony_status' => ! empty($row['matrimony_status']) ? trim($row['matrimony_status']) : 'single',
             'baptism_date' => ! empty($row['baptism_date']) ?
-                \Carbon\Carbon::parse($row['baptism_date'])->format('Y-m-d') : null,
+                Carbon::parse($row['baptism_date'])->format('Y-m-d') : null,
             'confirmation_date' => ! empty($row['confirmation_date']) ?
-                \Carbon\Carbon::parse($row['confirmation_date'])->format('Y-m-d') : null,
+                Carbon::parse($row['confirmation_date'])->format('Y-m-d') : null,
             'is_differently_abled' => ! empty($row['is_differently_abled']) ?
                 filter_var($row['is_differently_abled'], FILTER_VALIDATE_BOOLEAN) : false,
             'disability_description' => ! empty($row['disability_description']) ?
@@ -2831,7 +2833,7 @@ class MemberController extends Controller
 
         if (! empty($filters['age_group'])) {
             $ageGroup = $filters['age_group'];
-            $today = \Carbon\Carbon::today();
+            $today = Carbon::today();
 
             switch ($ageGroup) {
                 case 'children':
@@ -2923,7 +2925,7 @@ class MemberController extends Controller
                         $member->spouse_name),
                 'husband_age' => $member->husband_age ??
                     ($member->gender === 'Male' && $member->date_of_birth ?
-                        \Carbon\Carbon::parse($member->date_of_birth)->age :
+                        Carbon::parse($member->date_of_birth)->age :
                         $member->spouse_age),
                 'husband_domicile' => $member->husband_residence ??
                     ($member->gender === 'Male' ? $member->residence : $member->spouse_residence),
@@ -2962,7 +2964,7 @@ class MemberController extends Controller
                         $member->spouse_name),
                 'wife_age' => $member->wife_age ??
                     ($member->gender === 'Female' && $member->date_of_birth ?
-                        \Carbon\Carbon::parse($member->date_of_birth)->age :
+                        Carbon::parse($member->date_of_birth)->age :
                         $member->spouse_age),
                 'wife_domicile' => $member->wife_residence ??
                     ($member->gender === 'Female' ? $member->residence : $member->spouse_residence),
@@ -3028,7 +3030,7 @@ class MemberController extends Controller
             $filename = sprintf('marriage-certificate-%s-%s-%s.pdf',
                 $husbandName,
                 $wifeName,
-                $member->marriage_date ? \Carbon\Carbon::parse($member->marriage_date)->format('Y-m-d') : date('Y-m-d')
+                $member->marriage_date ? Carbon::parse($member->marriage_date)->format('Y-m-d') : date('Y-m-d')
             );
 
             // Log successful generation

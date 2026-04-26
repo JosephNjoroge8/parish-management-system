@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -135,7 +136,7 @@ class User extends Authenticatable implements MustVerifyEmail
         try {
             $this->last_login_at = now();
             $this->save();
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             // Handle case where last_login_at column doesn't exist in production
             if (str_contains($e->getMessage(), 'last_login_at') && str_contains($e->getMessage(), 'Unknown column')) {
                 \Log::warning('last_login_at column not found in users table - skipping update', [

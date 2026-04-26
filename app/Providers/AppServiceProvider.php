@@ -2,8 +2,12 @@
 
 namespace App\Providers;
 
+use App\Console\Commands\OptimizeLogs;
+use App\Console\Commands\PerformanceOptimization;
 use App\Models\Member;
 use App\Observers\MemberObserver;
+use App\Services\CacheOptimizationService;
+use App\Services\PerformanceMonitorService;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -17,14 +21,14 @@ class AppServiceProvider extends ServiceProvider
         // Register custom Artisan commands
         if ($this->app->runningInConsole()) {
             $this->commands([
-                \App\Console\Commands\OptimizeLogs::class,
-                \App\Console\Commands\PerformanceOptimization::class,
+                OptimizeLogs::class,
+                PerformanceOptimization::class,
             ]);
         }
 
         // Register performance optimization services
-        $this->app->singleton(\App\Services\CacheOptimizationService::class);
-        $this->app->singleton(\App\Services\PerformanceMonitorService::class);
+        $this->app->singleton(CacheOptimizationService::class);
+        $this->app->singleton(PerformanceMonitorService::class);
     }
 
     /**

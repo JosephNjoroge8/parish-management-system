@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Family;
+use App\Models\Member;
 use App\Services\CacheOptimizationService;
 use App\Services\PerformanceMonitorService;
 use Illuminate\Console\Command;
@@ -62,8 +64,8 @@ class PerformanceOptimization extends Command
         PerformanceMonitorService::startMonitoring();
 
         // Simulate some queries to gather metrics
-        \App\Models\Member::count();
-        \App\Models\Family::count();
+        Member::count();
+        Family::count();
 
         $report = PerformanceMonitorService::generateReport();
 

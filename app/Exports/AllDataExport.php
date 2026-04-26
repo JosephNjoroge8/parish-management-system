@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\Member;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -11,7 +12,7 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 class AllDataExport implements FromCollection, WithHeadings, WithMapping
 {
     /**
-     * @return \Illuminate\Support\Collection
+     * @return Collection
      */
     public function collection()
     {

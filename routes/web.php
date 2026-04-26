@@ -4,6 +4,7 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\CommunityGroupController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FamilyController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
@@ -12,9 +13,12 @@ use App\Http\Controllers\SacramentalRecordsController;
 use App\Http\Controllers\SacramentController;
 use App\Http\Controllers\TitheController;
 use App\Http\Controllers\UserController;
+use App\Models\Family;
+use App\Models\Member;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 /*
@@ -24,10 +28,10 @@ use Inertia\Inertia;
 */
 
 // Health check endpoints (before authentication)
-Route::get('/health', [\App\Http\Controllers\HealthController::class, 'simple']);
-Route::get('/health/detailed', [\App\Http\Controllers\HealthController::class, 'check']);
-Route::get('/health/database', [\App\Http\Controllers\HealthController::class, 'database']);
-Route::get('/health/cache', [\App\Http\Controllers\HealthController::class, 'cache']);
+Route::get('/health', [HealthController::class, 'simple']);
+Route::get('/health/detailed', [HealthController::class, 'check']);
+Route::get('/health/database', [HealthController::class, 'database']);
+Route::get('/health/cache', [HealthController::class, 'cache']);
 
 // Welcome page (public)
 Route::get('/', function () {
@@ -40,8 +44,8 @@ Route::get('/', function () {
 });
 
 // Temporary test route for marriage certificate (remove after testing)
-Route::get('/test-marriage-cert/{member}', function (\App\Models\Member $member) {
-    return app(\App\Http\Controllers\MemberController::class)->downloadMarriageCertificate($member);
+Route::get('/test-marriage-cert/{member}', function (Member $member) {
+    return app(MemberController::class)->downloadMarriageCertificate($member);
 })->name('test.marriage.certificate');
 
 // Authenticated routes - ALL dashboard access requires login authentication
@@ -69,9 +73,9 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     // Debug routes
     Route::get('/debug-stats', function () {
         try {
-            $members_count = \App\Models\Member::count();
-            $families_count = \App\Models\Family::count();
-            $active_members = \App\Models\Member::where('membership_status', 'active')->count();
+            $members_count = Member::count();
+            $families_count = Family::count();
+            $active_members = Member::where('membership_status', 'active')->count();
 
             return response()->json([
                 'members_count' => $members_count,
@@ -79,12 +83,12 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
                 'active_members' => $active_members,
                 'database_status' => 'Connected',
                 'tables_exist' => [
-                    'members' => \Illuminate\Support\Facades\Schema::hasTable('members'),
-                    'families' => \Illuminate\Support\Facades\Schema::hasTable('families'),
-                    'users' => \Illuminate\Support\Facades\Schema::hasTable('users'),
+                    'members' => Schema::hasTable('members'),
+                    'families' => Schema::hasTable('families'),
+                    'users' => Schema::hasTable('users'),
                 ],
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'error' => $e->getMessage(),
                 'database_status' => 'Error',

@@ -2,6 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Family;
+use App\Models\Member;
+use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -81,9 +84,9 @@ class SystemHealthCheck extends Command
         // Models accessibility
         $total++;
         try {
-            \App\Models\User::count();
-            \App\Models\Family::count();
-            \App\Models\Member::count();
+            User::count();
+            Family::count();
+            Member::count();
             $this->checkPassed('Models Accessible');
             $passed++;
         } catch (\Exception $e) {

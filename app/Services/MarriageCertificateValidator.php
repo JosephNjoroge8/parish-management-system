@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Member;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 class MarriageCertificateValidator
@@ -177,7 +178,7 @@ class MarriageCertificateValidator
                     $member->spouse_name),
             'husband_age' => $member->husband_age ??
                 ($member->gender === 'Male' && $member->date_of_birth ?
-                    \Carbon\Carbon::parse($member->date_of_birth)->age :
+                    Carbon::parse($member->date_of_birth)->age :
                     $member->spouse_age),
             'husband_occupation' => $member->husband_occupation ??
                 ($member->gender === 'Male' ? $member->occupation : $member->spouse_occupation),
@@ -193,7 +194,7 @@ class MarriageCertificateValidator
                     $member->spouse_name),
             'wife_age' => $member->wife_age ??
                 ($member->gender === 'Female' && $member->date_of_birth ?
-                    \Carbon\Carbon::parse($member->date_of_birth)->age :
+                    Carbon::parse($member->date_of_birth)->age :
                     $member->spouse_age),
             'wife_occupation' => $member->wife_occupation ??
                 ($member->gender === 'Female' ? $member->occupation : $member->spouse_occupation),

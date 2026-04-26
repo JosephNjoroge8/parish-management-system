@@ -74,9 +74,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-composer-
+          key: ${{ runner.os }}-composer-fresh-${{ hashFiles('**/composer.lock') }}
 
       - name: 📋 Validate Composer files
         run: composer validate --strict
@@ -185,9 +183,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-composer-quality-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-composer-quality-
+          key: ${{ runner.os }}-composer-quality-fresh-${{ hashFiles('**/composer.lock') }}
 
       - name: 🧹 Clear Composer Cache
         run: composer clear-cache

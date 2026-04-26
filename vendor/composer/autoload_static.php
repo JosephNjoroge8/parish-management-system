@@ -120,12 +120,12 @@ class ComposerStaticInitc60829739975bfcad251ad4408a8b71e
         '493c6aea52f6009bab023b26c21a386a' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Support/functions.php',
         '58571171fd5812e6e447dce228f52f4d' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Support/helpers.php',
         '6124b4c8570aa390c21fafd04a26c69f' => __DIR__ . '/..' . '/myclabs/deep-copy/src/DeepCopy/deep_copy.php',
+        'ec07570ca5a812141189b1fa81503674' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Assert/Functions.php',
         '801c31d8ed748cfa537fa45402288c95' => __DIR__ . '/..' . '/psy/psysh/src/functions.php',
         '98caa11a197f6516a8e48aa4abb5ccc6' => __DIR__ . '/..' . '/inertiajs/inertia-laravel/helpers.php',
         'c72349b1fe8d0deeedd3a52e8aa814d8' => __DIR__ . '/..' . '/mockery/mockery/library/helpers.php',
         'ce9671a430e4846b44e1c68c7611f9f5' => __DIR__ . '/..' . '/mockery/mockery/library/Mockery.php',
         'a1cfe24d14977df6878b9bf804af2d1c' => __DIR__ . '/..' . '/nunomaduro/collision/src/Adapters/Phpunit/Autoload.php',
-        'ec07570ca5a812141189b1fa81503674' => __DIR__ . '/..' . '/phpunit/phpunit/src/Framework/Assert/Functions.php',
         '377b22b161c09ed6e5152de788ca020a' => __DIR__ . '/..' . '/spatie/laravel-permission/src/helpers.php',
     );
 
@@ -203,6 +203,7 @@ class ComposerStaticInitc60829739975bfcad251ad4408a8b71e
             'PhpParser\\' => 10,
             'PhpOption\\' => 10,
             'PhpOffice\\PhpSpreadsheet\\' => 25,
+            'ParaTest\\' => 9,
         ),
         'N' =>
         array (
@@ -237,6 +238,10 @@ class ComposerStaticInitc60829739975bfcad251ad4408a8b71e
             'Laravel\\Breeze\\' => 15,
             'Laravel\\Boost\\' => 14,
         ),
+        'J' =>
+        array (
+            'Jean85\\' => 7,
+        ),
         'I' =>
         array (
             'Inertia\\' => 8,
@@ -255,6 +260,7 @@ class ComposerStaticInitc60829739975bfcad251ad4408a8b71e
         array (
             'Fruitcake\\Cors\\' => 15,
             'FontLib\\' => 8,
+            'Fidry\\CpuCoreCounter\\' => 21,
             'Faker\\' => 6,
         ),
         'E' =>
@@ -506,6 +512,10 @@ class ComposerStaticInitc60829739975bfcad251ad4408a8b71e
         array (
             0 => __DIR__ . '/..' . '/phpoffice/phpspreadsheet/src/PhpSpreadsheet',
         ),
+        'ParaTest\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/brianium/paratest/src',
+        ),
         'NunoMaduro\\Collision\\' =>
         array (
             0 => __DIR__ . '/..' . '/nunomaduro/collision/src',
@@ -604,6 +614,10 @@ class ComposerStaticInitc60829739975bfcad251ad4408a8b71e
         array (
             0 => __DIR__ . '/..' . '/laravel/boost/src',
         ),
+        'Jean85\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/jean85/pretty-package-versions/src',
+        ),
         'Inertia\\' =>
         array (
             0 => __DIR__ . '/..' . '/inertiajs/inertia-laravel/src',
@@ -646,6 +660,10 @@ class ComposerStaticInitc60829739975bfcad251ad4408a8b71e
         'FontLib\\' =>
         array (
             0 => __DIR__ . '/..' . '/dompdf/php-font-lib/src/FontLib',
+        ),
+        'Fidry\\CpuCoreCounter\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/fidry/cpu-core-counter/src',
         ),
         'Faker\\' =>
         array (
@@ -1840,6 +1858,34 @@ class ComposerStaticInitc60829739975bfcad251ad4408a8b71e
         'Faker\\Provider\\zh_TW\\Text' => __DIR__ . '/..' . '/fakerphp/faker/src/Faker/Provider/zh_TW/Text.php',
         'Faker\\UniqueGenerator' => __DIR__ . '/..' . '/fakerphp/faker/src/Faker/UniqueGenerator.php',
         'Faker\\ValidGenerator' => __DIR__ . '/..' . '/fakerphp/faker/src/Faker/ValidGenerator.php',
+        'Fidry\\CpuCoreCounter\\CpuCoreCounter' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/CpuCoreCounter.php',
+        'Fidry\\CpuCoreCounter\\Diagnoser' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Diagnoser.php',
+        'Fidry\\CpuCoreCounter\\Executor\\ProcOpenExecutor' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Executor/ProcOpenExecutor.php',
+        'Fidry\\CpuCoreCounter\\Executor\\ProcessExecutor' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Executor/ProcessExecutor.php',
+        'Fidry\\CpuCoreCounter\\Finder\\CmiCmdletLogicalFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/CmiCmdletLogicalFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\CmiCmdletPhysicalFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/CmiCmdletPhysicalFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\CpuCoreFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/CpuCoreFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\CpuInfoFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/CpuInfoFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\DummyCpuCoreFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/DummyCpuCoreFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\EnvVariableFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/EnvVariableFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\FinderRegistry' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/FinderRegistry.php',
+        'Fidry\\CpuCoreCounter\\Finder\\HwLogicalFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/HwLogicalFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\HwPhysicalFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/HwPhysicalFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\LscpuLogicalFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/LscpuLogicalFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\LscpuPhysicalFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/LscpuPhysicalFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\NProcFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/NProcFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\NProcessorFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/NProcessorFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\NullCpuCoreFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/NullCpuCoreFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\OnlyInPowerShellFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/OnlyInPowerShellFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\OnlyOnOSFamilyFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/OnlyOnOSFamilyFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\ProcOpenBasedFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/ProcOpenBasedFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\SkipOnOSFamilyFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/SkipOnOSFamilyFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\WindowsRegistryLogicalFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/WindowsRegistryLogicalFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\WmicLogicalFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/WmicLogicalFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\WmicPhysicalFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/WmicPhysicalFinder.php',
+        'Fidry\\CpuCoreCounter\\Finder\\_NProcessorFinder' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/Finder/_NProcessorFinder.php',
+        'Fidry\\CpuCoreCounter\\NumberOfCpuCoreNotFound' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/NumberOfCpuCoreNotFound.php',
+        'Fidry\\CpuCoreCounter\\ParallelisationResult' => __DIR__ . '/..' . '/fidry/cpu-core-counter/src/ParallelisationResult.php',
         'Filter\\FilterException' => __DIR__ . '/..' . '/symfony/polyfill-php85/Resources/stubs/Filter/FilterException.php',
         'Filter\\FilterFailedException' => __DIR__ . '/..' . '/symfony/polyfill-php85/Resources/stubs/Filter/FilterFailedException.php',
         'FontLib\\AdobeFontMetrics' => __DIR__ . '/..' . '/dompdf/php-font-lib/src/FontLib/AdobeFontMetrics.php',
@@ -3769,6 +3815,11 @@ class ComposerStaticInitc60829739975bfcad251ad4408a8b71e
         'Inertia\\Testing\\Concerns\\PageObject' => __DIR__ . '/..' . '/inertiajs/inertia-laravel/src/Testing/Concerns/PageObject.php',
         'Inertia\\Testing\\ReloadRequest' => __DIR__ . '/..' . '/inertiajs/inertia-laravel/src/Testing/ReloadRequest.php',
         'Inertia\\Testing\\TestResponseMacros' => __DIR__ . '/..' . '/inertiajs/inertia-laravel/src/Testing/TestResponseMacros.php',
+        'Jean85\\Exception\\ProvidedPackageException' => __DIR__ . '/..' . '/jean85/pretty-package-versions/src/Exception/ProvidedPackageException.php',
+        'Jean85\\Exception\\ReplacedPackageException' => __DIR__ . '/..' . '/jean85/pretty-package-versions/src/Exception/ReplacedPackageException.php',
+        'Jean85\\Exception\\VersionMissingExceptionInterface' => __DIR__ . '/..' . '/jean85/pretty-package-versions/src/Exception/VersionMissingExceptionInterface.php',
+        'Jean85\\PrettyVersions' => __DIR__ . '/..' . '/jean85/pretty-package-versions/src/PrettyVersions.php',
+        'Jean85\\Version' => __DIR__ . '/..' . '/jean85/pretty-package-versions/src/Version.php',
         'Laravel\\Boost\\Boost' => __DIR__ . '/..' . '/laravel/boost/src/Boost.php',
         'Laravel\\Boost\\BoostManager' => __DIR__ . '/..' . '/laravel/boost/src/BoostManager.php',
         'Laravel\\Boost\\BoostServiceProvider' => __DIR__ . '/..' . '/laravel/boost/src/BoostServiceProvider.php',
@@ -5962,6 +6013,24 @@ class ComposerStaticInitc60829739975bfcad251ad4408a8b71e
         'PHPUnit\\Util\\Xml' => __DIR__ . '/..' . '/phpunit/phpunit/src/Util/Xml/Xml.php',
         'PHPUnit\\Util\\Xml\\Loader' => __DIR__ . '/..' . '/phpunit/phpunit/src/Util/Xml/Loader.php',
         'PHPUnit\\Util\\Xml\\XmlException' => __DIR__ . '/..' . '/phpunit/phpunit/src/Util/Exception/XmlException.php',
+        'ParaTest\\Coverage\\CoverageMerger' => __DIR__ . '/..' . '/brianium/paratest/src/Coverage/CoverageMerger.php',
+        'ParaTest\\JUnit\\LogMerger' => __DIR__ . '/..' . '/brianium/paratest/src/JUnit/LogMerger.php',
+        'ParaTest\\JUnit\\MessageType' => __DIR__ . '/..' . '/brianium/paratest/src/JUnit/MessageType.php',
+        'ParaTest\\JUnit\\TestCase' => __DIR__ . '/..' . '/brianium/paratest/src/JUnit/TestCase.php',
+        'ParaTest\\JUnit\\TestCaseWithMessage' => __DIR__ . '/..' . '/brianium/paratest/src/JUnit/TestCaseWithMessage.php',
+        'ParaTest\\JUnit\\TestSuite' => __DIR__ . '/..' . '/brianium/paratest/src/JUnit/TestSuite.php',
+        'ParaTest\\JUnit\\Writer' => __DIR__ . '/..' . '/brianium/paratest/src/JUnit/Writer.php',
+        'ParaTest\\Options' => __DIR__ . '/..' . '/brianium/paratest/src/Options.php',
+        'ParaTest\\ParaTestCommand' => __DIR__ . '/..' . '/brianium/paratest/src/ParaTestCommand.php',
+        'ParaTest\\RunnerInterface' => __DIR__ . '/..' . '/brianium/paratest/src/RunnerInterface.php',
+        'ParaTest\\Util\\PhpstormHelper' => __DIR__ . '/..' . '/brianium/paratest/src/Util/PhpstormHelper.php',
+        'ParaTest\\WrapperRunner\\ApplicationForWrapperWorker' => __DIR__ . '/..' . '/brianium/paratest/src/WrapperRunner/ApplicationForWrapperWorker.php',
+        'ParaTest\\WrapperRunner\\ProgressPrinterOutput' => __DIR__ . '/..' . '/brianium/paratest/src/WrapperRunner/ProgressPrinterOutput.php',
+        'ParaTest\\WrapperRunner\\ResultPrinter' => __DIR__ . '/..' . '/brianium/paratest/src/WrapperRunner/ResultPrinter.php',
+        'ParaTest\\WrapperRunner\\SuiteLoader' => __DIR__ . '/..' . '/brianium/paratest/src/WrapperRunner/SuiteLoader.php',
+        'ParaTest\\WrapperRunner\\WorkerCrashedException' => __DIR__ . '/..' . '/brianium/paratest/src/WrapperRunner/WorkerCrashedException.php',
+        'ParaTest\\WrapperRunner\\WrapperRunner' => __DIR__ . '/..' . '/brianium/paratest/src/WrapperRunner/WrapperRunner.php',
+        'ParaTest\\WrapperRunner\\WrapperWorker' => __DIR__ . '/..' . '/brianium/paratest/src/WrapperRunner/WrapperWorker.php',
         'Pdo\\Dblib' => __DIR__ . '/..' . '/symfony/polyfill-php84/Resources/stubs/Pdo/Dblib.php',
         'Pdo\\Firebird' => __DIR__ . '/..' . '/symfony/polyfill-php84/Resources/stubs/Pdo/Firebird.php',
         'Pdo\\Mysql' => __DIR__ . '/..' . '/symfony/polyfill-php84/Resources/stubs/Pdo/Mysql.php',

@@ -13,6 +13,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\View\Compilers\BladeCompiler;
+use Laravel\Octane\Contracts\OperationTerminated;
 use Spatie\Permission\Contracts\Permission as PermissionContract;
 use Spatie\Permission\Contracts\Role as RoleContract;
 
@@ -101,7 +102,7 @@ class PermissionServiceProvider extends ServiceProvider
 
         $dispatcher = $this->app[Dispatcher::class];
         // @phpstan-ignore-next-line
-        $dispatcher->listen(function (\Laravel\Octane\Contracts\OperationTerminated $event) {
+        $dispatcher->listen(function (OperationTerminated $event) {
             // @phpstan-ignore-next-line
             $event->sandbox->make(PermissionRegistrar::class)->setPermissionsTeamId(null);
         });
@@ -110,7 +111,7 @@ class PermissionServiceProvider extends ServiceProvider
             return;
         }
         // @phpstan-ignore-next-line
-        $dispatcher->listen(function (\Laravel\Octane\Contracts\OperationTerminated $event) {
+        $dispatcher->listen(function (OperationTerminated $event) {
             // @phpstan-ignore-next-line
             $event->sandbox->make(PermissionRegistrar::class)->clearPermissionsCollection();
         });
@@ -163,6 +164,14 @@ class PermissionServiceProvider extends ServiceProvider
 
             /** @var Route $this */
             return $this->middleware('permission:'.implode('|', $permissions));
+        });
+
+        Route::macro('roleOrPermission', function ($rolesOrPermissions = []) {
+            $rolesOrPermissions = Arr::wrap($rolesOrPermissions);
+            $rolesOrPermissions = array_map(fn ($item) => $item instanceof \BackedEnum ? $item->value : $item, $rolesOrPermissions);
+
+            /** @var Route $this */
+            return $this->middleware('role_or_permission:'.implode('|', $rolesOrPermissions));
         });
     }
 
